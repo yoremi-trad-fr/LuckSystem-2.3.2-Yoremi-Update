@@ -1,182 +1,285 @@
-# Analyse technique — LuckSystem Yoremi update
+# Important
+This project only accepts **bug issues** and **pull requests**, and does not provide assistance in use  
+此项目仅接受现有功能的BUG反馈和Pull requests，不提供使用上的帮助
 
-Document technique détaillant les 4 corrections appliquées à LuckSystem 2.3.2 pour le support des traductions de visual novels.
+# Luck System
 
----
+LucaSystem 引擎解析工具
 
-## Patch 1 — Import de scripts à longueur variable
+## 使用方法：[Usage](Usage.md)
+## 插件手册：[Plugin](Plugin.md)
 
-### Fichier modifié
-`script/script.go` — lignes 172-243
+## LucaSystem解析完成进度
 
-### Problème
-La fonction `VMRun()` en mode import vérifiait strictement que le nombre de paramètres importés (`code.Params`) correspondait au nombre attendu (`expectedExportCount`). Cette vérification échouait systématiquement avec des traductions de longueur différente de l'original, car les `StringParam` de taille variable n'étaient pas correctement comptabilisés.
+### Luca Pak 封包文件
 
-```go
-// AVANT : panic si les longueurs diffèrent
-if expectedExportCount != len(code.Params) {
-    panic("导入参数数量不匹配...")
-}
-```
+- 导出完成
+- 导入完成
+    - 仅支持替换文件数据
 
-### Correction
-- Suppression du bloc de vérification stricte (lignes 175-194 de l'original)
-- Remplacement de la boucle `for i := 0; i < len(paramList)` par `for i := 0; i < maxLen` avec `maxLen = min(len(paramList), len(code.Params))`
-- Ajout de bounds checking (`if pi < len(code.Params)`) dans le merge des `StringParam`, `JumpParam` et `[]uint16`
+### Luca CZImage 图片文件
 
-### Impact
-Les traductions peuvent désormais être plus longues ou plus courtes que l'original. Les offsets de jump sont automatiquement recalculés par le code existant en aval.
+#### CZ0
 
----
+- 导出完成 32位
+- 导入完成 32位
 
-## Patch 2 — Correction du pipeline CZ3
+#### CZ1
 
-### Fichiers modifiés
-`czimage/cz3.go`, `czimage/imagefix.go`
+- 导出完成 8位
+- 导入完成 8位
 
-### Problème 1 — Magic byte écrasé (cz3.go, ligne 185)
-La fonction `Write()` laissait le champ `CzHeader.Magic` se corrompre en "CZ0" au lieu de "CZ3". Le jeu ne reconnaissait plus le format du fichier.
+#### CZ2
 
-```go
-// FIX : forcer le magic avant écriture
-cz.CzHeader.Magic = []byte{'C', 'Z', '3', 0}
-```
+- 导出完成 8位
+- 导入完成 8位
 
-### Problème 2 — Format NRGBA non garanti (cz3.go, lignes 84-99, 120-125)
-Le format CZ3 encode les pixels en BGRA 32-bit. La bibliothèque PNG de Go peut décoder en RGB, RGBA, NRGBA ou paletted selon le fichier source. Sans conversion forcée, un PNG RGB 24-bit est traité comme 32-bit, décalant tous les pixels.
+#### CZ3
 
-```go
-// FIX : conversion systématique en NRGBA 32-bit
-pic = ImageToNRGBA(cz.PngImage)
-```
+- 导出完成 32位 24位
+- 导入完成 32位 24位
 
-### Problème 3 — Buffer aliasing dans DiffLine/LineDiff (imagefix.go)
-Le code original créait un alias de slice (`currLine = pic.Pix[i:...]`) au lieu d'une copie. L'opération de delta (`currLine[x] -= preLine[x]`) modifiait directement `pic.Pix`, corrompant les données source pour les lignes suivantes.
+#### CZ4
 
-```go
-// AVANT (buggé) : alias, modifie pic.Pix
-currLine = pic.Pix[i : i+lineByteCount]
+- LucaSystemTools中完成
 
-// APRÈS (corrigé) : copie dans un buffer séparé
-copy(currLine, pic.Pix[i:i+lineByteCount])
-```
+#### CZ5
 
-Même problème dans `LineDiff()` : `preLine = currLine` créait un alias au lieu d'une copie.
+- 未遇到
 
----
+### Luca Script 脚本文件
 
-## Patch 3 — Corruption mémoire dans le décompresseur LZW
+- 导出完成
+- 导入完成
+- ~~简单的模拟执行~~
+- 支持插件扩展（gpython）
+  - 非标准的Python，语法类似Python3.4，缺少大量的内置库和一些特性，基本使用没有问题
+  - 插件手册 [Plugin](Plugin.md)
 
-### Fichier modifié
-`czimage/lzw.go` — fonctions `decompressLZW()` et `decompressLZW2()`
+#### 笔记
 
-### Problème
-Le dictionnaire LZW ajoutait des entrées en faisant `dictionary[dictionaryCount] = append(w, entry[0])`. En Go, `append()` peut retourner le même slice sous-jacent si la capacité le permet. Quand `w` était ensuite réassigné (`w = entry`), l'ancienne entrée du dictionnaire pouvait pointer vers des données modifiées.
+根据时间，可以LucaSystem的脚本类型分为三个版本，目前仅研究V3版本，即最新版本。LucaSystemTools支持V2版本的脚本解析
 
-### Correction
-Allocation explicite d'un nouveau slice avant ajout au dictionnaire :
+| 类型  |  长度 | 名称 | 说明                                 | 
+|-----|-------|-----|------------------------------------|
+| uint16 |  2  | len | 代码长度                               |
+| uint8 |  1  | opcode | 指令索引                               |
+| uint8 |  1  | flag | 一个标志，值0~3                          |
+| []uint16 |  2 * n  | data0 | 未知参数，其中n=flag(flag<3),n=2(flag==3) |
+| params |  len -4 -2*n  | params | 参数                                 |
+| uint8 |  k  | align | 补齐位，其中k=len%2                      |
 
-```go
-// AVANT (buggé) :
-dictionary[dictionaryCount] = append(w, entry[0])
+### Luca Font 字体文件
 
-// APRÈS (corrigé) :
-newEntry := make([]byte, len(w)+1)
-copy(newEntry, w)
-newEntry[len(w)] = entry[0]
-dictionary[dictionaryCount] = newEntry
-```
+- 解析完成
+- 能够简单使用，生成指定文本的图像
+- 导出完成
+- 导入、制作完成
 
----
+#### info文件
 
-## Patch 4 — RawSize incorrect dans la table de blocs CZ
+- 导出完成
+- 导入完成
 
-### Fichier modifié
-`czimage/util.go` — fonctions `Compress()` et `Compress2()`
+### Luca OggPak 音频封包
 
-### Contexte
-Le format CZ3 stocke les pixels sous forme de blocs LZW compressés. Chaque bloc déclare un `CompressedSize` et un `RawSize` dans une table en-tête. Le moteur de jeu décompresse chaque bloc en se fiant strictement au `RawSize` déclaré pour allouer les buffers et positionner les données.
+- 导出完成
 
-### Problème 1 — Carry-over LZW non compensé
+## 目前支持的游戏
+1. 《LOOPERS》 Steam
+2. LB_EN:《Little Busters! English Edition》 Steam
+3. SP:《Summer Pockets》 Nintendo Switch
+4. CartagraHD
+5. KANON
+6. HARMONIA
 
-La fonction `compressLZW()` opère par blocs de `size` codes maximum. Quand elle atteint la limite, elle conserve un `lastElement` (l'élément en cours de construction dans le dictionnaire) qui sera reporté au bloc suivant. Le compteur `count` retourné inclut les bytes de cet élément :
+## 目前支持的指令
 
-```
-Bloc N: lit 502 bytes, produit 500 codes, garde 1 byte en carry-over
-  → count = 502, lastElement = 1 byte
-  → RawSize DEVRAIT être 501 (les 502 lus - le 1 reporté)
-  → RawSize ÉTAIT 502 (buggé)
-```
+- MESSAGE (LB_EN、SP、LOOPERS)
+- SELECT (LB_EN、SP)
+- IMAGELOAD (LB_EN、SP)
 
-Effet : le premier bloc déclare un `RawSize` trop grand de 1, le dernier bloc trop petit de 1. Le moteur de jeu lit 1 byte de trop dans le premier bloc et 1 byte de moins dans le dernier, provoquant un décalage qui se propage en cascade.
+- BATTLE (LB_EN)
+- EQU
+- EQUN
+- EQUV
+- ADD
+- RANDOM
+- IFN
+- IFY
+- GOTO
+- JUMP
+- FARCALL
+- GOSUB
 
-### Problème 2 — Encodage UTF-8 de Go
 
-LuckSystem utilise des `string` Go comme clés du dictionnaire LZW. L'élément carry-over est construit par `element = string(c)` où `c` est un `byte` (0-255).
+## 更新日志
 
-En Go, `string(byte(c))` effectue une conversion `byte → rune → UTF-8`. Pour les bytes 0-127, le résultat a une longueur de 1. Pour les bytes 128-255, Go produit une chaîne UTF-8 de **2 bytes** :
+### 2.3.2
+- 支持 LUNARiA Steam version [@thedanill](https://github.com/thedanill)
+- 支持 AIR Steam version [@thedanill](https://github.com/thedanill)
+- 支持 Planetarian SG Steam version [@thedanill](https://github.com/thedanill)
 
-```go
-string(byte(127)) // len = 1 (ASCII)
-string(byte(128)) // len = 2 (UTF-8: 0xC2 0x80)
-string(byte(255)) // len = 2 (UTF-8: 0xC3 0xBF)
-```
+### 2.3.1
+- 支持 Harmonia FULL HD Steam version [@Mishalac](https://github.com/MishaIac)
 
-La première tentative de fix utilisait `len(last)` pour compter les bytes de données en carry-over. Pour un carry de valeur 200, `len(last) = 2` en Go alors qu'il représente 1 seul byte de données. Cela causait des erreurs ±1 sur les blocs dont le carry-over tombait sur un octet > 127.
+### 2.3.0
+- 支持 Kanon [@Mishalac](https://github.com/MishaIac)
 
-### Correction finale
+### 2.2.3
+- 支持`-blacklist`命令，添加额外的脚本名黑名单
 
-Le carry-over de `compressLZW()` est **toujours 0 ou 1 byte de données**, quel que soit `len(last)` en Go. La construction du dictionnaire (`element = string(c)`) assigne toujours un seul byte source à `element` quand il y a un carry.
+### 2.2.1 (2023.12.4)
+- 支持[CartagraHD](https://vndb.org/r78712)脚本导入导出（未测试）
 
-```go
-// AVANT (buggé) — version originale :
-RawSize: uint32(count) // inclut le carry-over
+### 2.2.0 (2023.12.3)
+- 支持CZ2的导入（未实际测试）
 
-// TENTATIVE 1 (partiellement buggé) :
-rawSize := prevCarryLen + count - len(last) // len(last) ≠ 1 pour bytes > 127
+### 2.1.0 (2023.11.28)
+- 支持CZ2的导出
 
-// APRÈS (corrigé) :
-carry := 0
-if len(last) > 0 {
-    carry = 1  // toujours 1 DATA byte, peu importe len(last) en Go
-}
-rawSize := prevCarry + count - carry
-```
+### 2023.10.7
+- 支持LOOPERS导入和导出(已测试)
+- 支持Plugin扩展以支持任意游戏
+- 内置SummerPockets(未测试)和LOOPERS默认Plugin插件和OPCODE
+- 移除模拟器相关代码
 
-### Vérification
-Test de round-trip sur le CZ3 original d'AIR (`title1a`, 1280×720, 32-bit, 10 blocs) : les 10 `RawSize` produits par la version corrigée correspondent **exactement** à ceux du fichier original créé par les outils de Visual Art's.
 
-```
-Block | Visual Art's | LuckSystem corrigé | Diff
-   0  |      447246  |           447246   |   0 ✅
-   1  |      471332  |           471332   |   0 ✅
-   2  |      612039  |           612039   |   0 ✅
-  ...       ...               ...           ...
-   9  |      271697  |           271697   |   0 ✅
-```
+### 6.26
+- 完全重构cmd使用方式
+  - 暂不支持script脚本的cmd调用
+- 支持24位cz3图像，修复缺少Colorblock值导致的错误
+- font插入新字符改为追加替换模式，总字符数增加或保持不变
 
-### Portée
-Ce bug affecte **tous les jeux** supportés par LuckSystem qui utilisent des images CZ multi-blocs (c'est-à-dire toute image dont les données compressées dépassent 0xFEFD codes LZW, soit la grande majorité des CG). Les CZ mono-bloc (petites images UI) ne sont pas affectés car il n'y a pas de carry-over.
+### 3.15
+- 修复cz图像导出时alpha通道异常的问题
 
----
+### 3.11
+- 修复script导入导出交互bug
+- 测试部分交互
+- 新增Usage文档
 
-## Correction annexe — Alignement PAK
+### 3.03
+- 完整的控制台交互接口（未测试）
+- 帮助文档
 
-### Fichier modifié
-`pak/pak.go` — fonction `Write()`
+### 2.17
+- 统一cz、info、font、pak、script的接口
+- 完善测试用例
 
-### Correction
-Ajout de padding (bytes nuls) en fin de fichier PAK pour aligner la taille totale sur `BlockSize`. Certains moteurs de jeu vérifient cet alignement lors du chargement.
+### 2.10 
+- 统一接口规范
 
----
+### 2.9
+- 修复script导入导出中换行、空行的问题
+- Merge AEBus pr
+  - 1. Fixed situation when LuckSystem would stop parsing scripts after finding END opcode
+  - 2. Added handling of TASK, SAYAVOICETEXT, VARSTR_SET opcodes, and fixed handling of BATTLE opcode.
+  - 3. Added opcode names for LB_EN, changed first three opcodes to EQU, EQUN, EQUV as specified in LITBUS_WIN32.exe, added handling of these opcodes in LB_EN.go
 
-## Fichiers modifiés (résumé)
+### 1.25
+- 完成pak导入导出交互
 
-| Fichier | Patch | Description |
-|---------|-------|-------------|
-| `script/script.go` | 1 | Import de scripts à longueur variable |
-| `czimage/cz3.go` | 2 | Magic byte, conversion NRGBA, logs |
-| `czimage/imagefix.go` | 2 | Buffer aliasing DiffLine/LineDiff |
-| `czimage/lzw.go` | 3 | Corruption mémoire dictionnaire LZW |
-| `czimage/util.go` | 4 | RawSize carry-over + UTF-8 |
-| `pak/pak.go` | annexe | Alignement PAK |
+### 1.22
+- 完成CZ1导入
+- 完成CZ0导出导入
+- 支持LB_EN BATTLE指令
+- 修正PAK文件ID，与脚本中的ID对应
+- 更换日志库为glog
+- 引入tui库tview
+
+### 1.21
+- 完成LZW压缩
+- 完成图像拆分算法
+- 支持CZ3格式替换图像
+
+### 2022.1.19
+
+- 支持替换pak文件内容并打包
+    - 不支持修改文件名和增加文件
+- 不再以LucaSystem引擎模拟器为目标，现以替代LucaSystemTools项目为目标
+
+### 8.13
+
+- 项目更名为LuckSystem
+    - 目标为实现LucaSystem引擎的模拟器
+
+### 8.12
+
+- 支持字库的加载
+    - 字库info文件的解析与应用
+    - 字库CZ1图像的解析
+- 现已支持根据文字内容，按指定字体生成文字图像
+
+### 8.11
+
+- 支持动态加载pak中的文件
+    - 加载pak仅加载pak文件头，内部文件需要时读取
+- 支持音频文件的oggpak的解包
+- 开始编写CZ图像解析
+    - 完成通用lzw解压
+    - 支持CZ3图像的加载
+
+### 8.7
+
+- 完美支持脚本导出为文本、导入为脚本
+- 开始设计与编写模拟器主体
+
+### 8.3
+
+- 支持pak文件的加载
+
+### 8.1
+
+- 完成大部分导出模式功能
+    - 解析文本
+    - 合并导出参数和原脚本参数
+    - 将文本中的数据合并到原脚本，并转为字节数据
+
+### 7.28
+
+- 完善导出模式，支持更多指令
+
+### 7.27 累积
+
+- 为虚拟机增加导入模式和导出模式
+    - 导出模式：不执行引擎层代码，将脚本转为字符串并导出
+    - 导入模式：开始设计与编写
+
+### 7.13
+
+- 增加engine结构，即引擎层，与虚拟机做区分
+    - 虚拟机：执行脚本内容，保存、计算变量等逻辑相关操作
+    - 引擎：执行模拟器的显示、交互等
+
+### 7.12
+
+- 支持表达式计算
+    - 表达式的读取以及中缀表达式转后缀表达式
+    - 后缀表达式的计算
+- 引擎中使用内置数据类型，不在使用包装数据类型
+
+### 7.11
+
+- 重构代码结构，使用vm来处理脚本执行相关
+- 增加context，在执行中传递变量表等数据
+- 增加变量表，储存运行时变量
+- 优化参数的读取
+- 统一接口代码，虚拟机与引擎前端交互接口
+
+### 6.30
+
+- 支持多游戏
+- 设计参数、函数等结构
+
+### 6.28
+
+- 框架设计与编写
+- 第三方包的选择与测试
+- 支持LB_EN基本解析
+
+### 计划
+
+- 支持更多LucaSystem引擎的游戏脚本解析
+- 完善引擎函数
+- 引擎层交互的初步实现
