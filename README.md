@@ -1,4 +1,4 @@
-# LuckSystem — Patches Yoremi
+# LuckSystem — fork Yoremi-Version 2 
 18/02/2026
 
 Fork de [LuckSystem 2.3.2](https://github.com/wetor/LuckSystem) avec corrections et ajouts pour le support de la traduction de visual novels utilisant le moteur ProtoDB/LUCA System (AIR, CLANNAD, Kanon, Summer Pockets, Harmonia, etc.).
