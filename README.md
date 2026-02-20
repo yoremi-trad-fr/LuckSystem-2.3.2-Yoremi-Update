@@ -1,3 +1,13 @@
+# V3 — Patch 1 : CZ1 32-bit Import/Export + CZ0 logging
+20/02/2026
+
+## Fichiers modifiés
+- `czimage/cz1.go` — réécriture Import/Export/Write
+- `czimage/cz.go` — gestion gracieuse des fichiers non-CZ
+- `czimage/cz0.go` — ajout log V(0) dans decompress()
+
+
+
 # LuckSystem — fork Yoremi-Version 2 
 18/02/2026
 Projet stat : https://yoremitradfr.my.canva.site/lucksystem-fork-status
