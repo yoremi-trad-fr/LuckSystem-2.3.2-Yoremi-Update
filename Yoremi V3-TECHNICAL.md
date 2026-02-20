@@ -1,4 +1,58 @@
-# Technical Analysis — LuckSystem Patches Yoremi
+# V3 — Patch 1 : CZ1 32-bit Import/Export + CZ0 logging
+
+## Fichiers modifiés
+- `czimage/cz1.go` — réécriture Import/Export/Write
+- `czimage/cz.go` — gestion gracieuse des fichiers non-CZ
+- `czimage/cz0.go` — ajout log V(0) dans decompress()
+
+## Bugs corrigés
+
+### 1. Extended header manquant dans Write()
+Le `Write()` original n'écrivait que les 15 bytes du `CzHeader` struct, ignorant les 13 bytes d'extended header (offsets, crop, bounds). Le fichier produit avait la block table à l'offset 15 au lieu de 28 → crash à la relecture.
+
+**Fix** : Sauvegarde des bytes raw 15→HeaderLength dans `ExtendedHeader` au `Load()`, réécriture dans `Write()`.
+
+### 2. Import() ne gérait que l'alpha
+L'Import 32-bit ne compressait que le canal A (`data[i] = pic.A`), jetant RGB. Résultat : écran blanc/transparent en jeu.
+
+**Fix** : Import multi-mode selon Colorbits (4, 8, 24, 32). Le mode 32-bit fait une copie directe de `pic.Pix` (RGBA).
+
+### 3. Colorbits > 32 (palette 8-bit)
+Les fichiers CZ1 palette utilisent Colorbits=248 (0xF8), un marqueur propriétaire Visual Art's. LuckSystem ne le reconnaissait pas → palette ignorée → `GetOutputInfo()` lisait la palette comme block table → crash (`slice bounds out of range`).
+
+**Fix** : Normalisation `if Colorbits > 32 → Colorbits = 8` (même approche que lbee-utils).
+
+### 4. Fichiers non-CZ dans les PAK
+Les fichiers sans magic "CZ" (ex: トーンカーブ_夕/夜, des LUTs 768 bytes) causaient un `glog.Fatalln("Unknown Cz image type")`.
+
+**Fix** : Vérification du magic avant unpacking, retour `nil` avec warning au lieu de crash.
+
+### 5. Palette BGRA dans Write()
+La palette est lue en BGRA (fichier) et stockée en NRGBA (Go). L'ancien Write via `restruct` sérialisait en RGBA → couleurs inversées R↔B. 
+
+**Fix** : Écriture manuelle de chaque entrée palette en [B,G,R,A].
+
+### 6. CZ0 invisible dans les logs d'extraction
+Les fichiers CZ0 n'avaient que du logging `V(6)` (debug profond), alors que CZ4 log en `V(0)` (toujours visible). Lors de l'extraction d'un PAK contenant un mix CZ0/CZ4, les dernières lignes visibles avant un CZ0 provenaient du CZ4 précédent, donnant l'impression que les CZ0 étaient traités comme CZ4.
+
+**Fix** : Ajout d'un `glog.V(0).Infof("Decompress CZ0: %dx%d, Colorbits=%d")` dans `cz0.go:decompress()` (ligne 78) pour identifier clairement le format dans les logs.
+
+## Format CZ1 confirmé
+- 32-bit : pixels stockés en **RGBA** (pas BGRA comme CZ3)
+- 8-bit palette : entrées stockées en **BGRA**, données = 1 byte/pixel (index)
+- Extended header : 13 bytes obligatoires (même structure que Cz3Header)
+
+## Statut
+- ✅ CZ1 32-bit : round-trip OK, testé en jeu (systemmenu FR)
+- ⏳ CZ1 8-bit palette : code prêt, à tester (system_icon, NUM files)
+- ✅ Fichiers non-CZ : warning au lieu de crash
+- ✅ CZ0 : correctement identifié dans les logs d'extraction
+
+
+
+
+
+# Technical Analysis — LuckSystem-Yoremi-version 2
 
 Technical document detailing the 7 patches applied to LuckSystem 2.3.2 for visual novel translation support.
 

@@ -1,4 +1,38 @@
-# LuckSystem — Yoremi Patches
+# V3 — Patch 1: CZ1 32-bit Import/Export + CZ0 logging
+
+## Modified files
+- `czimage/cz1.go` — Import/Export/Write rewrite
+- `czimage/cz.go` — graceful handling of non-CZ files
+- `czimage/cz0.go` — added V(0) log in decompress()
+
+## Bugs fixed
+
+### 1. Extended header missing in Write()
+The original `Write()` only wrote the 15 bytes of the `CzHeader` struct, ignoring the 13 bytes of extended header (offsets, crop, bounds). The resulting file had the block table at offset 15 instead of 28 → crash on replay.
+
+**Fix**: Save the raw bytes 15→HeaderLength in `ExtendedHeader` in `Load()`, rewrite in `Write()`.
+
+### 2. Import() only handled alpha
+The 32-bit Import only compressed channel A (`data[i] = pic.A`), discarding RGB. Result: white/transparent screen in game.
+
+**Fix**: Multi-mode import according to Colorbits (4, 8, 24, 32). The 32-bit mode makes a direct copy of `pic.Pix` (RGBA).
+
+### 3. Colorbits > 32 (8-bit palette)
+CZ1 palette files use Colorbits=248 (0xF8), a proprietary Visual Art's marker. LuckSystem did not recognize it → palette ignored → `GetOutputInfo()` read the palette as a block table → crash (`slice bounds out of range`).
+
+**Fix**: Normalization `if Colorbits > 32 → Colorbits = 8` (same approach as lbee-utils).
+
+### 4. Non-CZ files in PAKs
+Files without the “CZ” magic number (e.g., トーンカーブ_夕/夜, 768-byte LUTs) caused a `glog.Fatalln(“Unknown Cz image type”)`.
+
+**Fix**: Check the magic number.
+
+
+
+
+
+
+# LuckSystem — Yoremi-Version 2
 
 Fork of [LuckSystem 2.3.2](https://github.com/wetor/LuckSystem) with fixes and additions for visual novel translation support on the ProtoDB/LUCA System engine (AIR, CLANNAD, Kanon, Summer Pockets, Harmonia, etc.).
 

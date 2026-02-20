@@ -75,6 +75,8 @@ func (cz *Cz0Image) Load(header CzHeader, data []byte) {
 func (cz *Cz0Image) decompress() {
 	//os.WriteFile("../data/LB_EN/IMAGE/2.lzw", cz.Raw[int(cz.HeaderLength)+cz.OutputInfo.Offset:], 0666)
 	glog.V(6).Infoln("size ", len(cz.Raw))
+	glog.V(0).Infof("Decompress CZ0: %dx%d, Colorbits=%d\n",
+    cz.Width, cz.Heigth, cz.Colorbits)
 	pic := image.NewNRGBA(image.Rect(0, 0, int(cz.Width), int(cz.Heigth)))
 	offset := int(cz.HeaderLength)
 	switch cz.Colorbits {
