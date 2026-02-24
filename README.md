@@ -39,7 +39,15 @@ A Linux version is available as an AppImage (all-in-one) and as separate binarie
 
 ## Patches
 
-### Version 3 — Patch 3 *(latest)*
+### Version 3.1 — Patch 1 *(latest)*
+
+15. **Little Busters EN script decompile fix** — `game/VM/vm.go`, `game/game.go`, `game/operator/generic.go` (new), `cmd/scriptDecompile.go`, `cmd/scriptImport.go`
+    - `NewVM()`: nil pointer crash when no game-specific operator matched (e.g., `GameName: "Custom"`) — added nil guard + generic fallback operator
+    - `game.go:load()`: SEEN8500/SEEN8501 (baseball mini-game data tables with `firstLen=0`) caused underflow panic in `restruct.Unpack` — added `isValidScript()` pre-check + `safeLoadScript()` panic recovery
+    - `scriptDecompile.go` / `scriptImport.go`: auto-detection of `GameName` from OPCODE path (e.g., `data\LB_EN\OPCODE.txt` → `LB_EN`)
+    - Generic operator handles common opcodes (IFN, IFY, GOTO, JUMP, FARCALL, GOSUB, EQU, ADD, RANDOM); unknown opcodes → `UNDEFINED` dump
+
+### Version 3 — Patch 3
 
 13. **CZ2 font import resize fix** — `czimage/cz2.go`, `font/font.go`
     - `Import()`: update `CzHeader` dimensions instead of silent `nil` return when image is resized (append/insert modes)
@@ -125,7 +133,7 @@ lucksystem font edit -s 明朝32 -S info32 -f Arial.ttf -o 明朝32_out -O info3
 - **AIR** (Steam) — French translation complete (scripts + CG + UI)
 - **Summer Pockets** — RawSize fix confirmed
 - **Kanon** — CZ2 font fix confirmed
-- **Little Busters English** — CZ4 confirmed
+- **Little Busters English** — CZ4 confirmed, script decompile confirmed (161 scripts, 102k+ MESSAGE lines)
 
 ---
 
