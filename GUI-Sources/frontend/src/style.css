@@ -127,3 +127,6 @@ html, body {
 /* Stop button */
 .console-stop { background: #c0392b; border: 1px solid #a93226; color: #fff; padding: 1px 10px; font-size: 10px; font-weight: 600; cursor: pointer; border-radius: 2px; }
 .console-stop:hover { background: #e74c3c; }
+
+/* Experimental tag */
+.experimental-tag { font-size: 10px; font-weight: 600; color: #e67e22; background: #fef5e7; border: 1px solid #f0c36d; border-radius: 3px; padding: 1px 6px; vertical-align: middle; text-transform: uppercase; letter-spacing: 0.3px; }

@@ -36,6 +36,8 @@ You can also manually locate it by clicking the path indicator in the title bar.
 | **Font Edit** | Redraw/append characters using a TTF font |
 | **Image Export** | Convert CZ images to PNG (single or batch) |
 | **Image Import** | Convert PNG back to CZ format (single or batch) |
+| **Dialogue Extract** | Extract translatable dialogue from decompiled scripts to TSV (single file or batch) |
+| **Dialogue Import** | Reimport translated dialogue from TSV back into scripts (single file or batch) |
 
 ## Development
 

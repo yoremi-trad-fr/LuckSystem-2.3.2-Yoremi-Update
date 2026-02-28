@@ -20,7 +20,16 @@
     ImageExport,
     ImageImport,
     ImageBatchExport,
-    ImageBatchImport
+    ImageBatchImport,
+    DialogueDetectFormat,
+    DialogueExtractFile,
+    DialogueExtractBatch,
+    DialogueImportFile,
+    DialogueImportBatch,
+    SelectScriptTxtFile,
+    SelectTsvFile,
+    SelectSaveTsvFile,
+    SelectSaveScriptFile
   } from '../wailsjs/go/main/App.js';
 
   // ===== State =====
@@ -87,6 +96,24 @@
   let imgImpOutput = '';
   let imgImpFill = false;
 
+  // --- Dialogue Extract ---
+  let dlgExtBatch = false;
+  let dlgExtInput = '';
+  let dlgExtOutput = '';
+  let dlgExtLang1 = false;
+  let dlgExtLang2 = true;   // default: Lang 2 (typically ENG in AIR)
+  let dlgExtLang3 = false;
+  let dlgExtLang4 = false;
+  let dlgExtDetectedFmt = '';
+  let dlgExtMaxCols = 0;
+
+  // --- Dialogue Import ---
+  let dlgImpBatch = false;
+  let dlgImpScript = '';
+  let dlgImpTsv = '';
+  let dlgImpOutput = '';
+  let dlgImpTargetCol = 2;  // default: Lang 2
+
   // ===== Operations list =====
   const operations = [
     { id: '_s1', label: 'SCRIPT', section: true },
@@ -104,6 +131,9 @@
     { id: '_s4', label: 'IMAGE', section: true },
     { id: 'image_export', label: 'Image Export' },
     { id: 'image_import', label: 'Image Import' },
+    { id: '_s6', label: 'DIALOGUE', section: true },
+    { id: 'dlg_extract', label: 'Extract Dialogues' },
+    { id: 'dlg_import', label: 'Import Dialogues' },
     { id: '_s5', label: '', section: true },
     { id: 'about', label: 'À propos' },
   ];
@@ -257,6 +287,67 @@
   // Reset fields when switching batch mode
   function toggleExpBatch() { imgExpInput = ''; imgExpOutput = ''; }
   function toggleImpBatch() { imgImpSource = ''; imgImpInput = ''; imgImpOutput = ''; }
+
+  // --- Dialogue helpers ---
+  async function browseDlgExtInput() {
+    if (dlgExtBatch) { const d = await SelectDirectory('Select scripts folder'); if (d) dlgExtInput = d; }
+    else { const f = await SelectScriptTxtFile(); if (f) dlgExtInput = f; }
+    if (dlgExtInput) await detectDlgFormat();
+  }
+  async function browseDlgExtOutput() {
+    if (dlgExtBatch) { const d = await SelectDirectory('Select output folder'); if (d) dlgExtOutput = d; }
+    else {
+      const defName = dlgExtInput ? dlgExtInput.replace(/\.txt$/i, '.ext.txt').split(/[\\/]/).pop() : 'dialogues.ext.txt';
+      const f = await SelectSaveTsvFile(defName);
+      if (f) dlgExtOutput = f;
+    }
+  }
+  async function detectDlgFormat() {
+    if (!dlgExtInput) return;
+    const target = dlgExtBatch ? '' : dlgExtInput;
+    if (!target) return;
+    const info = await DialogueDetectFormat(target);
+    dlgExtDetectedFmt = info.format || 'Unknown';
+    dlgExtMaxCols = info.maxCols || 0;
+  }
+  function toggleDlgExtBatch() { dlgExtInput = ''; dlgExtOutput = ''; dlgExtDetectedFmt = ''; dlgExtMaxCols = 0; }
+
+  async function browseDlgImpScript() {
+    if (dlgImpBatch) { const d = await SelectDirectory('Select original scripts folder'); if (d) dlgImpScript = d; }
+    else { const f = await SelectScriptTxtFile(); if (f) dlgImpScript = f; }
+  }
+  async function browseDlgImpTsv() {
+    if (dlgImpBatch) { const d = await SelectDirectory('Select TSV folder'); if (d) dlgImpTsv = d; }
+    else { const f = await SelectTsvFile(); if (f) dlgImpTsv = f; }
+  }
+  async function browseDlgImpOutput() {
+    if (dlgImpBatch) { const d = await SelectDirectory('Select output folder'); if (d) dlgImpOutput = d; }
+    else {
+      const defName = dlgImpScript ? dlgImpScript.split(/[\\/]/).pop() : 'patched.txt';
+      const f = await SelectSaveScriptFile(defName);
+      if (f) dlgImpOutput = f;
+    }
+  }
+  function toggleDlgImpBatch() { dlgImpScript = ''; dlgImpTsv = ''; dlgImpOutput = ''; }
+
+  function getDlgExtCols() {
+    const cols = [];
+    if (dlgExtLang1) cols.push(1);
+    if (dlgExtLang2) cols.push(2);
+    if (dlgExtLang3) cols.push(3);
+    if (dlgExtLang4) cols.push(4);
+    return cols;
+  }
+
+  function startDlgExtract() {
+    const cols = getDlgExtCols();
+    if (dlgExtBatch) run(() => DialogueExtractBatch(dlgExtInput, dlgExtOutput, cols));
+    else run(() => DialogueExtractFile(dlgExtInput, dlgExtOutput, cols));
+  }
+  function startDlgImport() {
+    if (dlgImpBatch) run(() => DialogueImportBatch(dlgImpScript, dlgImpTsv, dlgImpTargetCol, dlgImpOutput));
+    else run(() => DialogueImportFile(dlgImpScript, dlgImpTsv, dlgImpTargetCol, dlgImpOutput));
+  }
 </script>
 
 <div id="app">
@@ -470,6 +561,81 @@
           {#if imgImpBatch}<div class="form-hint">PNG files matching a CZ source will be converted</div>{/if}
         </div>
         <div class="form-actions">{#if running}<span class="running-indicator"></span> Running...{:else}<button class="btn btn-primary" on:click={startImageImport} disabled={!imgImpSource || !imgImpInput || !imgImpOutput}>Start Import</button>{/if}</div>
+
+      <!-- DIALOGUE EXTRACT -->
+      {:else if selectedOp === 'dlg_extract'}
+        <div class="form-title">Extract Dialogues</div>
+        <div class="form-hint" style="margin-bottom:10px">
+          Extrait les lignes <strong>MESSAGE</strong> et <strong>LOG_BEGIN</strong> des scripts décompilés (.txt) vers un fichier TSV éditable.<br>
+          Les colonnes correspondent aux chaînes entre guillemets dans l'ordre d'apparition. L'attribution des langues varie selon le jeu — vérifiez manuellement.
+        </div>
+        <div class="form-group">
+          <div class="form-row checkbox-row">
+            <label class="checkbox-label"><input type="checkbox" bind:checked={dlgExtBatch} on:change={toggleDlgExtBatch} /> Batch mode (dossier entier)</label>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Colonnes à extraire :</label>
+          <div class="form-row checkbox-row">
+            <label class="checkbox-label"><input type="checkbox" bind:checked={dlgExtLang1} /> Lang 1</label>
+            <label class="checkbox-label"><input type="checkbox" bind:checked={dlgExtLang2} /> Lang 2</label>
+            <label class="checkbox-label"><input type="checkbox" bind:checked={dlgExtLang3} /> Lang 3</label>
+            <label class="checkbox-label"><input type="checkbox" bind:checked={dlgExtLang4} /> Lang 4</label>
+          </div>
+          <div class="form-hint">Chaque numéro correspond à la Nième chaîne entre guillemets dans le script. Ex: pour AIR, Lang 1 = JAP, Lang 2 = ENG, Lang 3 = CN.</div>
+        </div>
+        <div class="form-group"><label>{dlgExtBatch ? 'Dossier scripts (.txt) :' : 'Fichier script (.txt) :'}</label><div class="form-row"><input type="text" bind:value={dlgExtInput} readonly /><button class="btn" on:click={browseDlgExtInput}>Select</button></div>
+          {#if dlgExtDetectedFmt}<div class="form-hint">Format détecté : <strong>{dlgExtDetectedFmt}</strong></div>{/if}
+        </div>
+        <div class="form-group"><label>{dlgExtBatch ? 'Dossier de sortie :' : 'Fichier TSV de sortie :'}</label><div class="form-row"><input type="text" bind:value={dlgExtOutput} readonly /><button class="btn" on:click={browseDlgExtOutput}>Select</button></div>
+          {#if dlgExtBatch}<div class="form-hint">Un fichier <code>*.ext.txt</code> sera créé par script contenant des MESSAGE</div>{/if}
+        </div>
+        <div class="form-actions">
+          {#if running}<span class="running-indicator"></span> Running...
+          {:else}<button class="btn btn-primary" on:click={startDlgExtract}
+            disabled={!dlgExtInput || !dlgExtOutput || (!dlgExtLang1 && !dlgExtLang2 && !dlgExtLang3 && !dlgExtLang4)}>
+            Start Extract
+          </button>{/if}
+        </div>
+
+      <!-- DIALOGUE IMPORT -->
+      {:else if selectedOp === 'dlg_import'}
+        <div class="form-title">Import Dialogues</div>
+        <div class="form-hint" style="margin-bottom:10px">
+          Réinjecte les dialogues traduits (TSV) dans les fichiers scripts (.txt).<br>
+          Le TSV doit avoir été généré par l'extraction ci-dessus. Supporte MESSAGE et LOG_BEGIN.
+        </div>
+        <div class="form-group">
+          <div class="form-row checkbox-row">
+            <label class="checkbox-label"><input type="checkbox" bind:checked={dlgImpBatch} on:change={toggleDlgImpBatch} /> Batch mode (dossier entier)</label>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Colonne cible à réinjecter :</label>
+          <div class="form-row">
+            <select bind:value={dlgImpTargetCol}>
+              <option value={1}>Lang 1 (1ère chaîne)</option>
+              <option value={2}>Lang 2 (2ème chaîne)</option>
+              <option value={3}>Lang 3 (3ème chaîne)</option>
+              <option value={4}>Lang 4 (4ème chaîne)</option>
+            </select>
+          </div>
+          <div class="form-hint">La colonne sélectionnée sera lue dans le TSV et réinjectée dans la Nième chaîne entre guillemets du script.</div>
+        </div>
+        <div class="form-group"><label>{dlgImpBatch ? 'Dossier scripts originaux :' : 'Fichier script original :'}</label><div class="form-row"><input type="text" bind:value={dlgImpScript} readonly /><button class="btn" on:click={browseDlgImpScript}>Select</button></div>
+          <div class="form-hint">Les fichiers .txt décompilés (originaux ou déjà traduits)</div>
+        </div>
+        <div class="form-group"><label>{dlgImpBatch ? 'Dossier TSV traduits :' : 'Fichier TSV traduit :'}</label><div class="form-row"><input type="text" bind:value={dlgImpTsv} readonly /><button class="btn" on:click={browseDlgImpTsv}>Select</button></div>
+          {#if dlgImpBatch}<div class="form-hint">Fichiers <code>*.ext.txt</code> — chaque TSV sera associé au script correspondant</div>{/if}
+        </div>
+        <div class="form-group"><label>{dlgImpBatch ? 'Dossier de sortie :' : 'Fichier de sortie :'}</label><div class="form-row"><input type="text" bind:value={dlgImpOutput} readonly /><button class="btn" on:click={browseDlgImpOutput}>Select</button></div></div>
+        <div class="form-actions">
+          {#if running}<span class="running-indicator"></span> Running...
+          {:else}<button class="btn btn-primary" on:click={startDlgImport}
+            disabled={!dlgImpScript || !dlgImpTsv || !dlgImpOutput}>
+            Start Import
+          </button>{/if}
+        </div>
 
       <!-- ABOUT -->
       {:else if selectedOp === 'about'}
