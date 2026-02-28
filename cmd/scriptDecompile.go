@@ -12,27 +12,61 @@ import (
 	"lucksystem/charset"
 	"lucksystem/game"
 	"lucksystem/game/enum"
+	"lucksystem/game/operator"
 
 	"github.com/spf13/cobra"
 )
 
-// detectGameName tries to infer the game name from the opcode file path.
-// For example, "data/LB_EN/OPCODE.txt" → "LB_EN", "data/SP/OPCODE.txt" → "SP".
-// Returns "Custom" if no known game is detected.
+// detectGameName extracts the game name from the OPCODE file path.
+// It first checks the parent directory name (e.g. "data/LB_EN/OPCODE.txt"),
+// then falls back to searching anywhere in the path for a known game name.
+// Known game names: LB_EN, SP (matching the switch in vm.go NewVM)
+// Returns "Custom" if no known game name is found.
 func detectGameName(opcodePath string) string {
 	if opcodePath == "" {
 		return "Custom"
 	}
-	// Get the parent directory name of the opcode file
-	dir := filepath.Dir(opcodePath)
-	dirName := strings.ToUpper(filepath.Base(dir))
 
 	knownGames := []string{"LB_EN", "SP"}
+
+	// Strategy 1: Check parent directory name (most precise)
+	dir := filepath.Dir(opcodePath)
+	name := filepath.Base(dir)
 	for _, g := range knownGames {
-		if dirName == g {
+		if strings.EqualFold(name, g) {
 			return g
 		}
 	}
+
+	// Strategy 2: Search anywhere in the full path (case-insensitive)
+	normalizedPath := filepath.ToSlash(opcodePath)
+	upperPath := strings.ToUpper(normalizedPath)
+	for _, g := range knownGames {
+		if strings.Contains(upperPath, strings.ToUpper(g)) {
+			return g
+		}
+	}
+
+	return "Custom"
+}
+
+// resolveGameName determines the game name from explicit flag, auto-detection, or default.
+func resolveGameName() string {
+	// Priority 1: Explicit --game flag
+	if ScriptGameName != "" {
+		fmt.Printf("[INFO] Using game: %s (from --game flag)\n", ScriptGameName)
+		return ScriptGameName
+	}
+
+	// Priority 2: Auto-detect from OPCODE path
+	if ScriptPlugin == "" && ScriptOpcode != "" {
+		gameName := detectGameName(ScriptOpcode)
+		if gameName != "Custom" {
+			fmt.Printf("[INFO] Auto-detected game: %s (from OPCODE path)\n", gameName)
+			return gameName
+		}
+	}
+
 	return "Custom"
 }
 
@@ -45,16 +79,10 @@ var scriptDecompileCmd = &cobra.Command{
 		restruct.EnableExprBeta()
 		game.ScriptBlackList = append(game.ScriptBlackList, strings.Split(ScriptBlackList, ",")...)
 
-		// PATCH YOREMI: Auto-detect game name from opcode file path when no plugin is specified.
-		// This allows "lucksystem script decompile -O data/LB_EN/OPCODE.txt" to work
-		// without requiring an explicit -p plugin flag.
-		gameName := "Custom"
-		if ScriptPlugin == "" && ScriptOpcode != "" {
-			gameName = detectGameName(ScriptOpcode)
-			if gameName != "Custom" {
-				fmt.Printf("Auto-detected game: %s (from opcode path)\n", gameName)
-			}
-		}
+		// PATCH YOREMI: Resolve game name from --game flag or auto-detect from OPCODE path.
+		// This ensures MESSAGE/SELECT/BATTLE opcodes are properly decoded as text
+		// instead of raw uint16 codepoints via the generic fallback.
+		gameName := resolveGameName()
 
 		g := game.NewGame(&game.GameOptions{
 			GameName:   gameName,
@@ -65,6 +93,9 @@ var scriptDecompileCmd = &cobra.Command{
 		})
 		g.LoadScriptResources(ScriptSource)
 		g.RunScript()
+
+		// Print summary of undefined (non-text) opcodes that were skipped
+		operator.PrintUndefinedOpcodeSummary()
 
 		g.ExportScript(ScriptExportDir, ScriptNoSubDir)
 	},

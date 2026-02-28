@@ -2,6 +2,230 @@
 
 ---
 
+# V3.1.3 — Patch 3: GUI — Auto-detect game presets from data/ folder
+
+28/02/2026
+
+## Improvement: automatic game preset scanning replaces manual file browsing
+
+### Problem
+The GUI's Game dropdown (added in Patch 2) only listed LB_EN and SP. Users working with other games (AIR, KANON, HARMONIA, LOOPERS, LUNARiA, PlanetarianSG, CartagraHD) had to manually browse for their OPCODE and plugin files every time.
+
+### Fix (4 files — GUI only)
+
+**`app.go`**
+- Added `GamePreset` struct and `ScanGameData()` function
+- Scans the `data/` folder next to the lucksystem executable
+- Detects all `.txt` files (OPCODE definitions) recursively, excluding `data/base/`
+- Matches each game with its `.py` plugin if present at `data/GAME.py`
+- Returns sorted list of presets with absolute paths
+
+**`frontend/src/App.svelte`**
+- Dynamic "Game preset" dropdown in Decompile and Compile forms, populated from `ScanGameData()`
+- Selecting a preset auto-fills Opcode file, Plugin file, and Game flag
+- Manual browse buttons still available (reset preset to "— Manual —")
+- Presets rescanned when lucksystem path is changed via "Locate"
+
+**`frontend/wailsjs/go/main/App.js`** + **`App.d.ts`** — added `ScanGameData()` binding
+
+### Detected presets (from standard data/ folder)
+AIR (plugin), CartagraHD (plugin), HARMONIA (plugin), KANON (plugin), LB_EN, LOOPERS (plugin), LUNARiA (plugin), PlanetarianSG (plugin), SP (plugin)
+
+### Games affected
+All games — improves workflow for every supported game.
+
+---
+
+# V3.1.3 — Patch 2: `--game` / `-g` flag for forced game type (CLI + GUI)
+
+28/02/2026
+
+## Fix: explicit game type override for cross-platform reliability
+
+### Problem
+Under Linux, the auto-detection from Patch 1 could fail if the OPCODE file was placed in an arbitrary directory (e.g. `~/Bureau/OPCODE.txt` instead of `data/LB_EN/OPCODE.txt`). The parent directory name didn't match "LB_EN" → fell back to "Custom" → generic operator → MESSAGE as raw codepoints.
+
+### Fix — CLI (3 files)
+
+**`cmd/script.go`**
+- Added `ScriptGameName` variable and `--game`/`-g` persistent flag on the `script` command
+
+**`cmd/scriptDecompile.go`**
+- New `resolveGameName()`: priority chain: `--game` flag → auto-detect from OPCODE path → "Custom" fallback
+- Improved `detectGameName()` with 2 strategies: (1) parent directory match (original), (2) search anywhere in path (new, catches `/project_LB_EN_scripts/opcodes/OPCODE.txt`)
+
+**`cmd/scriptImport.go`**
+- Uses shared `resolveGameName()`, removed duplicate detection logic and unused `fmt` import
+
+### Fix — GUI (4 files)
+
+**`app.go`**
+- Added `gameName` parameter to `ScriptDecompile()` and `ScriptCompile()` signatures
+- Passes `-g gameName` to lucksystem when non-empty
+
+**`frontend/src/App.svelte`**
+- Added `gameName` variable and Game dropdown (Auto-detect / LB_EN / SP) in Decompile and Compile forms
+- Passed as 6th/7th argument to Go backend
+
+**`frontend/wailsjs/go/main/App.js`** + **`App.d.ts`** — updated bindings for new parameter
+
+### Priority chain
+```
+--game flag (-g LB_EN)  →  highest priority (explicit override)
+Auto-detect from -O     →  Strategy 1: parent dir, Strategy 2: anywhere in path
+Fallback                →  "Custom" → NewGeneric()
+```
+
+### Usage
+```bash
+# Method 1: Explicit flag (most reliable, especially on Linux)
+lucksystem script decompile -s SCRIPT.PAK -c UTF-8 -o output -O OPCODE.txt -g LB_EN
+
+# Method 2: Auto-detect from path (works if LB_EN appears anywhere in path)
+lucksystem script decompile -s SCRIPT.PAK -c UTF-8 -o output -O /path/LB_EN/OPCODE.txt
+```
+
+### Games affected
+LB_EN and SP — any game using a Go operator without a Python plugin.
+
+---
+
+# V3.1.3 — Patch 1: Script decompile GameName auto-detection fix
+
+27/02/2026
+
+## Bug fixed: MESSAGE/SELECT/BATTLE opcodes exported as raw codepoints instead of text
+
+### Problem
+Decompiling LB_EN scripts with `lucksystem script decompile -s SCRIPT.PAK -O data/LB_EN/OPCODE.txt` produced MESSAGE lines with raw Unicode codepoints instead of readable text:
+
+```
+MESSAGE (0, 12502, 12523, 12523, 12523, 12523, 8230, 12288, ...)
+```
+
+Expected output:
+```
+MESSAGE (0, "ブルルルル…　ブルルルル…", "Burururururu...  Burururururu...", 0x5)
+```
+
+All 161 scripts were affected — no dialogue text was visible, only numeric sequences. The same issue affected `script import` (round-trip would fail).
+
+### Root cause — `GameName: "Custom"` hardcoded in scriptDecompile.go / scriptImport.go
+
+Both `scriptDecompile.go` and `scriptImport.go` passed `GameName: "Custom"` to `game.NewGame()`, regardless of the OPCODE path provided. The dispatch chain:
+
+```
+scriptDecompile.go:  GameName: "Custom"          ← always hardcoded
+        ↓
+vm.go NewVM():  switch "Custom" → no match (not "LB_EN" nor "SP")
+        ↓
+vm.Operate = nil → fallback NewGeneric()         ← patch 15 safety net
+        ↓
+Generic has no MESSAGE() method → dispatch to UNDEFINED()
+        ↓
+UNDEFINED() calls AllToUint16() → dumps codepoints as numbers
+```
+
+The `LB_EN` operator (`operator/LB_EN.go`) already fully implements MESSAGE, SELECT, BATTLE, TASK, SAYAVOICETEXT, and VARSTR_SET with proper `DecodeString()` calls — it was simply never instantiated because the GameName never matched `"LB_EN"` in the switch.
+
+### Note on patch 15 (v3.1)
+Patch 15 documented "auto-detection of GameName from OPCODE path" but the implementation was incomplete — the `detectGameName()` function was not present in the delivered files. The generic fallback added in patch 15 prevented the nil pointer crash but did not solve the text decoding issue. This patch completes the auto-detection.
+
+### Fix (2 files)
+
+**`cmd/scriptDecompile.go`**
+- Added `detectGameName(opcodePath string) string` function: extracts parent directory from OPCODE path using `filepath.Dir()` + `filepath.Base()`, compares case-insensitive against known games (`LB_EN`, `SP`)
+- Auto-detection only runs when no plugin file (`-p`) is provided (plugins take priority)
+- Prints `[INFO] Auto-detected game: LB_EN (from OPCODE path)` when a match is found
+- Replaced `GameName: "Custom"` with `GameName: gameName`
+
+**`cmd/scriptImport.go`**
+- Same auto-detection logic using `detectGameName()` (defined in `scriptDecompile.go`, same package `cmd`)
+- Replaced `GameName: "Custom"` with `GameName: gameName`
+
+### Priority chain
+```
+Plugin (-p file.py)  →  highest priority (always used if provided)
+Auto-detect from -O  →  "data/LB_EN/OPCODE.txt" → "LB_EN"
+Fallback             →  "Custom" → NewGeneric()
+```
+
+### Games affected
+LB_EN and SP — any game that uses a Go operator (not a Python plugin) and has its OPCODE file in a subdirectory matching the game name.
+
+---
+
+# V3.1.2 — Patch 1: PAK Import/Export path separator fix (Windows)
+
+26/02/2026
+
+## Bug fixed: `pak replace` crash in directory mode + CZ corruption via mixed path separators
+
+### Problem 1 — Crash in directory mode
+`lucksystem pak replace -s OTHCG.PAK -i <folder> -o out.PAK` crashed with `strconv.Atoi: parsing "C:\Users\...\msg_01k_en": invalid syntax`. All files in the folder were skipped with "Skip File", then the last `strconv.Atoi` error propagated as a fatal crash.
+
+### Problem 2 — CZ corruption in list mode (old list files)
+Re-injecting CZ files into a PAK using a list file generated by an older version produced corrupted (non-replaced) CZ images in-game. The replaced files themselves were fine — only neighboring untouched files showed corruption.
+
+### Root cause — `path.Base()` / `path.Join()` vs `filepath` (Windows)
+
+The `pak.go` file used the `path` package (POSIX-only, `/` separator) instead of `path/filepath` (OS-native separator) in three locations:
+
+**Import() line 532** — `path.Base(file)`: On Windows, `filepath.Walk` returns paths with `\` separators. `path.Base("C:\...\msg_01k_en")` treats `\` as regular characters and returns the **entire path** as the filename. Result: `CheckName` always fails → `strconv.Atoi(entire_path)` → crash.
+
+**Export() lines 412/415** — `path.Join(dir, name)`: Generated list files with mixed separators (`C:\Users\...\OTHCG_extracted/aug_01`). When these list files were later used for `pak replace -l`, the mixed paths caused subtle matching failures during PAK rebuild, corrupting offset calculations for non-replaced files.
+
+### Additional bugs fixed
+
+**Error variable leak** — `id, err = strconv.Atoi(name)` wrote to the outer-scope `err`. After a `continue` on the last file, `return err` at function end returned the Atoi error instead of `nil`. Fix: local `parseErr` via `:=`.
+
+**File handle leak** — `fs, _ := os.Open(file)` opened files before validation. When skipped via `continue`, the file descriptor was never closed. Fix: `fs.Close()` before every `continue` + error handling on `os.Open`.
+
+### Fix (1 file)
+
+**`pak/pak.go`**
+- `Import()` mode `"dir"`: `path.Base()` → `filepath.Base()`; local `parseErr`/`openErr` variables; `fs.Close()` on all skip paths
+- `Export()` mode `"all"`: `path.Join()` → `filepath.Join()` (lines 412, 415)
+- Removed unused `"path"` import
+
+### Games affected
+All games — any PAK replace operation on Windows was affected.
+
+---
+
+# V3.1.1 — Patch 1: Undefined opcode warning verbosity reduction
+
+25/02/2026
+
+## Improvement: silent accumulation of undefined opcode warnings
+
+### Problem
+During `script decompile` on Little Busters EN, the 1,461 undefined opcode warnings (`Operation不存在 HAIKEI_SET`, etc.) were printed one-by-one via `glog.V(5).Infoln()`. On slower machines or when using the GUI, this created an apparent infinite loop — the console scrolled warnings for over 2 minutes, making it look like the tool was stuck. The decompilation itself only takes ~5 seconds.
+
+### Fix (3 files)
+
+**`game/operator/undefined_operate.go`** — Replaced the per-opcode `glog.V(5).Infoln()` call with a thread-safe `opcodeTracker` that silently accumulates counts in a `map[string]int`. Exposed `PrintUndefinedOpcodeSummary()` which prints a single sorted summary block after processing completes, then resets the tracker.
+
+**`cmd/scriptDecompile.go`** — Added `operator.PrintUndefinedOpcodeSummary()` call after `g.RunScript()`.
+
+**`cmd/scriptImport.go`** — Same summary call after `g.RunScript()`.
+
+### Result
+Instead of 1,461 individual warning lines:
+```
+[INFO] 1461 undefined opcodes skipped (15 unique types):
+  HAIKEI_SET            x312
+  WAIT                  x245
+  DRAW                  x198
+  ...
+These are non-text opcodes (visual/audio/system) and can be safely ignored for translation work.
+```
+
+### Games affected
+All games using the generic operator or any game with undefined opcodes (Little Busters EN, Kanon, Harmonia, LOOPERS, LUNARiA, Planetarian).
+
+---
+
 # V3.1 — Patch 1: Little Busters EN script decompile fix
 
 24/02/2026
@@ -224,6 +448,229 @@ The AIR.py definition script used `from base.air import *` to import functions f
 - **Yoremi** — all patches, AIR French translation, GUI
 
 ---
+---
+
+# V3.1.3 — Patch 3 : GUI — Détection automatique des presets de jeu depuis data/
+
+28/02/2026
+
+## Amélioration : scan automatique des presets de jeu remplace la sélection manuelle
+
+### Problème
+Le dropdown Game de la GUI (ajouté au Patch 2) ne listait que LB_EN et SP. Les utilisateurs travaillant sur d'autres jeux (AIR, KANON, HARMONIA, LOOPERS, LUNARiA, PlanetarianSG, CartagraHD) devaient parcourir manuellement les fichiers OPCODE et plugin à chaque fois.
+
+### Fix (4 fichiers — GUI uniquement)
+
+**`app.go`**
+- Ajout du struct `GamePreset` et de la fonction `ScanGameData()`
+- Scanne le dossier `data/` à côté de l'exécutable lucksystem
+- Détecte tous les fichiers `.txt` (définitions OPCODE) récursivement, excluant `data/base/`
+- Associe chaque jeu à son plugin `.py` si présent à `data/GAME.py`
+- Retourne une liste triée de presets avec chemins absolus
+
+**`frontend/src/App.svelte`**
+- Dropdown dynamique "Game preset" dans les formulaires Decompile et Compile, peuplé depuis `ScanGameData()`
+- La sélection d'un preset remplit automatiquement Opcode, Plugin et Game
+- Boutons de parcours manuel toujours disponibles (réinitialisent le preset à "— Manual —")
+- Presets re-scannés quand le chemin lucksystem est changé via "Locate"
+
+**`frontend/wailsjs/go/main/App.js`** + **`App.d.ts`** — ajout du binding `ScanGameData()`
+
+### Presets détectés (dossier data/ standard)
+AIR (plugin), CartagraHD (plugin), HARMONIA (plugin), KANON (plugin), LB_EN, LOOPERS (plugin), LUNARiA (plugin), PlanetarianSG (plugin), SP (plugin)
+
+### Jeux concernés
+Tous les jeux — améliore le workflow pour chaque jeu supporté.
+
+---
+
+# V3.1.3 — Patch 2 : Flag `--game` / `-g` pour forcer le type de jeu (CLI + GUI)
+
+28/02/2026
+
+## Fix : override explicite du type de jeu pour fiabilité multiplateforme
+
+### Problème
+Sous Linux, l'auto-détection du Patch 1 pouvait échouer si le fichier OPCODE était placé dans un dossier arbitraire (ex: `~/Bureau/OPCODE.txt` au lieu de `data/LB_EN/OPCODE.txt`). Le nom du dossier parent ne correspondait pas à "LB_EN" → retombe en "Custom" → opérateur générique → MESSAGE en codepoints bruts.
+
+### Fix — CLI (3 fichiers)
+
+**`cmd/script.go`**
+- Ajout de la variable `ScriptGameName` et du flag persistant `--game`/`-g` sur la commande `script`
+
+**`cmd/scriptDecompile.go`**
+- Nouvelle fonction `resolveGameName()` : chaîne de priorité flag `--game` → auto-détect depuis chemin OPCODE → fallback "Custom"
+- `detectGameName()` amélioré avec 2 stratégies : (1) match dossier parent (original), (2) recherche dans tout le chemin (nouveau)
+
+**`cmd/scriptImport.go`**
+- Utilise `resolveGameName()` partagé, suppression logique dupliquée et import `fmt` inutilisé
+
+### Fix — GUI (4 fichiers)
+
+**`app.go`**
+- Paramètre `gameName` ajouté aux signatures de `ScriptDecompile()` et `ScriptCompile()`
+- Passe `-g gameName` à lucksystem quand non vide
+
+**`frontend/src/App.svelte`**
+- Variable `gameName` et dropdown Game (Auto-detect / LB_EN / SP) dans les formulaires Decompile et Compile
+
+**`frontend/wailsjs/go/main/App.js`** + **`App.d.ts`** — bindings mis à jour pour le nouveau paramètre
+
+### Chaîne de priorité
+```
+Flag --game (-g LB_EN)  →  priorité maximale (override explicite)
+Auto-détect depuis -O   →  Stratégie 1 : dossier parent, Stratégie 2 : dans tout le chemin
+Fallback                →  "Custom" → NewGeneric()
+```
+
+### Utilisation
+```bash
+# Méthode 1 : Flag explicite (plus fiable, surtout sous Linux)
+lucksystem script decompile -s SCRIPT.PAK -c UTF-8 -o output -O OPCODE.txt -g LB_EN
+
+# Méthode 2 : Auto-détect depuis le chemin (fonctionne si LB_EN apparaît dans le chemin)
+lucksystem script decompile -s SCRIPT.PAK -c UTF-8 -o output -O /path/LB_EN/OPCODE.txt
+```
+
+### Jeux concernés
+LB_EN et SP — tout jeu utilisant un opérateur Go sans plugin Python.
+
+---
+
+# V3.1.3 — Patch 1 : Correction auto-détection GameName pour décompilation scripts
+
+27/02/2026
+
+## Bug corrigé : opcodes MESSAGE/SELECT/BATTLE exportés en codepoints numériques au lieu de texte
+
+### Problème
+La décompilation des scripts LB_EN avec `lucksystem script decompile -s SCRIPT.PAK -O data/LB_EN/OPCODE.txt` produisait des lignes MESSAGE avec des codepoints Unicode bruts au lieu de texte lisible :
+
+```
+MESSAGE (0, 12502, 12523, 12523, 12523, 12523, 8230, 12288, ...)
+```
+
+Sortie attendue :
+```
+MESSAGE (0, "ブルルルル…　ブルルルル…", "Burururururu...  Burururururu...", 0x5)
+```
+
+Les 161 scripts étaient affectés — aucun texte de dialogue visible, uniquement des séquences numériques. Le même problème affectait `script import` (l'aller-retour échouait).
+
+### Cause racine — `GameName: "Custom"` codé en dur dans scriptDecompile.go / scriptImport.go
+
+Les deux fichiers passaient `GameName: "Custom"` à `game.NewGame()`, quel que soit le chemin OPCODE fourni. Chaîne de dispatch :
+
+```
+scriptDecompile.go:  GameName: "Custom"          ← toujours en dur
+        ↓
+vm.go NewVM():  switch "Custom" → pas de match (ni "LB_EN" ni "SP")
+        ↓
+vm.Operate = nil → fallback NewGeneric()         ← filet de sécurité patch 15
+        ↓
+Generic n'a pas de méthode MESSAGE() → dispatch vers UNDEFINED()
+        ↓
+UNDEFINED() appelle AllToUint16() → dump des codepoints en nombres
+```
+
+L'opérateur `LB_EN` (`operator/LB_EN.go`) implémente déjà complètement MESSAGE, SELECT, BATTLE, TASK, SAYAVOICETEXT et VARSTR_SET avec les appels `DecodeString()` — il n'était simplement jamais instancié car le GameName ne correspondait jamais à `"LB_EN"` dans le switch.
+
+### Note sur le patch 15 (v3.1)
+Le patch 15 documentait "auto-détection du GameName depuis le chemin OPCODE" mais l'implémentation était incomplète — la fonction `detectGameName()` n'était pas présente dans les fichiers livrés. Le fallback generic ajouté au patch 15 empêchait le crash nil pointer mais ne résolvait pas le décodage du texte. Ce patch complète l'auto-détection.
+
+### Fix (2 fichiers)
+
+**`cmd/scriptDecompile.go`**
+- Ajout de `detectGameName(opcodePath string) string` : extrait le dossier parent du chemin OPCODE via `filepath.Dir()` + `filepath.Base()`, comparaison insensible à la casse avec les jeux connus (`LB_EN`, `SP`)
+- L'auto-détection ne s'exécute que si aucun fichier plugin (`-p`) n'est fourni (les plugins ont la priorité)
+- Affiche `[INFO] Auto-detected game: LB_EN (from OPCODE path)` quand un match est trouvé
+- Remplacement de `GameName: "Custom"` par `GameName: gameName`
+
+**`cmd/scriptImport.go`**
+- Même logique d'auto-détection via `detectGameName()` (définie dans `scriptDecompile.go`, même package `cmd`)
+- Remplacement de `GameName: "Custom"` par `GameName: gameName`
+
+### Chaîne de priorité
+```
+Plugin (-p fichier.py)  →  priorité maximale (toujours utilisé si fourni)
+Auto-détect depuis -O   →  "data/LB_EN/OPCODE.txt" → "LB_EN"
+Fallback                →  "Custom" → NewGeneric()
+```
+
+### Jeux concernés
+LB_EN et SP — tout jeu utilisant un opérateur Go (pas un plugin Python) avec son fichier OPCODE dans un sous-dossier correspondant au nom du jeu.
+
+---
+
+# V3.1.2 — Patch 1 : Correction séparateurs de chemins PAK Import/Export (Windows)
+
+26/02/2026
+
+## Bug corrigé : crash `pak replace` en mode dossier + corruption CZ via chemins mixtes
+
+### Problème 1 — Crash en mode dossier
+`lucksystem pak replace -s OTHCG.PAK -i <dossier> -o out.PAK` crashait avec `strconv.Atoi: parsing "C:\Users\...\msg_01k_en": invalid syntax`. Tous les fichiers du dossier étaient skippés avec "Skip File", puis la dernière erreur `strconv.Atoi` se propageait en crash fatal.
+
+### Problème 2 — Corruption CZ en mode liste (anciens fichiers liste)
+La réinjection de fichiers CZ dans un PAK via un fichier liste généré par une ancienne version produisait des images CZ corrompues (non-remplacées) en jeu. Les fichiers remplacés eux-mêmes étaient corrects — seuls les fichiers voisins non modifiés montraient de la corruption.
+
+### Cause racine — `path.Base()` / `path.Join()` vs `filepath` (Windows)
+
+Le fichier `pak.go` utilisait le package `path` (POSIX uniquement, séparateur `/`) au lieu de `path/filepath` (séparateur natif de l'OS) à trois endroits :
+
+**Import() ligne 532** — `path.Base(file)` : Sous Windows, `filepath.Walk` retourne des chemins avec `\`. `path.Base("C:\...\msg_01k_en")` traite `\` comme des caractères normaux et retourne le **chemin complet** comme nom de fichier. Résultat : `CheckName` échoue toujours → `strconv.Atoi(chemin_complet)` → crash.
+
+**Export() lignes 412/415** — `path.Join(dir, name)` : Générait des fichiers liste avec des séparateurs mixtes (`C:\Users\...\OTHCG_extracted/aug_01`). Quand ces fichiers liste étaient ensuite utilisés pour `pak replace -l`, les chemins mixtes causaient des échecs subtils de correspondance lors du rebuild du PAK, corrompant les calculs d'offset pour les fichiers non-remplacés.
+
+### Bugs additionnels corrigés
+
+**Fuite de variable erreur** — `id, err = strconv.Atoi(name)` écrivait dans le `err` du scope externe. Après un `continue` sur le dernier fichier, `return err` en fin de fonction retournait l'erreur Atoi au lieu de `nil`. Fix : variable locale `parseErr` via `:=`.
+
+**Fuite de descripteur de fichier** — `fs, _ := os.Open(file)` ouvrait les fichiers avant validation. Quand un fichier était skippé via `continue`, le descripteur n'était jamais fermé. Fix : `fs.Close()` avant chaque `continue` + gestion d'erreur sur `os.Open`.
+
+### Fix (1 fichier)
+
+**`pak/pak.go`**
+- `Import()` mode `"dir"` : `path.Base()` → `filepath.Base()` ; variables locales `parseErr`/`openErr` ; `fs.Close()` sur tous les chemins de skip
+- `Export()` mode `"all"` : `path.Join()` → `filepath.Join()` (lignes 412, 415)
+- Suppression de l'import `"path"` inutilisé
+
+### Jeux concernés
+Tous les jeux — toute opération PAK replace sous Windows était affectée.
+
+---
+
+# V3.1 — Patch 2 : Réduction de la verbosité des warnings d'opcodes indéfinis
+
+25/02/2026
+
+## Amélioration : accumulation silencieuse des warnings d'opcodes indéfinis
+
+### Problème
+Lors du `script decompile` sur Little Busters EN, les 1 461 warnings d'opcodes indéfinis (`Operation不存在 HAIKEI_SET`, etc.) étaient affichés un par un via `glog.V(5).Infoln()`. Sur des machines lentes ou en utilisant la GUI, cela créait une boucle apparemment infinie — la console scrollait des warnings pendant plus de 2 minutes, donnant l'impression que l'outil était bloqué. La décompilation elle-même ne prend que ~5 secondes.
+
+### Fix (3 fichiers)
+
+**`game/operator/undefined_operate.go`** — Remplacement de l'appel `glog.V(5).Infoln()` par opcode par un `opcodeTracker` thread-safe qui accumule silencieusement les compteurs dans une `map[string]int`. Expose `PrintUndefinedOpcodeSummary()` qui affiche un seul bloc résumé trié après traitement, puis réinitialise le tracker.
+
+**`cmd/scriptDecompile.go`** — Ajout de l'appel `operator.PrintUndefinedOpcodeSummary()` après `g.RunScript()`.
+
+**`cmd/scriptImport.go`** — Même appel résumé après `g.RunScript()`.
+
+### Résultat
+Au lieu de 1 461 lignes de warning individuelles :
+```
+[INFO] 1461 undefined opcodes skipped (15 unique types):
+  HAIKEI_SET            x312
+  WAIT                  x245
+  DRAW                  x198
+  ...
+These are non-text opcodes (visual/audio/system) and can be safely ignored for translation work.
+```
+
+### Jeux concernés
+Tous les jeux utilisant l'opérateur générique ou tout jeu avec des opcodes indéfinis (Little Busters EN, Kanon, Harmonia, LOOPERS, LUNARiA, Planetarian).
+
 ---
 
 # V3.1 — Patch 1 : Correction décompilation scripts Little Busters EN

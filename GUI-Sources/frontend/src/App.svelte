@@ -4,6 +4,7 @@
   import {
     GetLuckSystemPath,
     SetLuckSystemPath,
+    ScanGameData,
     SelectPakFile,
     SelectFile,
     SelectDirectory,
@@ -44,6 +45,9 @@
   let opcodeFile = '';
   let pluginFile = '';
   let charsetVal = 'UTF-8';
+  let gameName = '';
+  let gamePresets = [];
+  let selectedPreset = '';
   let outputDir = '';
   let importDir = '';
   let outputPak = '';
@@ -172,6 +176,11 @@
     if (lsPath) {
       addLine('LuckSystem 2.3.2 - Yoremi fork v3');
       addLine('Executable: ' + lsPath);
+      // Scan data/ folder for game presets
+      gamePresets = (await ScanGameData()) || [];
+      if (gamePresets.length > 0) {
+        addLine('Found ' + gamePresets.length + ' game preset(s): ' + gamePresets.map(p => p.name).join(', '));
+      }
     } else {
       addLine('[ERROR] lucksystem.exe not found!');
       addLine('Place lucksystem.exe next to the GUI, or click "Locate" below.');
@@ -182,11 +191,18 @@
 
   // ===== Browse helpers =====
   async function browsePak() { const f = await SelectPakFile(); if (f) pakFile = f; }
-  async function browseOpcode() { const f = await SelectFile('Select Opcode (.txt)', '*.txt', 'Opcode files'); if (f) opcodeFile = f; }
-  async function browsePlugin() { const f = await SelectFile('Select Plugin (.py)', '*.py', 'Python plugins'); if (f) pluginFile = f; }
+  async function browseOpcode() { const f = await SelectFile('Select Opcode (.txt)', '*.txt', 'Opcode files'); if (f) { opcodeFile = f; selectedPreset = ''; } }
+  async function browsePlugin() { const f = await SelectFile('Select Plugin (.py)', '*.py', 'Python plugins'); if (f) { pluginFile = f; selectedPreset = ''; } }
   async function browseOutputDir() { const d = await SelectDirectory('Select output directory'); if (d) outputDir = d; }
   async function browseImportDir() { const d = await SelectDirectory('Select translated scripts directory'); if (d) importDir = d; }
   async function browseOutputPak() { const f = await SelectSaveFile('Save output PAK', 'SCRIPT_FR.PAK', '*.PAK;*.pak', 'PAK files'); if (f) outputPak = f; }
+
+  function applyPreset(presetName) {
+    selectedPreset = presetName;
+    if (!presetName) { opcodeFile = ''; pluginFile = ''; gameName = ''; return; }
+    const p = gamePresets.find(g => g.name === presetName);
+    if (p) { opcodeFile = p.opcodeFile; pluginFile = p.pluginFile || ''; gameName = p.gameFlag || ''; }
+  }
 
   async function browsePakExtSource() { const f = await SelectPakFile(); if (f) pakExtSource = f; }
   async function browsePakExtOutput() { const d = await SelectDirectory('Select extraction output'); if (d) pakExtOutput = d; }
@@ -236,7 +252,11 @@
 
   async function locateLuckSystem() {
     lsPath = await SetLuckSystemPath();
-    if (lsPath) addLine('Executable set: ' + lsPath);
+    if (lsPath) {
+      addLine('Executable set: ' + lsPath);
+      gamePresets = (await ScanGameData()) || [];
+      if (gamePresets.length > 0) addLine('Found ' + gamePresets.length + ' game preset(s): ' + gamePresets.map(p => p.name).join(', '));
+    }
   }
 
   async function stopProcess() {
@@ -251,8 +271,8 @@
     running = false;
   }
 
-  function startDecompile() { run(() => ScriptDecompile(pakFile, opcodeFile, pluginFile, charsetVal, outputDir)); }
-  function startCompile() { run(() => ScriptCompile(pakFile, opcodeFile, pluginFile, charsetVal, importDir, outputPak)); }
+  function startDecompile() { run(() => ScriptDecompile(pakFile, opcodeFile, pluginFile, charsetVal, outputDir, gameName)); }
+  function startCompile() { run(() => ScriptCompile(pakFile, opcodeFile, pluginFile, charsetVal, importDir, outputPak, gameName)); }
   function startPakExtract() { run(() => PakExtract(pakExtSource, pakExtOutput)); }
   function startPakReplace() {
     const listArg = pakRepUseList ? pakRepListFile : '';
@@ -382,7 +402,10 @@
       {#if selectedOp === 'decompile'}
         <div class="form-title">Script Decompile</div>
         <div class="form-group"><label>SCRIPT.PAK file:</label><div class="form-row"><input type="text" bind:value={pakFile} readonly /><button class="btn" on:click={browsePak}>Select</button></div></div>
-        <div class="form-group"><label>Opcode file (.txt):</label><div class="form-row"><input type="text" bind:value={opcodeFile} placeholder="e.g. data/AIR.txt" readonly /><button class="btn" on:click={browseOpcode}>Select</button></div><div class="form-hint">Game opcode definitions (AIR.txt, KANON.txt...)</div></div>
+        {#if gamePresets.length > 0}
+        <div class="form-group"><label>Game preset:</label><div class="form-row"><select value={selectedPreset} on:change={(e) => applyPreset(e.target.value)}><option value="">— Manual —</option>{#each gamePresets as p}<option value={p.name}>{p.name}{p.pluginFile ? ' (plugin)' : ''}</option>{/each}</select></div><div class="form-hint">Auto-fills Opcode, Plugin and Game from data/ folder</div></div>
+        {/if}
+        <div class="form-group"><label>Opcode file (.txt):</label><div class="form-row"><input type="text" bind:value={opcodeFile} placeholder="e.g. data/AIR.txt" readonly /><button class="btn" on:click={browseOpcode}>Select</button></div></div>
         <div class="form-group"><label>Plugin file (.py):</label><div class="form-row"><input type="text" bind:value={pluginFile} placeholder="e.g. data/AIR.py" readonly /><button class="btn" on:click={browsePlugin}>Select</button></div></div>
         <div class="form-group"><label>Charset:</label><div class="form-row"><select bind:value={charsetVal}><option value="UTF-8">UTF-8</option><option value="ShiftJIS">Shift-JIS</option><option value="GBK">GBK</option></select></div></div>
         <div class="form-group"><label>Output folder:</label><div class="form-row"><input type="text" bind:value={outputDir} readonly /><button class="btn" on:click={browseOutputDir}>Select</button></div><div class="form-hint">A SCRIPT.PAK subfolder will be created automatically inside</div></div>
@@ -392,6 +415,9 @@
       {:else if selectedOp === 'compile'}
         <div class="form-title">Script Compile</div>
         <div class="form-group"><label>Original SCRIPT.PAK:</label><div class="form-row"><input type="text" bind:value={pakFile} readonly /><button class="btn" on:click={browsePak}>Select</button></div><div class="form-hint">The original unmodified SCRIPT.PAK</div></div>
+        {#if gamePresets.length > 0}
+        <div class="form-group"><label>Game preset:</label><div class="form-row"><select value={selectedPreset} on:change={(e) => applyPreset(e.target.value)}><option value="">— Manual —</option>{#each gamePresets as p}<option value={p.name}>{p.name}{p.pluginFile ? ' (plugin)' : ''}</option>{/each}</select></div><div class="form-hint">Auto-fills Opcode, Plugin and Game from data/ folder</div></div>
+        {/if}
         <div class="form-group"><label>Opcode file (.txt):</label><div class="form-row"><input type="text" bind:value={opcodeFile} readonly /><button class="btn" on:click={browseOpcode}>Select</button></div></div>
         <div class="form-group"><label>Plugin file (.py):</label><div class="form-row"><input type="text" bind:value={pluginFile} readonly /><button class="btn" on:click={browsePlugin}>Select</button></div></div>
         <div class="form-group"><label>Charset:</label><div class="form-row"><select bind:value={charsetVal}><option value="UTF-8">UTF-8</option><option value="ShiftJIS">Shift-JIS</option><option value="GBK">GBK</option></select></div></div>

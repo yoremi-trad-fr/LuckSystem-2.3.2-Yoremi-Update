@@ -18,6 +18,9 @@ A graphical interface is available in a separate repository:
 **[LuckSystem-2.3.2-Yoremi-Update + GUI](https://github.com/yoremi-trad-fr/LuckSystem-2.3.2-Yoremi-Update)** — Built with Wails (Go + Svelte), calls `lucksystem.exe` via subprocess.
 
 ### GUI Features
+- **Game presets** / Auto-detect available games from data/ folder (OPCODE + plugin auto-fill)
+- Dialogue Extract / Extract translatable dialogue from decompiled scripts to TSV (single file or batch)
+- Dialogue Import / Reimport translated dialogue from TSV back into scripts (single file or batch)
 - Script Decompile / Compile
 - PAK Extract / Replace (CG and Font workflows separated)
 - Font Extract / Edit (append, insert, redraw modes)
@@ -31,15 +34,50 @@ A graphical interface is available in a separate repository:
 
 ### Linux
 
-Une version Linux est disponible en AppImage (tout-en-un) ainsi qu'en binaires séparés (GUI + CLI). Voir les releases pour le téléchargement.
+Une version Linux est disponibleen binaires séparés (GUI + CLI). Voir les releases pour le téléchargement.
 
-A Linux version is available as an AppImage (all-in-one) and as separate binaries (GUI + CLI). See the releases for download.
+A Linux version is available as separate binaries (GUI + CLI). See the releases for download.
 
 ---
 
 ## Patches
 
-### Version 3.1 — Patch 1 *(latest)*
+### Version 3.1.3 — Patch 3 *(latest)*
+
+20. **GUI: Game preset auto-scan from data/ folder** — `app.go`, `frontend/src/App.svelte`, `wailsjs/go/main/App.js`, `App.d.ts`
+    - `ScanGameData()` scans `data/` next to lucksystem, discovers all OPCODE `.txt` files (recursive, excluding `base/`)
+    - Dynamic "Game preset" dropdown replaces static LB_EN/SP selector — auto-fills Opcode, Plugin and Game fields
+    - 9 presets detected: AIR, CartagraHD, HARMONIA, KANON, LB_EN, LOOPERS, LUNARiA, PlanetarianSG, SP
+
+### Version 3.1.3 — Patch 2
+
+19. **`--game`/`-g` flag for forced game type (CLI + GUI)** — `cmd/script.go`, `cmd/scriptDecompile.go`, `cmd/scriptImport.go`, `app.go`, `frontend/src/App.svelte`
+    - CLI: new persistent flag `--game`/`-g` overrides auto-detection; `resolveGameName()` priority chain: flag > auto-detect > fallback
+    - CLI: `detectGameName()` improved with 2 strategies: parent dir match + search anywhere in path
+    - GUI: `gameName` parameter added to ScriptDecompile/ScriptCompile, passed as `-g` to lucksystem
+
+### Version 3.1.3 — Patch 1
+
+18. **Script decompile GameName auto-detection** — `cmd/scriptDecompile.go`, `cmd/scriptImport.go`
+    - Added `detectGameName()`: extracts game name from OPCODE path (e.g. `data/LB_EN/OPCODE.txt` → `LB_EN`)
+    - Ensures `LB_EN` operator is used instead of generic fallback → MESSAGE/SELECT/BATTLE decoded as text, not raw codepoints
+    - Priority: plugin `.py` > auto-detect from `-O` path > `"Custom"` generic fallback
+
+### Version 3.1.2 — Patch 1
+
+17. **PAK Import/Export path separator fix (Windows)** — `pak/pak.go`
+    - `path.Base()` → `filepath.Base()` in Import dir mode: fixed crash `strconv.Atoi` on full Windows paths
+    - `path.Join()` → `filepath.Join()` in Export: fixed mixed `/`+`\` separators in list files causing CZ corruption on re-import
+    - Fixed error variable leak (`err` scope) and file handle leak on skipped files
+
+### Version 3.1.1 — Patch 1
+
+16. **Undefined opcode warning verbosity reduction** — `game/operator/undefined_operate.go`, `cmd/scriptDecompile.go`, `cmd/scriptImport.go`
+    - Replaced per-opcode `glog.V(5).Infoln()` (1,461 lines for LB_EN) with silent `opcodeTracker` accumulator
+    - Single sorted summary block printed after `RunScript()` completes
+    - Eliminates false "infinite loop" appearance on slow machines and in GUI
+
+### Version 3.1 — Patch 1
 
 15. **Little Busters EN script decompile fix** — `game/VM/vm.go`, `game/game.go`, `game/operator/generic.go` (new), `cmd/scriptDecompile.go`, `cmd/scriptImport.go`
     - `NewVM()`: nil pointer crash when no game-specific operator matched (e.g., `GameName: "Custom"`) — added nil guard + generic fallback operator
@@ -133,7 +171,7 @@ lucksystem font edit -s 明朝32 -S info32 -f Arial.ttf -o 明朝32_out -O info3
 - **AIR** (Steam) — French translation complete (scripts + CG + UI)
 - **Summer Pockets** — RawSize fix confirmed
 - **Kanon** — CZ2 font fix confirmed
-- **Little Busters English** — CZ4 confirmed, script decompile confirmed (161 scripts, 102k+ MESSAGE lines)
+- **Little Busters English** — CZ4 confirmed, script decompile confirmed (161 scripts, 102k+ MESSAGE lines, text properly decoded)
 
 ---
 
@@ -142,7 +180,7 @@ lucksystem font edit -s 明朝32 -S info32 -f Arial.ttf -o 明朝32_out -O info3
 - **[wetor](https://github.com/wetor)** — LuckSystem original
 - **masagrator** — RawSize bug identification (CZ3 layers)
 - **[G2-Games](https://github.com/G2-Games)** — CZ4 reference ([lbee-utils](https://github.com/G2-Games/lbee-utils))
-- **Yoremi** — patches 1-14, AIR French translation, GUI
+- **Yoremi** — patches 1-20, AIR French translation, GUI
 --------------------
 # Important
 This project only accepts **bug issues** and **pull requests**, and does not provide assistance in use  

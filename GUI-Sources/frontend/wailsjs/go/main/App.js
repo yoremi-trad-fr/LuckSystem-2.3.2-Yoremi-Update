@@ -66,12 +66,16 @@ export function PakReplace(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['PakReplace'](arg1, arg2, arg3, arg4);
 }
 
-export function ScriptCompile(arg1, arg2, arg3, arg4, arg5, arg6) {
-  return window['go']['main']['App']['ScriptCompile'](arg1, arg2, arg3, arg4, arg5, arg6);
+export function ScanGameData() {
+  return window['go']['main']['App']['ScanGameData']();
 }
 
-export function ScriptDecompile(arg1, arg2, arg3, arg4, arg5) {
-  return window['go']['main']['App']['ScriptDecompile'](arg1, arg2, arg3, arg4, arg5);
+export function ScriptCompile(arg1, arg2, arg3, arg4, arg5, arg6, arg7) {
+  return window['go']['main']['App']['ScriptCompile'](arg1, arg2, arg3, arg4, arg5, arg6, arg7);
+}
+
+export function ScriptDecompile(arg1, arg2, arg3, arg4, arg5, arg6) {
+  return window['go']['main']['App']['ScriptDecompile'](arg1, arg2, arg3, arg4, arg5, arg6);
 }
 
 export function SelectDirectory(arg1) {

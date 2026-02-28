@@ -34,9 +34,11 @@ export function PakFontReplace(arg1:string,arg2:string,arg3:string,arg4:string,a
 
 export function PakReplace(arg1:string,arg2:string,arg3:string,arg4:string):Promise<string>;
 
-export function ScriptCompile(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:string):Promise<string>;
+export function ScanGameData():Promise<Array<main.GamePreset>>;
 
-export function ScriptDecompile(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string):Promise<string>;
+export function ScriptCompile(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:string,arg7:string):Promise<string>;
+
+export function ScriptDecompile(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:string):Promise<string>;
 
 export function SelectDirectory(arg1:string):Promise<string>;
 

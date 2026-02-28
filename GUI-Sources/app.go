@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 
@@ -101,6 +102,119 @@ func (a *App) SetLuckSystemPath() string {
 	}
 	a.lucksystem = file
 	return a.lucksystem
+}
+
+// ───────────────────────────────────────
+// Game Presets — scan data/ folder
+// ───────────────────────────────────────
+
+// GamePreset holds auto-detected game configuration from the data/ folder
+type GamePreset struct {
+	Name       string `json:"name"`       // Display name (e.g. "AIR", "LB_EN")
+	OpcodeFile string `json:"opcodeFile"` // Absolute path to OPCODE .txt
+	PluginFile string `json:"pluginFile"` // Absolute path to .py plugin (may be empty)
+	GameFlag   string `json:"gameFlag"`   // Value for -g flag (game name)
+}
+
+// ScanGameData scans the data/ folder next to lucksystem and returns available game presets.
+// Convention:
+//   - data/GAME.txt          → opcode at root level (AIR, KANON, HARMONIA...)
+//   - data/GAME/OPCODE.txt   → opcode in subdirectory (LB_EN, SP)
+//   - data/GAME.py           → plugin file (always at root level)
+//   - data/base/             → excluded (base modules, not game configs)
+func (a *App) ScanGameData() []GamePreset {
+	if a.lucksystem == "" {
+		return nil
+	}
+
+	dataDir := filepath.Join(filepath.Dir(a.lucksystem), "data")
+	info, err := os.Stat(dataDir)
+	if err != nil || !info.IsDir() {
+		return nil
+	}
+
+	presets := []GamePreset{}
+	seen := map[string]bool{} // track game names to avoid duplicates
+
+	// 1) Scan subdirectories (e.g. data/LB_EN/OPCODE.txt, data/SP/OPCODE.txt)
+	entries, err := os.ReadDir(dataDir)
+	if err != nil {
+		return nil
+	}
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		dirName := entry.Name()
+		if strings.EqualFold(dirName, "base") {
+			continue // skip base/ module directory
+		}
+
+		// Look for .txt files inside the subdirectory
+		subDir := filepath.Join(dataDir, dirName)
+		subEntries, err := os.ReadDir(subDir)
+		if err != nil {
+			continue
+		}
+		for _, sub := range subEntries {
+			if sub.IsDir() || !strings.HasSuffix(strings.ToLower(sub.Name()), ".txt") {
+				continue
+			}
+			gameName := dirName
+			if seen[gameName] {
+				continue
+			}
+			seen[gameName] = true
+
+			preset := GamePreset{
+				Name:       gameName,
+				OpcodeFile: filepath.Join(subDir, sub.Name()),
+				GameFlag:   gameName,
+			}
+			// Check for plugin at data/GAME.py
+			pluginPath := filepath.Join(dataDir, gameName+".py")
+			if _, err := os.Stat(pluginPath); err == nil {
+				preset.PluginFile = pluginPath
+			}
+			presets = append(presets, preset)
+		}
+	}
+
+	// 2) Scan root-level .txt files (e.g. data/AIR.txt, data/KANON.txt)
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		if !strings.HasSuffix(strings.ToLower(name), ".txt") {
+			continue
+		}
+
+		gameName := strings.TrimSuffix(name, filepath.Ext(name))
+		if seen[gameName] {
+			continue // already found via subdirectory
+		}
+		seen[gameName] = true
+
+		preset := GamePreset{
+			Name:       gameName,
+			OpcodeFile: filepath.Join(dataDir, name),
+			GameFlag:   gameName,
+		}
+		// Check for plugin at data/GAME.py
+		pluginPath := filepath.Join(dataDir, gameName+".py")
+		if _, err := os.Stat(pluginPath); err == nil {
+			preset.PluginFile = pluginPath
+		}
+		presets = append(presets, preset)
+	}
+
+	// Sort alphabetically by name
+	sort.Slice(presets, func(i, j int) bool {
+		return strings.ToLower(presets[i].Name) < strings.ToLower(presets[j].Name)
+	})
+
+	return presets
 }
 
 // ───────────────────────────────────────
@@ -283,9 +397,9 @@ func stripScriptPakSuffix(dir string) string {
 // ═══════════════════════════════════════
 // SCRIPT DECOMPILE
 // ═══════════════════════════════════════
-// lucksystem script decompile -s PAK -c charset -O opcode -p plugin -o outputdir
+// lucksystem script decompile -s PAK -c charset -O opcode -p plugin -g game -o outputdir
 
-func (a *App) ScriptDecompile(pakFile, opcodeFile, pluginFile, charsetStr, outputDir string) string {
+func (a *App) ScriptDecompile(pakFile, opcodeFile, pluginFile, charsetStr, outputDir, gameName string) string {
 	if pakFile == "" || outputDir == "" {
 		a.logError("SCRIPT.PAK and output directory are required")
 		return "ERROR"
@@ -308,6 +422,9 @@ func (a *App) ScriptDecompile(pakFile, opcodeFile, pluginFile, charsetStr, outpu
 	if pluginFile != "" {
 		args = append(args, "-p", pluginFile)
 	}
+	if gameName != "" {
+		args = append(args, "-g", gameName)
+	}
 
 	err := a.runLuckSystem(args...)
 	if err != nil {
@@ -322,9 +439,9 @@ func (a *App) ScriptDecompile(pakFile, opcodeFile, pluginFile, charsetStr, outpu
 // ═══════════════════════════════════════
 // SCRIPT COMPILE (IMPORT)
 // ═══════════════════════════════════════
-// lucksystem script import -s PAK -c charset -O opcode -p plugin -i importdir -o output.PAK
+// lucksystem script import -s PAK -c charset -O opcode -p plugin -g game -i importdir -o output.PAK
 
-func (a *App) ScriptCompile(pakFile, opcodeFile, pluginFile, charsetStr, importDir, outputPak string) string {
+func (a *App) ScriptCompile(pakFile, opcodeFile, pluginFile, charsetStr, importDir, outputPak, gameName string) string {
 	if pakFile == "" || importDir == "" || outputPak == "" {
 		a.logError("SCRIPT.PAK, translated folder, and output PAK are required")
 		return "ERROR"
@@ -346,6 +463,9 @@ func (a *App) ScriptCompile(pakFile, opcodeFile, pluginFile, charsetStr, importD
 	}
 	if pluginFile != "" {
 		args = append(args, "-p", pluginFile)
+	}
+	if gameName != "" {
+		args = append(args, "-g", gameName)
 	}
 
 	err := a.runLuckSystem(args...)
