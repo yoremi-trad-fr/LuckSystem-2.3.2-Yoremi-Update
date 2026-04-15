@@ -948,8 +948,16 @@ func (a *App) SelectSaveScriptFile(defaultName string) string {
 // Supported line types:
 //   MESSAGE(...)  — dialogue lines (all LuckEngine games)
 //   LOG_BEGIN(...) — log/title entries (e.g. AIR, CLANNAD)
+//   SELECT(...)   — in-game choice options (Kanon and others)
 //
-// Each line contains N quoted strings = N language columns.
+// All three types are treated identically for extract/import: each line
+// produces one TSV row with N language columns (the Nth quoted string in
+// the line). SELECT lines contain $d-separated choices inside their
+// quoted strings; these are kept verbatim in the TSV cell.
+//
+// Lines may be prefixed by a "labelN: " marker (e.g. "label22: SELECT (...)")
+// which is stripped before recognition.
+//
 // The user picks columns by number (Lang 1, Lang 2, ...).
 // Column assignment varies by game — user must verify.
 
@@ -959,18 +967,56 @@ type DialogueFormatInfo struct {
 	MaxCols  int    `json:"maxCols"`
 }
 
-// isDialogueLine returns true if the line starts with MESSAGE or LOG_BEGIN.
-func isDialogueLine(trimmed string) bool {
-	return strings.HasPrefix(trimmed, "MESSAGE") || strings.HasPrefix(trimmed, "LOG_BEGIN")
+// stripLabelPrefix removes an optional "labelN: " (or "labelXX: ") prefix
+// from a trimmed line and returns the remainder. Returns the original line
+// if no label prefix is present.
+func stripLabelPrefix(trimmed string) string {
+	// Match: ^label[0-9]+:\s*
+	if !strings.HasPrefix(trimmed, "label") {
+		return trimmed
+	}
+	rest := trimmed[len("label"):]
+	// Consume digits
+	i := 0
+	for i < len(rest) && rest[i] >= '0' && rest[i] <= '9' {
+		i++
+	}
+	if i == 0 || i >= len(rest) || rest[i] != ':' {
+		return trimmed
+	}
+	rest = rest[i+1:]
+	// Consume optional whitespace
+	rest = strings.TrimLeft(rest, " \t")
+	return rest
 }
 
-// lineTag returns "MESSAGE" or "LOG_BEGIN" for tagging in the TSV ID column.
+// isDialogueLine returns true if the line (after optional label prefix
+// stripping) starts with MESSAGE, LOG_BEGIN, or SELECT.
+func isDialogueLine(trimmed string) bool {
+	rest := stripLabelPrefix(trimmed)
+	return strings.HasPrefix(rest, "MESSAGE") ||
+		strings.HasPrefix(rest, "LOG_BEGIN") ||
+		strings.HasPrefix(rest, "SELECT")
+}
+
+// lineTag returns "MESSAGE", "LOG_BEGIN", or "SELECT" for tagging in the TSV.
 func lineTag(trimmed string) string {
-	if strings.HasPrefix(trimmed, "LOG_BEGIN") {
+	rest := stripLabelPrefix(trimmed)
+	if strings.HasPrefix(rest, "LOG_BEGIN") {
 		return "LOG_BEGIN"
+	}
+	if strings.HasPrefix(rest, "SELECT") {
+		return "SELECT"
 	}
 	return "MESSAGE"
 }
+
+// isSelectLine returns true if the line (after label stripping) is a SELECT.
+func isSelectLine(trimmed string) bool {
+	return strings.HasPrefix(stripLabelPrefix(trimmed), "SELECT")
+}
+
+
 
 // DialogueDetectFormat reads a decompiled script and detects the format.
 // Scans MESSAGE and LOG_BEGIN lines, counts max quoted strings.
@@ -992,27 +1038,32 @@ func (a *App) DialogueDetectFormat(scriptFile string) DialogueFormatInfo {
 	maxQuotes := 0
 	msgCount := 0
 	logCount := 0
+	selCount := 0
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
 		if !isDialogueLine(trimmed) {
 			continue
 		}
-		if strings.HasPrefix(trimmed, "LOG_BEGIN") {
+		rest := stripLabelPrefix(trimmed)
+		switch {
+		case strings.HasPrefix(rest, "LOG_BEGIN"):
 			logCount++
-		} else {
+		case strings.HasPrefix(rest, "SELECT"):
+			selCount++
+		default:
 			msgCount++
 		}
 		quotes := len(extractQuotedStrings(trimmed))
 		if quotes > maxQuotes {
 			maxQuotes = quotes
 		}
-		if msgCount+logCount >= 50 {
+		if msgCount+logCount+selCount >= 50 {
 			break
 		}
 	}
 
-	if msgCount+logCount == 0 {
-		result.Format = "No MESSAGE / LOG_BEGIN found"
+	if msgCount+logCount+selCount == 0 {
+		result.Format = "No MESSAGE / LOG_BEGIN / SELECT found"
 		return result
 	}
 
@@ -1028,6 +1079,9 @@ func (a *App) DialogueDetectFormat(scriptFile string) DialogueFormatInfo {
 	}
 	if logCount > 0 {
 		parts = append(parts, fmt.Sprintf("%d LOG_BEGIN", logCount))
+	}
+	if selCount > 0 {
+		parts = append(parts, fmt.Sprintf("%d SELECT", selCount))
 	}
 	result.Format = fmt.Sprintf("%d columns detected (%s sampled)", maxQuotes, strings.Join(parts, " + "))
 
@@ -1165,6 +1219,11 @@ func (a *App) DialogueExtractBatch(inputDir, outputDir string, cols []int) strin
 
 // extractDialoguesFromFile does the actual extraction work.
 // cols contains 1-based column indices (e.g. [1, 2] for Lang 1 and Lang 2).
+//
+// All line types (MESSAGE, LOG_BEGIN, SELECT) are treated identically:
+// 1 line → 1 TSV row (ID = seqID). The Nth quoted string maps to Lang N.
+// For SELECT lines the quoted string(s) contain $d-separated choices that
+// are kept verbatim in the TSV cell.
 func (a *App) extractDialoguesFromFile(inputFile, outputFile string, cols []int) (int, error) {
 	data, err := os.ReadFile(inputFile)
 	if err != nil {
@@ -1317,7 +1376,8 @@ func (a *App) DialogueImportBatch(scriptsDir, tsvDir string, targetCol int, outp
 
 // importDialoguesToFile does the actual import work.
 // It reads the TSV, builds a map of seqID→translated text, then replaces
-// the corresponding quoted string in each MESSAGE/LOG_BEGIN line of the script.
+// the corresponding quoted string in each MESSAGE/LOG_BEGIN/SELECT line.
+// All three line types are treated identically (monobloc replacement).
 // targetCol is 1-based: Lang 1 = replace quoted string #0, Lang 2 = #1, etc.
 func (a *App) importDialoguesToFile(scriptFile, tsvFile string, targetCol int, outputFile string) (int, error) {
 	// --- Read TSV ---
