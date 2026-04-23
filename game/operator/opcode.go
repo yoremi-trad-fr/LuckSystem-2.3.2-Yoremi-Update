@@ -175,5 +175,7 @@ func (op *OP) SetOperateParams() {
 		// types[i] = param.Type
 	}
 	params = append(params, requires)
-	_ = op.ctx.Script.SetOperateParams(op.ctx.CIndex, op.ctx.RunMode, params...)
+	if err := op.ctx.Script.SetOperateParams(op.ctx.CIndex, op.ctx.RunMode, params...); err != nil {
+		panic(err)
+	}
 }
