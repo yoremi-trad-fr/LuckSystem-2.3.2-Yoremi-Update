@@ -1,8 +1,8 @@
 /*
- * version.dll proxy for Kanon Steam (Luck Engine) — FR translation patch
+ * version.dll proxy for Luck Engine (Steam) — in-memory string patch toolkit
  *
  * How it works:
- *   1) Kanon.exe imports VERSION.dll. Windows resolves imports from the exe's
+ *   1) The game exe imports VERSION.dll. Windows resolves imports from the exe's
  *      directory BEFORE System32 (VERSION.dll is not a Known DLL), so our
  *      proxy gets loaded instead of the real one.
  *   2) On DLL_PROCESS_ATTACH we spawn a worker thread that waits for the
@@ -11,12 +11,10 @@
  *      matches the expected plaintext. SteamStub typically finishes within
  *      ~200 ms; we poll for up to ~30 s and give up silently on timeout.
  *   3) Apply the string patches via VirtualProtect + memcpy, restore page
- *      protection, done. The on-disk Kanon.exe is never modified: SteamStub
+ *      protection, done. The on-disk exe is never modified: SteamStub
  *      integrity checks pass, Steam is happy.
  *   4) Exports are runtime-forwarded to the real C:\Windows\System32\version.dll
  *      so the game's VERSION.dll imports resolve normally.
- *
- * POC scope: a single patch ("Slow" -> "Lent") to verify the approach.
  *
  * Build:
  *   x86_64-w64-mingw32-gcc -O2 -s -shared -o version.dll \
@@ -32,12 +30,12 @@
 /* ------------------------------------------------------------------ */
 
 typedef struct {
-    DWORD        rva;          /* RVA within Kanon.exe module */
-    SIZE_T       len;          /* byte count to check & write (EN length + null) */
+    DWORD        rva;          /* RVA within the game module */
+    SIZE_T       len;          /* byte count to check & write (src length + null) */
     const BYTE  *expected;     /* must match before we patch */
-    const BYTE  *replacement;  /* FR bytes padded with \0 to EN length */
+    const BYTE  *replacement;  /* translated bytes padded with \0 to src length */
     const char  *comment;      /* for logging                 */
-} KanonPatch;
+} LuckPatch;
 
 #include "patches.h"
 
@@ -45,19 +43,19 @@ typedef struct {
 #define SENTINEL_INDEX 0
 
 /* ------------------------------------------------------------------ */
-/*  Logging (optional, enabled if KANON_FR_LOG env var is set)         */
+/*  Logging (optional, enabled if LUCKPROXY_LOG env var is set)        */
 /* ------------------------------------------------------------------ */
 
 static FILE *g_log = NULL;
 
 static void log_open(void) {
     char buf[8];
-    if (GetEnvironmentVariableA("KANON_FR_LOG", buf, sizeof(buf)) > 0) {
+    if (GetEnvironmentVariableA("LUCKPROXY_LOG", buf, sizeof(buf)) > 0) {
         char path[MAX_PATH];
         GetModuleFileNameA(NULL, path, MAX_PATH);
         char *slash = strrchr(path, '\\');
-        if (slash) strcpy(slash + 1, "kanon_fr.log");
-        else strcpy(path, "kanon_fr.log");
+        if (slash) strcpy(slash + 1, "luckproxy.log");
+        else strcpy(path, "luckproxy.log");
         g_log = fopen(path, "a");
     }
 }
@@ -138,51 +136,51 @@ static void load_real_version_dll(void) {
 /*  Exports (forward to real DLL)                                       */
 /* ------------------------------------------------------------------ */
 
-DWORD WINAPI KFR_GetFileVersionInfoSizeA(LPCSTR f, LPDWORD h) {
+DWORD WINAPI LKPRX_GetFileVersionInfoSizeA(LPCSTR f, LPDWORD h) {
     load_real_version_dll();
     return p_GetFileVersionInfoSizeA ? p_GetFileVersionInfoSizeA(f, h) : 0;
 }
-DWORD WINAPI KFR_GetFileVersionInfoSizeW(LPCWSTR f, LPDWORD h) {
+DWORD WINAPI LKPRX_GetFileVersionInfoSizeW(LPCWSTR f, LPDWORD h) {
     load_real_version_dll();
     return p_GetFileVersionInfoSizeW ? p_GetFileVersionInfoSizeW(f, h) : 0;
 }
-BOOL WINAPI KFR_GetFileVersionInfoA(LPCSTR f, DWORD h, DWORD l, LPVOID d) {
+BOOL WINAPI LKPRX_GetFileVersionInfoA(LPCSTR f, DWORD h, DWORD l, LPVOID d) {
     load_real_version_dll();
     return p_GetFileVersionInfoA ? p_GetFileVersionInfoA(f, h, l, d) : FALSE;
 }
-BOOL WINAPI KFR_GetFileVersionInfoW(LPCWSTR f, DWORD h, DWORD l, LPVOID d) {
+BOOL WINAPI LKPRX_GetFileVersionInfoW(LPCWSTR f, DWORD h, DWORD l, LPVOID d) {
     load_real_version_dll();
     return p_GetFileVersionInfoW ? p_GetFileVersionInfoW(f, h, l, d) : FALSE;
 }
-BOOL WINAPI KFR_VerQueryValueA(LPCVOID b, LPCSTR s, LPVOID *p, PUINT l) {
+BOOL WINAPI LKPRX_VerQueryValueA(LPCVOID b, LPCSTR s, LPVOID *p, PUINT l) {
     load_real_version_dll();
     return p_VerQueryValueA ? p_VerQueryValueA(b, s, p, l) : FALSE;
 }
-BOOL WINAPI KFR_VerQueryValueW(LPCVOID b, LPCWSTR s, LPVOID *p, PUINT l) {
+BOOL WINAPI LKPRX_VerQueryValueW(LPCVOID b, LPCWSTR s, LPVOID *p, PUINT l) {
     load_real_version_dll();
     return p_VerQueryValueW ? p_VerQueryValueW(b, s, p, l) : FALSE;
 }
-DWORD WINAPI KFR_VerFindFileA(DWORD a, LPCSTR b, LPCSTR c, LPCSTR d, LPSTR e, PUINT f, LPSTR g, PUINT h) {
+DWORD WINAPI LKPRX_VerFindFileA(DWORD a, LPCSTR b, LPCSTR c, LPCSTR d, LPSTR e, PUINT f, LPSTR g, PUINT h) {
     load_real_version_dll();
     return p_VerFindFileA ? p_VerFindFileA(a,b,c,d,e,f,g,h) : 0;
 }
-DWORD WINAPI KFR_VerFindFileW(DWORD a, LPCWSTR b, LPCWSTR c, LPCWSTR d, LPWSTR e, PUINT f, LPWSTR g, PUINT h) {
+DWORD WINAPI LKPRX_VerFindFileW(DWORD a, LPCWSTR b, LPCWSTR c, LPCWSTR d, LPWSTR e, PUINT f, LPWSTR g, PUINT h) {
     load_real_version_dll();
     return p_VerFindFileW ? p_VerFindFileW(a,b,c,d,e,f,g,h) : 0;
 }
-DWORD WINAPI KFR_VerInstallFileA(DWORD a, LPCSTR b, LPCSTR c, LPCSTR d, LPCSTR e, LPCSTR f, LPSTR g, PUINT h) {
+DWORD WINAPI LKPRX_VerInstallFileA(DWORD a, LPCSTR b, LPCSTR c, LPCSTR d, LPCSTR e, LPCSTR f, LPSTR g, PUINT h) {
     load_real_version_dll();
     return p_VerInstallFileA ? p_VerInstallFileA(a,b,c,d,e,f,g,h) : 0;
 }
-DWORD WINAPI KFR_VerInstallFileW(DWORD a, LPCWSTR b, LPCWSTR c, LPCWSTR d, LPCWSTR e, LPCWSTR f, LPWSTR g, PUINT h) {
+DWORD WINAPI LKPRX_VerInstallFileW(DWORD a, LPCWSTR b, LPCWSTR c, LPCWSTR d, LPCWSTR e, LPCWSTR f, LPWSTR g, PUINT h) {
     load_real_version_dll();
     return p_VerInstallFileW ? p_VerInstallFileW(a,b,c,d,e,f,g,h) : 0;
 }
-DWORD WINAPI KFR_VerLanguageNameA(DWORD l, LPSTR s, DWORD n) {
+DWORD WINAPI LKPRX_VerLanguageNameA(DWORD l, LPSTR s, DWORD n) {
     load_real_version_dll();
     return p_VerLanguageNameA ? p_VerLanguageNameA(l, s, n) : 0;
 }
-DWORD WINAPI KFR_VerLanguageNameW(DWORD l, LPWSTR s, DWORD n) {
+DWORD WINAPI LKPRX_VerLanguageNameW(DWORD l, LPWSTR s, DWORD n) {
     load_real_version_dll();
     return p_VerLanguageNameW ? p_VerLanguageNameW(l, s, n) : 0;
 }
@@ -192,11 +190,11 @@ DWORD WINAPI KFR_VerLanguageNameW(DWORD l, LPWSTR s, DWORD n) {
 /* ------------------------------------------------------------------ */
 
 static BOOL sentinel_ready(const BYTE *base) {
-    const KanonPatch *s = &g_patches[SENTINEL_INDEX];
+    const LuckPatch *s = &g_patches[SENTINEL_INDEX];
     return memcmp(base + s->rva, s->expected, s->len) == 0;
 }
 
-static void apply_patch(BYTE *base, const KanonPatch *p) {
+static void apply_patch(BYTE *base, const LuckPatch *p) {
     BYTE *addr = base + p->rva;
     DWORD old_protect = 0;
     if (!VirtualProtect(addr, p->len, PAGE_READWRITE, &old_protect)) {
@@ -230,7 +228,7 @@ static DWORD WINAPI patch_thread(LPVOID unused) {
         Sleep(100);
     }
     if (!ready) {
-        const KanonPatch *s = &g_patches[SENTINEL_INDEX];
+        const LuckPatch *s = &g_patches[SENTINEL_INDEX];
         BYTE got[8] = {0};
         memcpy(got, base + s->rva, s->len < 8 ? s->len : 8);
         log_msg("Sentinel never matched after 30s. Got: %02X %02X %02X %02X %02X",
@@ -255,7 +253,8 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved) {
     if (reason == DLL_PROCESS_ATTACH) {
         DisableThreadLibraryCalls(hinst);
         log_open();
-    log_msg("DLL_PROCESS_ATTACH (Kanon FR proxy v0.5, %d patches)", (int)N_PATCHES);
+        log_msg("DLL_PROCESS_ATTACH (%s proxy v%s, %d patches)",
+                PATCH_GAME_NAME, PATCH_VERSION, (int)N_PATCHES);
         HANDLE h = CreateThread(NULL, 0, patch_thread, NULL, 0, NULL);
         if (h) CloseHandle(h);
         else log_msg("ERROR: CreateThread failed: %lu", GetLastError());

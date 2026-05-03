@@ -1,0 +1,14 @@
+LIBRARY version
+EXPORTS
+    GetFileVersionInfoA     = LKPRX_GetFileVersionInfoA
+    GetFileVersionInfoW     = LKPRX_GetFileVersionInfoW
+    GetFileVersionInfoSizeA = LKPRX_GetFileVersionInfoSizeA
+    GetFileVersionInfoSizeW = LKPRX_GetFileVersionInfoSizeW
+    VerQueryValueA          = LKPRX_VerQueryValueA
+    VerQueryValueW          = LKPRX_VerQueryValueW
+    VerFindFileA            = LKPRX_VerFindFileA
+    VerFindFileW            = LKPRX_VerFindFileW
+    VerInstallFileA         = LKPRX_VerInstallFileA
+    VerInstallFileW         = LKPRX_VerInstallFileW
+    VerLanguageNameA        = LKPRX_VerLanguageNameA
+    VerLanguageNameW        = LKPRX_VerLanguageNameW
