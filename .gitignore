@@ -1,0 +1,31 @@
+# Build outputs
+*.exe
+*.dll
+*.so
+*.dylib
+lucksystem
+SourcesGUI-wails/build/bin/
+SourcesGUI-wails/frontend/dist/
+
+# Local dependency/cache folders
+.gocache/
+.gocache-test/
+SourcesGUI-wails/.gocache/
+SourcesGUI-wails/.gocache-test/
+SourcesGUI-wails/frontend/node_modules/
+
+# Local test/export artifacts
+out_test/
+diagnostic_patches*/
+viet_patch*/
+*.PAK
+*.pak
+
+# Editor/system noise
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+*.bak
+*.backup
+*.patch

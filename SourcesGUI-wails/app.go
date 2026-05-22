@@ -963,8 +963,8 @@ func (a *App) SelectSaveScriptFile(defaultName string) string {
 
 // DialogueFormatInfo is returned by DialogueDetectFormat
 type DialogueFormatInfo struct {
-	Format   string `json:"format"`
-	MaxCols  int    `json:"maxCols"`
+	Format  string `json:"format"`
+	MaxCols int    `json:"maxCols"`
 }
 
 // stripLabelPrefix removes an optional "labelN: " (or "labelXX: ") prefix
@@ -1015,8 +1015,6 @@ func lineTag(trimmed string) string {
 func isSelectLine(trimmed string) bool {
 	return strings.HasPrefix(stripLabelPrefix(trimmed), "SELECT")
 }
-
-
 
 // DialogueDetectFormat reads a decompiled script and detects the format.
 // Scans MESSAGE and LOG_BEGIN lines, counts max quoted strings.
