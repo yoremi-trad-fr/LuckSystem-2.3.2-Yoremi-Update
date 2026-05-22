@@ -34,7 +34,7 @@ A graphical interface is available in a separate repository:
 
 ### Linux
 
-Une version Linux est disponible en binaires séparés (GUI + CLI). Voir les releases pour le téléchargement.
+Une version Linux est disponibleen binaires séparés (GUI + CLI). Voir les releases pour le téléchargement.
 
 A Linux version is available as separate binaries (GUI + CLI). See the releases for download.
 
@@ -174,6 +174,7 @@ Patch 2 : silent 18-bit truncation in `compressLZW2`
 |----------|-------------|
 | [Fork-CHANGELOG.md](Fork-CHANGELOG.md) | Full changelog — all versions (EN + FR) |
 | [Fork-TECHNICAL.md](Fork-TECHNICAL.md) | Technical analysis — all patches |
+| [AIR_VIETNAMESE_FONT_GUI_GUIDE.md](AIR_VIETNAMESE_FONT_GUI_GUIDE.md) | Practical GUI procedure for AIR Vietnamese font tests |
 | `LuckSystem --help` | CLI command reference |
 
 ---
