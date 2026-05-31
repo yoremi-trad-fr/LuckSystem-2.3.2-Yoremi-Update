@@ -27,6 +27,7 @@
     DialogueExtractBatch,
     DialogueImportFile,
     DialogueImportBatch,
+    VietnameseFontPatch,
     SelectScriptTxtFile,
     SelectTsvFile,
     SelectSaveTsvFile,
@@ -88,6 +89,20 @@
   let fontEditMode = 'append'; // 'redraw' | 'append' | 'insert'
   let fontEditIndex = 0;
 
+  // --- Vietnamese Font Patch ---
+  let vietFontRoot = '';
+  let vietCharsetFile = '';
+  let vietTtfFile = '';
+  let vietOutputDir = '';
+  let vietSlot = 'en';
+  let vietFamily = 'GOTHIC1';
+  let vietYMinus2 = false;
+  let vietYMinus1 = false;
+  let vietY0 = false;
+  let vietY1 = false;
+  let vietY2 = true;
+  let vietY3 = false;
+
   // --- Image Export ---
   let imgExpBatch = false;
   let imgExpInput = '';
@@ -132,6 +147,8 @@
     { id: '_s3', label: 'FONT', section: true },
     { id: 'font_extract', label: 'Font Extract' },
     { id: 'font_edit', label: 'Font Edit' },
+    { id: '_s3b', label: 'VIET FONT', section: true },
+    { id: 'viet_font_patch', label: 'AIR / SG Patch' },
     { id: '_s4', label: 'IMAGE', section: true },
     { id: 'image_export', label: 'Image Export' },
     { id: 'image_import', label: 'Image Import' },
@@ -229,6 +246,11 @@
   async function browseFontEditOutInfo() { const d = await SelectDirectory('Dossier de sortie pour le fichier info'); if (d) fontEditOutInfo = d + '\\'; }
   async function browseFontEditCharset() { const f = await SelectFile('Select charset file', '*.txt', 'Text files'); if (f) fontEditCharsetFile = f; }
 
+  async function browseVietFontRoot() { const d = await SelectDirectory('Select AIR / Planetarian SG files folder'); if (d) vietFontRoot = d; }
+  async function browseVietCharset() { const f = await SelectFile('Select full Vietnamese charset (134 chars)', '*.txt', 'Text files'); if (f) vietCharsetFile = f; }
+  async function browseVietTtf() { const f = await SelectFile('Select Vietnamese-capable TTF/OTF', '*.ttf;*.otf', 'Font files'); if (f) vietTtfFile = f; }
+  async function browseVietOutput() { const d = await SelectDirectory('Select output folder'); if (d) vietOutputDir = d; }
+
   async function browseImgExpInput() {
     if (imgExpBatch) { const d = await SelectDirectory('Select CZ folder'); if (d) imgExpInput = d; }
     else { const f = await SelectFile('Select CZ file', '*.*', 'CZ image files'); if (f) imgExpInput = f; }
@@ -291,6 +313,20 @@
     const append  = fontEditMode === 'append';
     const index   = (fontEditMode === 'insert') ? fontEditIndex : 0;
     run(() => FontEdit(fontEditCz, fontEditInfo, fontEditTtf, fontEditOutCz, fontEditOutInfo, fontEditCharsetFile, redraw, append, index));
+  }
+
+  function getVietYOffsets() {
+    const values = [];
+    if (vietYMinus2) values.push(-2);
+    if (vietYMinus1) values.push(-1);
+    if (vietY0) values.push(0);
+    if (vietY1) values.push(1);
+    if (vietY2) values.push(2);
+    if (vietY3) values.push(3);
+    return values;
+  }
+  function startVietnameseFontPatch() {
+    run(() => VietnameseFontPatch(vietFontRoot, vietCharsetFile, vietTtfFile, vietOutputDir, vietSlot, vietFamily, getVietYOffsets()));
   }
 
   function startImageExport() {
@@ -554,6 +590,60 @@
               disabled={!fontEditCz || !fontEditInfo || !fontEditTtf || !fontEditOutCz || !fontEditOutInfo
                 || (fontEditMode !== 'redraw' && !fontEditCharsetFile)}>
               Start Edit
+            </button>
+          {/if}
+        </div>
+
+      <!-- VIETNAMESE FONT PATCH -->
+      {:else if selectedOp === 'viet_font_patch'}
+        <div class="form-title">AIR / Planetarian SG — Vietnamese Font Patch</div>
+        <div class="form-hint form-hint-warn">This dedicated workflow generates safe Vietnamese font PAKs directly from the original game font folder. Use the full 134-character Vietnamese charset file.</div>
+
+        <div class="form-group"><label>Game files folder:</label><div class="form-row"><input type="text" bind:value={vietFontRoot} readonly placeholder="ex: C:\Games\AIR\files or C:\Games\Planetarian SG\files" /><button class="btn" on:click={browseVietFontRoot}>Select</button></div><div class="form-hint">Select the folder that contains <code>font_win32_1280</code>.</div></div>
+        <div class="form-group"><label>Full Vietnamese charset file:</label><div class="form-row"><input type="text" bind:value={vietCharsetFile} readonly placeholder="examples\AIR_vietnamese_full_134.txt" /><button class="btn" on:click={browseVietCharset}>Select</button></div><div class="form-hint">Use the full 134-character charset. The tool keeps the 32 existing characters and injects only the missing 102.</div></div>
+        <div class="form-group"><label>TTF / OTF font file:</label><div class="form-row"><input type="text" bind:value={vietTtfFile} readonly /><button class="btn" on:click={browseVietTtf}>Select</button></div></div>
+        <div class="form-group"><label>Output folder:</label><div class="form-row"><input type="text" bind:value={vietOutputDir} readonly /><button class="btn" on:click={browseVietOutput}>Select</button></div><div class="form-hint">Each selected Y value creates a separate subfolder containing ready-to-test PAKs.</div></div>
+
+        <div class="form-group">
+          <label>Target:</label>
+          <div class="form-row">
+            <select bind:value={vietSlot}>
+              <option value="en">English slot (recommended)</option>
+              <option value="zc">Chinese ZC slot</option>
+              <option value="all">Both slots</option>
+            </select>
+            <select bind:value={vietFamily}>
+              <option value="GOTHIC1">GOTHIC1 quick test</option>
+              <option value="GOTHIC2">GOTHIC2</option>
+              <option value="GOTHIC3">GOTHIC3</option>
+              <option value="MINCHO">MINCHO</option>
+              <option value="MODERN">MODERN</option>
+              <option value="all">All English families</option>
+            </select>
+          </div>
+          <div class="form-hint">For first tests, keep English slot + GOTHIC1. Generate all families only after a good Y value is found.</div>
+        </div>
+
+        <div class="form-group">
+          <label>Y alignment values:</label>
+          <div class="form-row checkbox-row">
+            <label class="checkbox-label"><input type="checkbox" bind:checked={vietYMinus2} /> Y-2</label>
+            <label class="checkbox-label"><input type="checkbox" bind:checked={vietYMinus1} /> Y-1</label>
+            <label class="checkbox-label"><input type="checkbox" bind:checked={vietY0} /> Y+0</label>
+            <label class="checkbox-label"><input type="checkbox" bind:checked={vietY1} /> Y+1</label>
+            <label class="checkbox-label"><input type="checkbox" bind:checked={vietY2} /> Y+2</label>
+            <label class="checkbox-label"><input type="checkbox" bind:checked={vietY3} /> Y+3</label>
+          </div>
+          <div class="form-hint">Y+2 is the validated AIR value. Select several values to create several test folders at once.</div>
+        </div>
+
+        <div class="form-actions">
+          {#if running}
+            <span class="running-indicator"></span> Running...
+          {:else}
+            <button class="btn btn-primary" on:click={startVietnameseFontPatch}
+              disabled={!vietFontRoot || !vietCharsetFile || !vietTtfFile || !vietOutputDir || getVietYOffsets().length === 0}>
+              Generate Vietnamese Font PAKs
             </button>
           {/if}
         </div>
