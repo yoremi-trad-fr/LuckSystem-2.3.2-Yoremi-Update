@@ -1,3 +1,63 @@
+# V3.1.8 — Dedicated AIR / Planetarian SG Vietnamese font GUI patcher
+
+31/05/2026
+
+## Added: beginner-safe Vietnamese font PAK generation from the GUI
+
+### Problem
+
+A tester could generate font PAKs with an older or incorrectly built standalone Vietnamese font tool, but the resulting files corrupted the AIR / Planetarian SG menu and made dialogue text disappear.
+
+The broken submitted `FONT__INFO.PAK` used font-info entries of `283729` bytes. The corrected AIR / Planetarian SG path must preserve the legacy `CharNum=100 + CharNum2` info layout, which produces the expected `283731` / `283732` byte entries depending on the size table.
+
+### Fix
+
+**GUI**
+
+- Added a dedicated `VIET FONT -> AIR / SG Patch` workflow.
+- Embedded the corrected Vietnamese font patch logic directly in the Wails GUI backend (`SourcesGUI-wails/vietnamese_font.go`).
+- Removed the need for beginners to run or rebuild separate `vietnamesefont.exe` / `vietfontpatch.exe` tools.
+- Added beginner-friendly inputs:
+  - game `files` folder containing `font_win32_1280`;
+  - full Vietnamese charset file;
+  - TTF / OTF font file;
+  - output folder;
+  - slot selector (`English`, `Chinese`, `All`);
+  - family selector (`GOTHIC1` quick test, or all supported families);
+  - Y-offset checkboxes (`Y-2`, `Y-1`, `Y+0`, `Y+1`, `Y+2`, `Y+3`).
+- Generates one ready-to-test output folder per selected Y value, for example `FontName_en_GOTHIC1_Y+2`.
+- Keeps `Y+2` selected by default because it was the best AIR English-slot visual match during validation.
+- Adds GUI-side preflight checks for missing source PAKs, so selecting the wrong folder produces a clear error instead of broken output.
+- Updated GUI title/about/version labels to `v3.1.8`.
+
+**Documentation**
+
+- Added/updated the beginner GUI procedure in `Vietnamese font/VIETNAMESE_FONT_PATCH_GUI_BEGINNER_GUIDE.md`.
+- Updated README documentation links to the `Vietnamese font/` folder.
+- Documented the new v3.1.8 workflow in `Fork-CHANGELOG.md` and `Fork-TECHNICAL.md`.
+
+### Recommended beginner workflow
+
+For first tests, generate only:
+
+- slot: `English`
+- family: `GOTHIC1`
+- Y offsets: `Y+2` first, then compare nearby values if another TTF is used
+
+The output folder contains only the PAKs that must be copied over the matching original font PAKs for the selected test.
+
+### Testing
+
+- Rechecked a broken tester package: invalid info entry size `283729`.
+- Regenerated working AIR / Planetarian SG-style `FONT__INFO.PAK` entries with the preserved `CharNum2` layout (`283731` / `283732`).
+- Verified the dedicated GUI page exposes the corrected patch path and does not depend on standalone helper executables.
+- `go test ./... -run '^$'`
+- `go test ./... -run '^$'` from `SourcesGUI-wails`
+- `npm run build` from `SourcesGUI-wails/frontend`
+- `wails build` from `SourcesGUI-wails`
+
+---
+
 # V3.1.7 — AIR Vietnamese font rebuild / compact PAK fix
 
 22/05/2026

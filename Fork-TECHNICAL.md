@@ -1,3 +1,122 @@
+# V3.1.8 — Dedicated AIR / Planetarian SG Vietnamese font GUI patcher
+
+## Fichiers modifiés
+
+### CLI / core
+- `cmd/root.go` — bump de version CLI vers `2.3.2-yoremi.3.1.8`.
+
+### GUI
+- `SourcesGUI-wails/vietnamese_font.go` — nouveau backend Wails dédié au patch de fontes vietnamiennes AIR / Planetarian SG. Le code embarque directement le workflow corrigé au lieu de demander à l'utilisateur de lancer un outil externe.
+- `SourcesGUI-wails/main.go` — titre de fenêtre mis à jour en `v3.1.8`.
+- `SourcesGUI-wails/frontend/src/App.svelte` — nouvelle page `VIET FONT -> AIR / SG Patch`, sélecteurs slot/famille, cases Y-offset et libellés de version `v3.1.8`.
+- `SourcesGUI-wails/frontend/wailsjs/go/main/App.js`
+- `SourcesGUI-wails/frontend/wailsjs/go/main/App.d.ts`
+- `SourcesGUI-wails/go.mod`
+- `SourcesGUI-wails/go.sum`
+- `SourcesGUI-wails/frontend/package.json`
+- `SourcesGUI-wails/frontend/package-lock.json`
+- `SourcesGUI-wails/frontend/package.json.md5`
+- `SourcesGUI-wails/GUI-Windows-README.md`
+- `SourcesGUI-wails/GUI-Linux-README.md`
+
+### Documentation / exemples
+- `README.md`
+- `Fork-CHANGELOG.md`
+- `Fork-TECHNICAL.md`
+- `Vietnamese font/VIETNAMESE_FONT_PATCH_GUI_BEGINNER_GUIDE.md`
+- `Vietnamese font/AIR_VIETNAMESE_FONT_GUI_GUIDE.md`
+- `Vietnamese font/AIR_VIETNAMESE_FONT_WINDOWS_TECHNICAL_GUIDE.md`
+- `Vietnamese font/examples/AIR_vietnamese_full_134.txt`
+- `Vietnamese font/examples/AIR_vietnamese_missing_102.txt`
+
+## Contexte
+
+Le patch v3.1.7 corrigeait le writer de fontes et ajoutait les helpers de diagnostic/patch. En pratique, un correspondant pouvait encore produire des PAK inutilisables avec un ancien `vietnamesefont.exe` ou un helper compilé depuis une mauvaise source. Le symptôme observé était net : menus corrompus et texte de dialogue absent après remplacement des PAK de fonte.
+
+L'analyse des PAK envoyés a montré que le problème venait de la table `FONT__INFO.PAK`. Les entrées produites par le mauvais outil faisaient `283729` octets, alors que la forme attendue pour AIR / Planetarian SG conserve le layout historique `CharNum=100 + CharNum2`, donnant des entrées `283731` / `283732` selon la taille.
+
+## Détail des corrections
+
+### 1. Workflow GUI dédié
+
+La GUI reçoit une page spécialisée `VIET FONT -> AIR / SG Patch`. Elle demande uniquement les éléments compréhensibles pour un utilisateur non technique :
+
+- dossier `files` du jeu, qui doit contenir `font_win32_1280`;
+- charset vietnamien complet;
+- fichier TTF / OTF;
+- dossier de sortie;
+- slot à générer;
+- famille de fonte à générer;
+- valeurs d'alignement vertical à tester.
+
+Le réglage conseillé reste :
+
+- slot : `English`;
+- famille : `GOTHIC1`;
+- Y offset : `Y+2`.
+
+### 2. Patch intégré dans la GUI
+
+`SourcesGUI-wails/vietnamese_font.go` réutilise directement les packages Go du core (`font`, `pak`) et reproduit le workflow validé :
+
+1. lecture du `FONT__INFO.PAK` original;
+2. détection des caractères vietnamiens déjà présents;
+3. injection uniquement des caractères manquants;
+4. normalisation verticale des glyphes injectés par rapport aux glyphes accentués déjà présents;
+5. reconstruction compacte des PAK;
+6. préservation du layout `CharNum2`.
+
+L'utilisateur n'a donc plus besoin de compiler ou lancer `tools/vietfontpatch`. Cela réduit fortement le risque de mélanger un ancien binaire, une mauvaise branche ou un mauvais dossier source.
+
+### 3. Sorties séparées par Y-offset
+
+Chaque valeur cochée produit un sous-dossier séparé :
+
+```text
+FontName_en_GOTHIC1_Y+0
+FontName_en_GOTHIC1_Y+1
+FontName_en_GOTHIC1_Y+2
+FontName_en_GOTHIC1_Y+3
+```
+
+Pour un test rapide `English + GOTHIC1`, chaque dossier contient :
+
+```text
+FONT__INFO.PAK
+FONT_GOTHIC1.PAK
+```
+
+Cette séparation évite d'écraser les variantes et permet au testeur de comparer visuellement plusieurs alignements sans ligne de commande.
+
+### 4. Garde-fous
+
+La GUI vérifie que les PAK sources existent avant de générer :
+
+- `font_win32_1280/FONT__INFO.PAK`;
+- les familles demandées (`FONT_GOTHIC1.PAK`, etc.);
+- les équivalents chinois si le slot `Chinese` ou `All` est choisi.
+
+Une mauvaise sélection de dossier donne une erreur lisible dans la console GUI.
+
+## Compatibilité
+
+- Les commandes CLI existantes ne changent pas.
+- Le patch de fontes vietnamiennes dédié est exposé côté GUI, pas comme nouvelle commande Cobra.
+- Le reste de la GUI continue d'appeler `lucksystem.exe` comme avant.
+- La nouvelle page de patch utilise le module Go local via `replace lucksystem => ..`, ce qui impose de compiler la GUI depuis le repo complet, pas depuis le dossier GUI isolé seul.
+
+## Tests réalisés
+
+- Inspection d'un PAK défectueux envoyé par le testeur : entrées info de `283729` octets.
+- Génération de PAK corrigés avec entrées info `283731` / `283732`.
+- Contrôle du workflow GUI `English + GOTHIC1 + Y+2`.
+- `go test ./... -run '^$'`
+- `go test ./... -run '^$'` depuis `SourcesGUI-wails`
+- `npm run build` depuis `SourcesGUI-wails/frontend`
+- `wails build` depuis `SourcesGUI-wails`
+
+---
+
 # V3.1.7 — AIR Vietnamese font rebuild / compact PAK fix
 
 ## Fichiers modifiés
