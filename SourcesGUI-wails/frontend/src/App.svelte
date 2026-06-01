@@ -102,6 +102,7 @@
   let vietY1 = false;
   let vietY2 = true;
   let vietY3 = false;
+  let vietRedrawLatin = false;
 
   // --- Image Export ---
   let imgExpBatch = false;
@@ -326,7 +327,7 @@
     return values;
   }
   function startVietnameseFontPatch() {
-    run(() => VietnameseFontPatch(vietFontRoot, vietCharsetFile, vietTtfFile, vietOutputDir, vietSlot, vietFamily, getVietYOffsets()));
+    run(() => VietnameseFontPatch(vietFontRoot, vietCharsetFile, vietTtfFile, vietOutputDir, vietSlot, vietFamily, getVietYOffsets(), vietRedrawLatin));
   }
 
   function startImageExport() {
@@ -603,6 +604,14 @@
         <div class="form-group"><label>Full Vietnamese charset file:</label><div class="form-row"><input type="text" bind:value={vietCharsetFile} readonly placeholder="examples\AIR_vietnamese_full_134.txt" /><button class="btn" on:click={browseVietCharset}>Select</button></div><div class="form-hint">Use the full 134-character charset. The tool keeps the 32 existing characters and injects only the missing 102.</div></div>
         <div class="form-group"><label>TTF / OTF font file:</label><div class="form-row"><input type="text" bind:value={vietTtfFile} readonly /><button class="btn" on:click={browseVietTtf}>Select</button></div></div>
         <div class="form-group"><label>Output folder:</label><div class="form-row"><input type="text" bind:value={vietOutputDir} readonly /><button class="btn" on:click={browseVietOutput}>Select</button></div><div class="form-hint">Each selected Y value creates a separate subfolder containing ready-to-test PAKs.</div></div>
+
+        <div class="form-group">
+          <label>Patch mode:</label>
+          <div class="form-row checkbox-row">
+            <label class="checkbox-label"><input type="checkbox" bind:checked={vietRedrawLatin} /> Experimental: redraw Latin alphabet from TTF</label>
+          </div>
+          <div class="form-hint">Default mode only injects missing Vietnamese glyphs. Experimental mode redraws A-Z/a-z and already-present Vietnamese glyphs at their original indexes, then injects the missing Vietnamese glyphs.</div>
+        </div>
 
         <div class="form-group">
           <label>Target:</label>

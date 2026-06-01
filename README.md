@@ -24,7 +24,7 @@ A graphical interface is available in this fork:
 - Script Decompile / Compile
 - PAK Extract / Replace (CG and Font workflows separated)
 - Font Extract / Edit (append, insert, redraw modes)
-- Vietnamese Font Patch for AIR / Planetarian SG (slot/family selectors, TTF/OTF selection, Y-offset test folders)
+- Vietnamese Font Patch for AIR / Planetarian SG (slot/family selectors, TTF/OTF selection, Y-offset test folders, optional Latin redraw test mode)
 - Image Export / Import (single file + batch folder mode)
 - Real-time console output
 - **Stop button** to cancel any running operation
@@ -45,12 +45,12 @@ A Linux version is available as separate binaries (GUI + CLI). See the releases 
 
 ### Version 3.1.8 — *(latest)*
 
-25. **Dedicated AIR / Planetarian SG Vietnamese font GUI patcher** — `SourcesGUI-wails/vietnamese_font.go`, `SourcesGUI-wails/frontend/src/App.svelte`, `SourcesGUI-wails/go.mod`, `SourcesGUI-wails/frontend/wailsjs/go/main/App.js`, `SourcesGUI-wails/frontend/wailsjs/go/main/App.d.ts`
+25. **Dedicated AIR / Planetarian SG Vietnamese font GUI patcher + Latin redraw test mode** — `SourcesGUI-wails/vietnamese_font.go`, `SourcesGUI-wails/frontend/src/App.svelte`, `SourcesGUI-wails/frontend/wailsjs/go/main/App.js`, `SourcesGUI-wails/frontend/wailsjs/go/main/App.d.ts`
     - Adds `VIET FONT -> AIR / SG Patch`, a beginner-safe GUI workflow for generating Vietnamese font PAKs from the original game `files` folder.
     - Embeds the corrected Vietnamese font patch logic directly in the GUI so users do not need separate `vietnamesefont.exe` / `vietfontpatch.exe` helpers.
     - Supports slot selection (`English`, `Chinese`, `All`), family selection (`GOTHIC1` quick test or all families), TTF/OTF selection, and Y-offset checkboxes from `Y-2` to `Y+3`.
-    - Generates one ready-to-test output folder per Y value; `English + GOTHIC1 + Y+2` remains the recommended AIR first test.
-    - Adds source PAK preflight checks and keeps the corrected AIR / Planetarian SG `CharNum=100 + CharNum2` info layout to avoid the broken `283729`-byte info entries seen in bad tester packages.
+    - Adds an experimental checkbox: `Redraw Latin alphabet from TTF`. This redraws existing `A-Z/a-z` cells and already-present Vietnamese glyphs from the selected TTF while still injecting only missing Vietnamese glyphs into the tail cells.
+    - Generates a separate output folder for the experimental mode with `_LATIN` in the folder name, so safe and Latin-redraw tests cannot overwrite each other.
     - GUI and CLI version labels updated to `v3.1.8`.
 
 ### Version 3.1.7
@@ -185,9 +185,9 @@ Patch 2 : silent 18-bit truncation in `compressLZW2`
 |----------|-------------|
 | [Fork-CHANGELOG.md](Fork-CHANGELOG.md) | Full changelog — all versions (EN + FR) |
 | [Fork-TECHNICAL.md](Fork-TECHNICAL.md) | Technical analysis — all patches |
-| [AIR_VIETNAMESE_FONT_GUI_GUIDE.md](Vietnamese%20font/AIR_VIETNAMESE_FONT_GUI_GUIDE.md) | Practical GUI procedure for AIR Vietnamese font tests |
-| [AIR_VIETNAMESE_FONT_WINDOWS_TECHNICAL_GUIDE.md](Vietnamese%20font/AIR_VIETNAMESE_FONT_WINDOWS_TECHNICAL_GUIDE.md) | Windows technical procedure for TTF/Y-offset tests and tool builds |
-| [VIETNAMESE_FONT_PATCH_GUI_BEGINNER_GUIDE.md](Vietnamese%20font/VIETNAMESE_FONT_PATCH_GUI_BEGINNER_GUIDE.md) | Beginner guide for the dedicated Vietnamese font GUI patcher |
+| [AIR_VIETNAMESE_FONT_GUI_GUIDE.md](AIR_VIETNAMESE_FONT_GUI_GUIDE.md) | Practical GUI procedure for AIR Vietnamese font tests |
+| [AIR_VIETNAMESE_FONT_WINDOWS_TECHNICAL_GUIDE.md](AIR_VIETNAMESE_FONT_WINDOWS_TECHNICAL_GUIDE.md) | Windows technical procedure for TTF/Y-offset tests and tool builds |
+| [VIETNAMESE_FONT_PATCH_GUI_BEGINNER_GUIDE.md](VIETNAMESE_FONT_PATCH_GUI_BEGINNER_GUIDE.md) | Beginner guide for the dedicated Vietnamese font GUI patcher |
 | `LuckSystem --help` | CLI command reference |
 
 ---
@@ -215,8 +215,7 @@ lucksystem font edit -s 明朝32 -S info32 -f Arial.ttf -o 明朝32_out -O info3
 
 ## Tested games / Jeux testés
 
-- **AIR** (Steam) — French translation complete (scripts + CG + UI); Vietnamese font injection validated on English slot with `FONT_GOTHIC1` / `Y+2`; dedicated GUI workflow added in v3.1.8
-- **Planetarian SG** — Vietnamese font GUI workflow supports the same AIR-style font layout and preserves the required `CharNum2` info tables
+- **AIR** (Steam) — French translation complete (scripts + CG + UI); Vietnamese font injection validated on English slot with `FONT_GOTHIC1` / `Y+2`; optional Latin-redraw test mode available in the dedicated GUI patcher
 - **Summer Pockets** — RawSize fix confirmed
 - **Kanon** (Steam) — CZ2 font fix confirmed; script decompile confirmed (plugin import fix v3.1.4)
 - **Little Busters English** — CZ4 confirmed, script decompile confirmed (161 scripts, 102k+ MESSAGE lines, text properly decoded)

@@ -1,56 +1,34 @@
-# V3.1.8 — Dedicated AIR / Planetarian SG Vietnamese font GUI patcher
+# V3.1.8 — Dedicated Vietnamese font GUI patcher + Latin redraw test mode
 
-31/05/2026
+01/06/2026
 
-## Added: beginner-safe Vietnamese font PAK generation from the GUI
+## Added: AIR / Planetarian SG Vietnamese font generation from the GUI
 
 ### Problem
 
-A tester could generate font PAKs with an older or incorrectly built standalone Vietnamese font tool, but the resulting files corrupted the AIR / Planetarian SG menu and made dialogue text disappear.
-
-The broken submitted `FONT__INFO.PAK` used font-info entries of `283729` bytes. The corrected AIR / Planetarian SG path must preserve the legacy `CharNum=100 + CharNum2` info layout, which produces the expected `283731` / `283732` byte entries depending on the size table.
+The v3.1.7 font patcher fixed AIR's PAK/CZ2/font-info round-trip issues, but it was still possible for a tester to use an old standalone helper executable and generate broken PAKs. It also left one visual question open: mixed text could still combine original engine Latin glyphs with injected Vietnamese glyphs drawn from the selected TTF.
 
 ### Fix
 
 **GUI**
 
-- Added a dedicated `VIET FONT -> AIR / SG Patch` workflow.
-- Embedded the corrected Vietnamese font patch logic directly in the Wails GUI backend (`SourcesGUI-wails/vietnamese_font.go`).
-- Removed the need for beginners to run or rebuild separate `vietnamesefont.exe` / `vietfontpatch.exe` tools.
-- Added beginner-friendly inputs:
-  - game `files` folder containing `font_win32_1280`;
-  - full Vietnamese charset file;
-  - TTF / OTF font file;
-  - output folder;
-  - slot selector (`English`, `Chinese`, `All`);
-  - family selector (`GOTHIC1` quick test, or all supported families);
-  - Y-offset checkboxes (`Y-2`, `Y-1`, `Y+0`, `Y+1`, `Y+2`, `Y+3`).
-- Generates one ready-to-test output folder per selected Y value, for example `FontName_en_GOTHIC1_Y+2`.
-- Keeps `Y+2` selected by default because it was the best AIR English-slot visual match during validation.
-- Adds GUI-side preflight checks for missing source PAKs, so selecting the wrong folder produces a clear error instead of broken output.
-- Updated GUI title/about/version labels to `v3.1.8`.
+- Added/updated the dedicated `VIET FONT -> AIR / SG Patch` workflow.
+- The GUI now calls the corrected Vietnamese font patch code directly instead of requiring a separate `vietnamesefont.exe` / `vietfontpatch.exe`.
+- Added an experimental checkbox: `Redraw Latin alphabet from TTF`.
+  - Disabled: safe mode, inject only missing Vietnamese glyphs.
+  - Enabled: redraw existing `A-Z/a-z` cells and already-present Vietnamese glyphs from the selected TTF, then inject only the missing Vietnamese glyphs into tail cells.
+- Experimental outputs include `_LATIN` in the folder name, for example `Arial_en_GOTHIC1_LATIN_Y+2`, so safe and test builds cannot overwrite each other.
+- Kept the recommended first test as English slot + `GOTHIC1` + `Y+2`.
+- Updated GUI and CLI version labels to `v3.1.8`.
 
-**Documentation**
+### Technical notes
 
-- Added/updated the beginner GUI procedure in `Vietnamese font/VIETNAMESE_FONT_PATCH_GUI_BEGINNER_GUIDE.md`.
-- Updated README documentation links to the `Vietnamese font/` folder.
-- Documented the new v3.1.8 workflow in `Fork-CHANGELOG.md` and `Fork-TECHNICAL.md`.
+The Latin test mode does not append duplicate ASCII letters to the end of the charset. The engine already has mappings for `A-Z/a-z`, so appended duplicates would likely be ignored. Instead, the GUI redraws those existing mapped cells in place using the selected TTF.
 
-### Recommended beginner workflow
-
-For first tests, generate only:
-
-- slot: `English`
-- family: `GOTHIC1`
-- Y offsets: `Y+2` first, then compare nearby values if another TTF is used
-
-The output folder contains only the PAKs that must be copied over the matching original font PAKs for the selected test.
+Already-present Vietnamese glyphs from the requested charset are also redrawn in place in experimental mode. This avoids mixing original accented glyphs with newly injected TTF glyphs inside the same Vietnamese sentence.
 
 ### Testing
 
-- Rechecked a broken tester package: invalid info entry size `283729`.
-- Regenerated working AIR / Planetarian SG-style `FONT__INFO.PAK` entries with the preserved `CharNum2` layout (`283731` / `283732`).
-- Verified the dedicated GUI page exposes the corrected patch path and does not depend on standalone helper executables.
 - `go test ./... -run '^$'`
 - `go test ./... -run '^$'` from `SourcesGUI-wails`
 - `npm run build` from `SourcesGUI-wails/frontend`

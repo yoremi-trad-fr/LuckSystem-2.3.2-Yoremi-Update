@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"image"
+	"image/draw"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -11,6 +13,7 @@ import (
 	"unicode"
 
 	"github.com/go-restruct/restruct"
+	"golang.org/x/image/math/fixed"
 
 	"lucksystem/charset"
 	"lucksystem/font"
@@ -25,7 +28,7 @@ type vietnameseFontSet struct {
 
 // VietnameseFontPatch generates AIR/Planetarian SG Vietnamese font PAKs from the GUI.
 // It embeds the tools/vietfontpatch workflow so users do not need a separate command-line tool.
-func (a *App) VietnameseFontPatch(fontRoot, charsetFile, ttfFile, outputDir, slot, family string, yOffsets []int) string {
+func (a *App) VietnameseFontPatch(fontRoot, charsetFile, ttfFile, outputDir, slot, family string, yOffsets []int, redrawLatin bool) string {
 	if fontRoot == "" || charsetFile == "" || ttfFile == "" || outputDir == "" {
 		a.logError("Font root, charset file, TTF file, and output folder are required")
 		return "ERROR"
@@ -94,16 +97,21 @@ func (a *App) VietnameseFontPatch(fontRoot, charsetFile, ttfFile, outputDir, slo
 	a.log(fmt.Sprintf("Slot:      %s", slot))
 	a.log(fmt.Sprintf("Family:    %s", family))
 	a.log(fmt.Sprintf("Y offsets: %s", formatYOffsets(yOffsets)))
+	if redrawLatin {
+		a.log("Mode:      experimental Latin redraw")
+	} else {
+		a.log("Mode:      safe missing-glyph injection")
+	}
 
 	for _, yOffset := range yOffsets {
-		runDir := filepath.Join(outputDir, buildVietnameseOutputName(ttfFile, slot, family, yOffset))
+		runDir := filepath.Join(outputDir, buildVietnameseOutputName(ttfFile, slot, family, yOffset, redrawLatin))
 		if err := os.MkdirAll(runDir, 0755); err != nil {
 			a.logError(fmt.Sprintf("Cannot create output folder: %v", err))
 			return "ERROR"
 		}
 		a.log("────────────────────────────────────────")
 		a.log(fmt.Sprintf("Generating Y%+d -> %s", yOffset, runDir))
-		if err := a.patchVietnameseFontOnce(fontRoot, chars, ttfBytes, runDir, slot, family, yOffset); err != nil {
+		if err := a.patchVietnameseFontOnce(fontRoot, chars, ttfBytes, runDir, slot, family, yOffset, redrawLatin); err != nil {
 			a.logError(err.Error())
 			return "ERROR"
 		}
@@ -115,7 +123,7 @@ func (a *App) VietnameseFontPatch(fontRoot, charsetFile, ttfFile, outputDir, slo
 	return "OK"
 }
 
-func (a *App) patchVietnameseFontOnce(fontRoot, chars string, ttfBytes []byte, outputDir, slot, family string, yOffset int) error {
+func (a *App) patchVietnameseFontOnce(fontRoot, chars string, ttfBytes []byte, outputDir, slot, family string, yOffset int, redrawLatin bool) error {
 	sets := []vietnameseFontSet{
 		{
 			Name:    "jp",
@@ -151,7 +159,7 @@ func (a *App) patchVietnameseFontOnce(fontRoot, chars string, ttfBytes []byte, o
 		if err := validateVietnameseSetFiles(set); err != nil {
 			return err
 		}
-		if err := a.patchVietnameseSet(set, chars, ttfBytes, outputDir, yOffset); err != nil {
+		if err := a.patchVietnameseSet(set, chars, ttfBytes, outputDir, yOffset, redrawLatin); err != nil {
 			return err
 		}
 		patched = true
@@ -174,7 +182,7 @@ func validateVietnameseSetFiles(set vietnameseFontSet) error {
 	return nil
 }
 
-func (a *App) patchVietnameseSet(set vietnameseFontSet, chars string, ttfBytes []byte, outputDir string, yOffset int) error {
+func (a *App) patchVietnameseSet(set vietnameseFontSet, chars string, ttfBytes []byte, outputDir string, yOffset int, redrawLatin bool) error {
 	infoPak := pak.LoadPak(set.InfoPak, charset.UTF_8)
 	infoPak.ReadAll()
 	if len(infoPak.Files) == 0 {
@@ -188,6 +196,13 @@ func (a *App) patchVietnameseSet(set vietnameseFontSet, chars string, ttfBytes [
 		return fmt.Errorf("%s already contains all requested characters", set.InfoPak)
 	}
 	patchChars := string(patchRunes)
+	redrawRunes := []rune(nil)
+	if redrawLatin {
+		redrawRunes = latinExperimentRunes(referenceInfo, requestedRunes)
+		if len(redrawRunes) == 0 {
+			return fmt.Errorf("%s has no mapped Latin/Vietnamese glyphs to redraw", set.InfoPak)
+		}
+	}
 
 	baseCount := uint16(0)
 	for _, entry := range infoPak.Files {
@@ -205,6 +220,9 @@ func (a *App) patchVietnameseSet(set vietnameseFontSet, chars string, ttfBytes [
 	a.log(fmt.Sprintf("  requested: %d, already present: %d, injected: %d",
 		len(requestedRunes), len(requestedRunes)-len(patchRunes), len(patchRunes)))
 	a.log(fmt.Sprintf("  base cells: %d, replace index: %d", baseCount, startIndex))
+	if redrawLatin {
+		a.log(fmt.Sprintf("  experimental redraw: %d existing Latin/Vietnamese glyphs", len(redrawRunes)))
+	}
 
 	var patchedInfos [][]byte
 	for _, familyPakName := range set.FamilyPaks {
@@ -218,8 +236,16 @@ func (a *App) patchVietnameseSet(set vietnameseFontSet, chars string, ttfBytes [
 		for index, glyphEntry := range familyPak.Files {
 			infoEntry := infoPak.Files[index]
 			lucaFont := font.LoadLucaFont(infoEntry.Data, glyphEntry.Data)
+			lowerY := vietnameseReferenceY(lucaFont.Info, []rune{'ó', 'á', 'a', 'o'})
+			upperY := vietnameseReferenceY(lucaFont.Info, []rune{'Á', 'Â', 'A', 'O'})
 			lucaFont.ReplaceChars(bytes.NewReader(ttfBytes), patchChars, startIndex, false)
-			normalizeVietnameseVerticalMetrics(lucaFont.Info, patchRunes, yOffset)
+			normalizeRunesVerticalMetrics(lucaFont.Info, patchRunes, yOffset, lowerY, upperY)
+			if redrawLatin {
+				if err := redrawMappedRunesFromCurrentFace(lucaFont, redrawRunes); err != nil {
+					return fmt.Errorf("%s/%s: %w", familyPakName, glyphEntry.Name, err)
+				}
+				normalizeRunesVerticalMetrics(lucaFont.Info, redrawRunes, yOffset, lowerY, upperY)
+			}
 
 			var glyphOut bytes.Buffer
 			var infoOut bytes.Buffer
@@ -277,6 +303,81 @@ func (a *App) patchVietnameseSet(set vietnameseFontSet, chars string, ttfBytes [
 	return nil
 }
 
+func latinExperimentRunes(info *font.Info, requested []rune) []rune {
+	candidates := []rune("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
+	candidates = append(candidates, requested...)
+	return mappedUniqueRunes(info, candidates)
+}
+
+func mappedUniqueRunes(info *font.Info, chars []rune) []rune {
+	seen := make(map[rune]bool, len(chars))
+	out := make([]rune, 0, len(chars))
+	for _, char := range chars {
+		if seen[char] {
+			continue
+		}
+		seen[char] = true
+		if !hasVietnameseRune(info, char) {
+			continue
+		}
+		out = append(out, char)
+	}
+	return out
+}
+
+func redrawMappedRunesFromCurrentFace(lucaFont *font.LucaFont, chars []rune) error {
+	if lucaFont.Info == nil || lucaFont.Info.FontFace == nil {
+		return fmt.Errorf("font face is not loaded")
+	}
+	if lucaFont.Image == nil {
+		return fmt.Errorf("font atlas image is not loaded")
+	}
+
+	size := int(lucaFont.Info.BlockSize)
+	alphaMask := image.NewAlpha(image.Rect(0, 0, size, size))
+	for _, char := range chars {
+		if char < 0 || int(char) >= len(lucaFont.Info.UnicodeIndex) {
+			continue
+		}
+		fontIndex := lucaFont.Info.UnicodeIndex[int(char)]
+		if fontIndex == 0 && char != ' ' {
+			continue
+		}
+		index := int(fontIndex)
+		bounds, advance, ok := lucaFont.Info.FontFace.GlyphBounds(char)
+		if !ok {
+			return fmt.Errorf("selected TTF does not contain %q (U+%04X)", char, char)
+		}
+
+		w := uint8(advance.Ceil())
+		if char == 32 || w == 0 {
+			w = uint8(lucaFont.Info.FontSize)
+		}
+		lucaFont.Info.DrawSize[index].X = uint8(bounds.Min.X.Floor())
+		lucaFont.Info.DrawSize[index].W = w
+		lucaFont.Info.DrawSize[index].Y = uint8(bounds.Min.Y.Floor())
+		lucaFont.Info.UnicodeSize[char].W = w
+
+		y := index / 100
+		x := index % 100
+		point := fixed.Point26_6{
+			X: fixed.Int26_6(x * 64),
+			Y: fixed.Int26_6(y * 64),
+		}
+		_, img, _, _, ok := lucaFont.Info.FontFace.Glyph(point, char)
+		if !ok {
+			return fmt.Errorf("selected TTF cannot draw %q (U+%04X)", char, char)
+		}
+		cellRect := image.Rect(x*size, y*size, (x+1)*size, (y+1)*size).Intersect(lucaFont.Image.Bounds())
+		if cellRect.Empty() {
+			return fmt.Errorf("mapped glyph %q points outside the atlas at index %d", char, index)
+		}
+		draw.Draw(lucaFont.Image, cellRect, alphaMask, alphaMask.Bounds().Min, draw.Src)
+		draw.Draw(lucaFont.Image, cellRect, img, img.Bounds().Min, draw.Src)
+	}
+	return nil
+}
+
 func filterVietnameseFamilyPaks(familyPaks []string, family string) []string {
 	filter := strings.ToUpper(strings.TrimSuffix(family, ".PAK"))
 	if filter == "" || filter == "ALL" {
@@ -318,6 +419,10 @@ func hasVietnameseRune(info *font.Info, char rune) bool {
 func normalizeVietnameseVerticalMetrics(info *font.Info, chars []rune, yOffset int) {
 	lowerY := vietnameseReferenceY(info, []rune{'ó', 'á', 'a', 'o'})
 	upperY := vietnameseReferenceY(info, []rune{'Á', 'Â', 'A', 'O'})
+	normalizeRunesVerticalMetrics(info, chars, yOffset, lowerY, upperY)
+}
+
+func normalizeRunesVerticalMetrics(info *font.Info, chars []rune, yOffset int, lowerY, upperY uint8) {
 	for _, char := range chars {
 		if char < 0 || int(char) >= len(info.UnicodeIndex) {
 			continue
@@ -380,12 +485,16 @@ func formatYOffsets(values []int) string {
 	return strings.Join(parts, ", ")
 }
 
-func buildVietnameseOutputName(ttfFile, slot, family string, yOffset int) string {
+func buildVietnameseOutputName(ttfFile, slot, family string, yOffset int, redrawLatin bool) string {
 	base := strings.TrimSuffix(filepath.Base(ttfFile), filepath.Ext(ttfFile))
 	base = sanitizeVietnamesePathPart(base)
 	slot = sanitizeVietnamesePathPart(slot)
 	family = sanitizeVietnamesePathPart(strings.ToUpper(family))
-	return fmt.Sprintf("%s_%s_%s_Y%+d", base, slot, family, yOffset)
+	mode := ""
+	if redrawLatin {
+		mode = "_LATIN"
+	}
+	return fmt.Sprintf("%s_%s_%s%s_Y%+d", base, slot, family, mode, yOffset)
 }
 
 func sanitizeVietnamesePathPart(value string) string {
