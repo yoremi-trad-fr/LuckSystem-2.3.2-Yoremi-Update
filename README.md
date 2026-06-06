@@ -1,4 +1,4 @@
-# LuckSystem 2.3.2 — Yoremi Fork (v3.1.8)
+# LuckSystem 2.3.2 — Yoremi Fork (v3.1.9)
 
 Fork de [LuckSystem](https://github.com/wetor/LuckSystem) avec corrections de bugs, support de nouveaux formats, et interface graphique pour la traduction de visual novels Visual Art's/Key.
 
@@ -43,7 +43,16 @@ A Linux version is available as separate binaries (GUI + CLI). See the releases 
 
 ## Patches
 
-### Version 3.1.8 — *(latest)*
+### Version 3.1.9 — *(latest)*
+
+26. **CartagraHD ONGOTO fix + multi-goto support + zero-length string dump fix** — `data/base/cartagrahd.py`, `script/model.go`, `script/script.go`, `game/operator/util.go`
+    - `cartagrahd.py`: added `ONGOTO` handler that reads N branch targets and emits them as `{goto label_NNNN}` references instead of falling through to `UNDEFINED()` with raw uint16 dumps.
+    - `script/model.go`: extended `JumpParam` to hold a slice of targets per line, enabling a single script line to carry N `{goto ...}` tokens.
+    - `script/script.go`: updated `Export()` and `Import()` to iterate over all targets on a line; `Import()` recalculates each branch offset independently so all N ONGOTO branches are correctly repointed after line-size changes.
+    - `game/operator/util.go`: fixed zero-length string edge case — a zero-length entry no longer emits a spurious character before the closing delimiter.
+    - Existing CartagraHD dumps containing raw ONGOTO integers must be re-extracted with the corrected plugin before reimport.
+
+### Version 3.1.8
 
 25. **Dedicated AIR / Planetarian SG Vietnamese font GUI patcher + Latin redraw test mode** — `SourcesGUI-wails/vietnamese_font.go`, `SourcesGUI-wails/frontend/src/App.svelte`, `SourcesGUI-wails/frontend/wailsjs/go/main/App.js`, `SourcesGUI-wails/frontend/wailsjs/go/main/App.d.ts`
     - Adds `VIET FONT -> AIR / SG Patch`, a beginner-safe GUI workflow for generating Vietnamese font PAKs from the original game `files` folder.

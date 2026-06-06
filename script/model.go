@@ -13,6 +13,7 @@ type GlobalLabel struct {
 
 type JumpParam struct {
 	GlobalIndex int
+	LabelIndex  int
 	ScriptName  string
 	Position    int
 }

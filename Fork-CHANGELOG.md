@@ -1,3 +1,51 @@
+# V3.1.9 — CartagraHD ONGOTO fix + multi-goto support + zero-length string dump fix
+
+06/06/2026
+
+## Fixed: CartagraHD choices broken after translation (ONGOTO offsets not recalculated)
+
+### Problem
+
+Translating CartagraHD scripts produced broken in-game choices: branch offsets were exported as raw numbers and remained frozen when a dialogue line before a choice grew in length. The root causes were two independent bugs:
+
+1. `ONGOTO` was not defined in `base/cartagrahd.py` — the opcode fell through to `UNDEFINED()`, so its jump targets were dumped as raw `uint16` values instead of labelled `{goto label...}` references. Since the import machinery only recalculates offsets expressed as labels, any line size change after an ONGOTO left all downstream branches pointing to wrong positions.
+
+2. The engine's label parser handled only a single `{goto ...}` token per line. ONGOTO carries N branch targets on the same line; all targets after the first were silently ignored.
+
+A third minor bug was also found: `operator/util.go` emitted a spurious extra character in the string dump when it encountered a zero-length string entry, producing noise in the exported text.
+
+### Fix (4 files — CLI)
+
+**`data/base/cartagrahd.py`**
+- Added `ONGOTO` handler: reads the branch count N, then reads N `uint16` offsets and emits them as `{goto label_NNNN}` references, matching the pattern already used by `IFN`/`IFY`.
+
+**`script/model.go`**
+- Extended the `JumpParam` / label model to store a slice of jump targets per line instead of a single target, enabling one script line to hold multiple `{goto ...}` tokens.
+
+**`script/script.go`**
+- Updated `Export()` and `Import()` to iterate over all jump targets on a line (not just the first) when building and consuming label references.
+- `Import()`: recalculates every target offset independently, so all N branches of an ONGOTO are correctly repointed after a size change.
+
+**`game/operator/util.go`**
+- Fixed zero-length string edge case in the string dump helper: a zero-length entry no longer emits a spurious character before the closing delimiter.
+
+### Testing
+
+- `go test ./script ./game/operator`: OK.
+- Round-trip CartagraHD original (no translation): all 277 internal PAK entries are byte-identical; PAK hash matches original.
+- Regression test — line 46 extended: ONGOTO targets shift from `3730 / 8104` to `3758 / 8132`, matching the two new absolute positions exactly.
+- `go test ./...`: remaining failures are pre-existing fixture-only failures (absent `FONT.PAK`, `SP.py`, LOOPERS `SCRIPT.PAK`) — unrelated to this patch.
+
+### Note
+
+Existing CartagraHD dumps that contain raw ONGOTO numbers (e.g. `65530, 12835, …`) must be re-extracted with the corrected plugin before reimport. Old dumps lack the `{goto label}` tokens required for offset recalculation.
+
+### Games affected
+
+CartagraHD — any script containing ONGOTO (choice branches).
+
+---
+
 # V3.1.8 — Dedicated Vietnamese font GUI patcher + Latin redraw test mode
 
 01/06/2026
@@ -794,6 +842,54 @@ The AIR.py definition script used `from base.air import *` to import functions f
 - **Yoremi** — all patches, AIR French translation, GUI
 
 ---
+---
+
+# V3.1.9 — Correction ONGOTO CartagraHD + support multi-goto + fix dump chaîne longueur zéro
+
+06/06/2026
+
+## Bug corrigé : choix CartagraHD cassés après traduction (offsets ONGOTO non recalculés)
+
+### Problème
+
+La traduction des scripts CartagraHD produisait des choix en jeu incorrects : les offsets de branche étaient exportés comme nombres bruts et restaient figés quand une ligne de dialogue avant un choix grossissait en longueur. Deux bugs indépendants en étaient la cause :
+
+1. `ONGOTO` n'était pas défini dans `base/cartagrahd.py` — l'opcode tombait en `UNDEFINED()`, et ses cibles de saut étaient dumpées comme valeurs `uint16` brutes au lieu de références `{goto label...}`. La machinerie d'import ne recalculant les offsets qu'exprimés sous forme de labels, tout changement de taille après un ONGOTO laissait toutes les branches en aval pointer vers de mauvaises positions.
+
+2. Le parser de labels du moteur ne gérait qu'un seul token `{goto ...}` par ligne. ONGOTO porte N cibles de branche sur la même ligne ; toutes les cibles après la première étaient silencieusement ignorées.
+
+Un troisième bug mineur était présent : `operator/util.go` émettait un caractère parasite dans le dump de chaîne lorsqu'il rencontrait une entrée de longueur zéro.
+
+### Fix (4 fichiers — CLI)
+
+**`data/base/cartagrahd.py`**
+- Ajout du handler `ONGOTO` : lit le nombre de branches N, puis lit N offsets `uint16` et les émet comme références `{goto label_NNNN}`, sur le modèle de `IFN`/`IFY`.
+
+**`script/model.go`**
+- Extension du modèle `JumpParam` / label pour stocker une slice de cibles de saut par ligne au lieu d'une seule cible, permettant à une ligne de script de contenir plusieurs tokens `{goto ...}`.
+
+**`script/script.go`**
+- Mise à jour de `Export()` et `Import()` pour itérer sur toutes les cibles de saut d'une ligne (pas seulement la première) lors de la construction et de la consommation des références de labels.
+- `Import()` : recalcule chaque offset de cible indépendamment, de sorte que les N branches d'un ONGOTO sont correctement repointed après un changement de taille.
+
+**`game/operator/util.go`**
+- Correction du cas limite chaîne longueur zéro dans le helper de dump de chaînes : une entrée de longueur zéro n'émet plus de caractère parasite avant le délimiteur fermant.
+
+### Tests réalisés
+
+- `go test ./script ./game/operator` : OK.
+- Round-trip CartagraHD original (sans traduction) : les 277 entrées internes du PAK sont byte-identiques ; hash PAK identique à l'original.
+- Test de régression — ligne 46 allongée : les cibles ONGOTO passent de `3730 / 8104` à `3758 / 8132`, correspondant exactement aux deux nouvelles positions absolues.
+- `go test ./...` : les échecs restants sont des échecs pre-existants sur fixtures absentes (FONT.PAK, SP.py, LOOPERS SCRIPT.PAK) — sans rapport avec ce patch.
+
+### Note
+
+Les anciens dumps CartagraHD contenant des nombres ONGOTO bruts (ex. `65530, 12835, …`) doivent être ré-extraits avec le plugin corrigé avant réimport. Les anciens dumps ne contiennent pas les tokens `{goto label}` nécessaires au recalcul des offsets.
+
+### Jeux concernés
+
+CartagraHD — tout script contenant ONGOTO (branches de choix).
+
 ---
 
 # V3.1.3 — Patch 3 : GUI — Détection automatique des presets de jeu depuis data/
