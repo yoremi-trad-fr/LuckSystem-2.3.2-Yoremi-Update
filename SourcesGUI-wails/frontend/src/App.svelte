@@ -192,7 +192,7 @@
     EventsOn('log', (msg) => addLine(msg));
     lsPath = await GetLuckSystemPath();
     if (lsPath) {
-      addLine('LuckSystem 2.3.2 - Yoremi fork v3.1.8');
+      addLine('LuckSystem 2.3.2 - Yoremi fork v3.20');
       addLine('Executable: ' + lsPath);
       // Scan data/ folder for game presets
       gamePresets = (await ScanGameData()) || [];
@@ -409,7 +409,7 @@
 
 <div id="app">
   <div class="titlebar">
-    <span>LuckSystem 2.3.2 - Yoremi fork v3.1.8</span>
+    <span>LuckSystem 2.3.2 - Yoremi fork v3.20</span>
     <span class="titlebar-path" on:click={locateLuckSystem} title="Click to change">
       {#if lsPath}📁 {lsPath}{:else}⚠ lucksystem.exe not found - Click to locate{/if}
     </span>
@@ -691,7 +691,7 @@
       {:else if selectedOp === 'dlg_extract'}
         <div class="form-title">Extract Dialogues</div>
         <div class="form-hint" style="margin-bottom:10px">
-          Extrait les lignes <strong>MESSAGE</strong> et <strong>LOG_BEGIN</strong> des scripts décompilés (.txt) vers un fichier TSV éditable.<br>
+          Extrait les lignes <strong>MESSAGE</strong>, <strong>LOG_BEGIN</strong> et <strong>SELECT</strong> des scripts décompilés (.txt) vers un fichier TSV éditable.<br>
           Les colonnes correspondent aux chaînes entre guillemets dans l'ordre d'apparition. L'attribution des langues varie selon le jeu — vérifiez manuellement.
         </div>
         <div class="form-group">
@@ -728,7 +728,7 @@
         <div class="form-title">Import Dialogues</div>
         <div class="form-hint" style="margin-bottom:10px">
           Réinjecte les dialogues traduits (TSV) dans les fichiers scripts (.txt).<br>
-          Le TSV doit avoir été généré par l'extraction ci-dessus. Supporte MESSAGE et LOG_BEGIN.
+          Le TSV doit avoir été généré par l'extraction ci-dessus. Supporte MESSAGE, LOG_BEGIN et SELECT.
         </div>
         <div class="form-group">
           <div class="form-row checkbox-row">
@@ -767,7 +767,7 @@
         <div class="form-title">À propos</div>
         <div class="about-panel">
           <div class="about-logo">LuckSystem</div>
-          <div class="about-subtitle">Fork · Yoremi-v3.1.8</div>
+          <div class="about-subtitle">Fork · Yoremi-v3.20</div>
           <div class="about-desc">
             Interface graphique pour LuckSystem, l'outil de traduction de visual novels Visual Art's / Key.<br>
             Inclut des correctifs CZ (CZ1, CZ4), script, PAK, et une interface subprocess.
@@ -782,7 +782,7 @@
               <span class="about-link-url">https://github.com/yoremi-trad-fr/LuckSystem-2.3.2-Yoremi-Update</span>
             </div>
           </div>
-          <div class="about-version">v3.1.8 GUI · Wails + Svelte</div>
+          <div class="about-version">v3.20 GUI · Wails + Svelte</div>
         </div>
       {/if}
     </div>

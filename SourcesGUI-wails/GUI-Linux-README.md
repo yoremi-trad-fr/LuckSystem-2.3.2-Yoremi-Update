@@ -1,4 +1,4 @@
-# LuckSystem GUI (Linux) — Yoremi fork v3.1.8
+# LuckSystem GUI (Linux) — Yoremi fork v3.20
 
 Graphical interface for [LuckSystem](https://github.com/wetor/LuckSystem), the Visual Art's/Key visual novel translation toolkit.
 
@@ -53,11 +53,13 @@ The GUI auto-detects `lucksystem` in the same directory, current working directo
 
 The Dialogue Extract and Import functions provide a streamlined translation workflow based on TSV files, replacing manual script editing.
 
-**Extract** scans decompiled script files (`.txt`) for translatable lines (`MESSAGE` and `LOG_BEGIN` entries) and exports them to tab-separated `.tsv` files. The language columns are numbered (Lang 1, Lang 2, Lang 3, Lang 4) rather than named, since the order of languages varies between games. You select which columns to extract via checkboxes.
+**Extract** scans decompiled script files (`.txt`) for translatable lines (`MESSAGE`, `LOG_BEGIN`, and `SELECT` entries) and exports them to tab-separated `.tsv` files. The language columns are numbered (Lang 1, Lang 2, Lang 3, Lang 4) rather than named, since the order of languages varies between games. You select which columns to extract via checkboxes.
 
 **Import** reads a translated `.tsv` file and reinjects the text back into the corresponding decompiled script. You select which column number contains the target language. Matching is done by sequential ID for robustness.
 
 Both operations support single-file and batch modes. The format auto-detection scans the script to determine the number of available language columns.
+
+Script decompile/compile also auto-selects the sibling Python plugin when the selected OPCODE file follows the standard `data/GAME.txt` + `data/GAME.py` layout. This avoids repacking translated script text with the generic fallback parser by mistake.
 
 **TSV format example:**
 ```
@@ -84,6 +86,16 @@ wails build        # Build to build/bin/LuckSystemGUI
 ```
 
 > ⚠️ **Do NOT run `npm audit fix --force`** — it upgrades Svelte/Vite to incompatible major versions.
+
+If a build fails with `sh: 1: vite: Permission denied`, remove the stale frontend dependencies and reinstall them:
+
+```bash
+rm -rf frontend/node_modules
+cd frontend && npm install && cd ..
+wails build -tags webkit2_41
+```
+
+Since v3.20 the bundled npm scripts call Vite through `node ./node_modules/vite/bin/vite.js`, so the build no longer depends on the executable bit of `node_modules/.bin/vite`.
 
 ## Notes
 

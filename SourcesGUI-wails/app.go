@@ -967,57 +967,86 @@ type DialogueFormatInfo struct {
 	MaxCols int    `json:"maxCols"`
 }
 
-// stripLabelPrefix removes an optional "labelN: " (or "labelXX: ") prefix
-// from a trimmed line and returns the remainder. Returns the original line
-// if no label prefix is present.
+// stripLabelPrefix removes optional "labelN: " / "globalN: " prefixes from
+// a trimmed line and returns the opcode part. Returns the original line if no
+// known prefix is present.
 func stripLabelPrefix(trimmed string) string {
-	// Match: ^label[0-9]+:\s*
-	if !strings.HasPrefix(trimmed, "label") {
-		return trimmed
+	rest := trimmed
+	for {
+		next, ok := stripOneScriptLabel(rest, "label")
+		if !ok {
+			next, ok = stripOneScriptLabel(rest, "global")
+		}
+		if !ok {
+			return rest
+		}
+		rest = next
 	}
-	rest := trimmed[len("label"):]
-	// Consume digits
+}
+
+func stripOneScriptLabel(trimmed, prefix string) (string, bool) {
+	if !strings.HasPrefix(trimmed, prefix) {
+		return trimmed, false
+	}
+	rest := trimmed[len(prefix):]
 	i := 0
 	for i < len(rest) && rest[i] >= '0' && rest[i] <= '9' {
 		i++
 	}
 	if i == 0 || i >= len(rest) || rest[i] != ':' {
-		return trimmed
+		return trimmed, false
 	}
-	rest = rest[i+1:]
-	// Consume optional whitespace
-	rest = strings.TrimLeft(rest, " \t")
-	return rest
+	return strings.TrimLeft(rest[i+1:], " \t"), true
+}
+
+func hasOpcodePrefix(line, opcode string) bool {
+	if !strings.HasPrefix(line, opcode) {
+		return false
+	}
+	if len(line) == len(opcode) {
+		return true
+	}
+	switch line[len(opcode)] {
+	case ' ', '\t', '(':
+		return true
+	default:
+		return false
+	}
+}
+
+func dialogueOpcode(trimmed string) (string, bool) {
+	rest := stripLabelPrefix(trimmed)
+	for _, opcode := range []string{"MESSAGE", "LOG_BEGIN", "SELECT"} {
+		if hasOpcodePrefix(rest, opcode) {
+			return opcode, true
+		}
+	}
+	return "", false
 }
 
 // isDialogueLine returns true if the line (after optional label prefix
 // stripping) starts with MESSAGE, LOG_BEGIN, or SELECT.
 func isDialogueLine(trimmed string) bool {
-	rest := stripLabelPrefix(trimmed)
-	return strings.HasPrefix(rest, "MESSAGE") ||
-		strings.HasPrefix(rest, "LOG_BEGIN") ||
-		strings.HasPrefix(rest, "SELECT")
+	_, ok := dialogueOpcode(trimmed)
+	return ok
 }
 
 // lineTag returns "MESSAGE", "LOG_BEGIN", or "SELECT" for tagging in the TSV.
 func lineTag(trimmed string) string {
-	rest := stripLabelPrefix(trimmed)
-	if strings.HasPrefix(rest, "LOG_BEGIN") {
-		return "LOG_BEGIN"
-	}
-	if strings.HasPrefix(rest, "SELECT") {
-		return "SELECT"
+	if opcode, ok := dialogueOpcode(trimmed); ok {
+		return opcode
 	}
 	return "MESSAGE"
 }
 
 // isSelectLine returns true if the line (after label stripping) is a SELECT.
 func isSelectLine(trimmed string) bool {
-	return strings.HasPrefix(stripLabelPrefix(trimmed), "SELECT")
+	opcode, ok := dialogueOpcode(trimmed)
+	return ok && opcode == "SELECT"
 }
 
 // DialogueDetectFormat reads a decompiled script and detects the format.
-// Scans MESSAGE and LOG_BEGIN lines, counts max quoted strings.
+// Scans MESSAGE, LOG_BEGIN, and SELECT lines, counts max quoted strings.
 func (a *App) DialogueDetectFormat(scriptFile string) DialogueFormatInfo {
 	result := DialogueFormatInfo{Format: "Unknown", MaxCols: 0}
 
@@ -1042,11 +1071,11 @@ func (a *App) DialogueDetectFormat(scriptFile string) DialogueFormatInfo {
 		if !isDialogueLine(trimmed) {
 			continue
 		}
-		rest := stripLabelPrefix(trimmed)
-		switch {
-		case strings.HasPrefix(rest, "LOG_BEGIN"):
+		tag := lineTag(trimmed)
+		switch tag {
+		case "LOG_BEGIN":
 			logCount++
-		case strings.HasPrefix(rest, "SELECT"):
+		case "SELECT":
 			selCount++
 		default:
 			msgCount++
@@ -1116,7 +1145,7 @@ func extractQuotedStrings(line string) []string {
 	return results
 }
 
-// DialogueExtractFile extracts MESSAGE + LOG_BEGIN entries from a single script file to TSV.
+// DialogueExtractFile extracts MESSAGE / LOG_BEGIN / SELECT entries from a single script file to TSV.
 func (a *App) DialogueExtractFile(inputFile, outputFile string, cols []int) string {
 	if inputFile == "" || outputFile == "" {
 		a.logError("Input script and output TSV file are required")
@@ -1150,7 +1179,7 @@ func (a *App) DialogueExtractFile(inputFile, outputFile string, cols []int) stri
 	return "OK: " + result
 }
 
-// DialogueExtractBatch extracts MESSAGE + LOG_BEGIN entries from all .txt scripts in a folder.
+// DialogueExtractBatch extracts MESSAGE / LOG_BEGIN / SELECT entries from all .txt scripts in a folder.
 func (a *App) DialogueExtractBatch(inputDir, outputDir string, cols []int) string {
 	if inputDir == "" || outputDir == "" {
 		a.logError("Input folder and output folder are required")
