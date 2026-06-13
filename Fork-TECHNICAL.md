@@ -1,4 +1,4 @@
-# V3.20 — Auto-sélection du plugin script + durcissement LOG_BEGIN dans la GUI Dialogue
+# V3.20 — Auto-sélection du plugin script + durcissement LOG_BEGIN + fix AIR chaîne vide
 
 ## Fichiers modifiés
 
@@ -6,6 +6,10 @@
 - `cmd/scriptDecompile.go` — ajout de `resolvePluginFile()`, appelée avant `game.NewGame()`.
 - `cmd/scriptImport.go` — même auto-sélection en mode import/repack.
 - `cmd/root.go` — bump de version CLI vers `2.3.2-yoremi.3.20`.
+- `game/operator/util.go` — lecture correcte d'une `lstring` vide quand le terminateur est présent.
+- `game/operator/util_test.go` — test du cas AIR `00 00 00`.
+- `script/script.go` — réécriture du terminateur sur les `lstring` vides.
+- `script/script_test.go` — test de round-trip writer pour une `lstring` UTF-8 vide.
 
 ### GUI
 - `SourcesGUI-wails/app.go` — reconnaissance d'opcodes Dialogue plus stricte et compatible `labelN:` / `globalN:`.
@@ -126,10 +130,33 @@ Le script npm ne lance plus `vite` directement :
 
 Même logique pour `dev` et `preview`. Node ouvre le fichier JavaScript de Vite lui-même, donc le build ne dépend plus du mode exécutable du shim `.bin`.
 
+## Fix extraction AIR : `lstring` UTF-8 vide
+
+Le PAK AIR Steam fourni reproduisait un crash en décompilation :
+
+```text
+panic: [seen203] line 6498 (MESSAGE): runtime error: slice bounds out of range
+```
+
+La ligne `seen203` contient un `MESSAGE` avec :
+
+- une chaîne japonaise UTF-16 valide;
+- une chaîne UTF-8 vide;
+- une chaîne chinoise UTF-16 juste après.
+
+Dans ce fichier, la chaîne UTF-8 vide est encodée `00 00 00` : longueur zéro, puis terminateur `00`. L'ancien lecteur avançait seulement de 2 octets sur une `lstring` vide. Le terminateur restait donc dans le flux, et la lecture suivante interprétait les deux mauvais octets comme longueur UTF-16, ce qui produisait une taille impossible et le panic.
+
+Correction :
+
+- `GetParam()` avance maintenant aussi sur le terminateur présent pour les `lstring` vides (`UTF-8`/`ShiftJIS` : `00`, `Unicode` : `00 00`).
+- `CodeString()` réécrit ce terminateur pour les `lstring` vides, afin que l'import conserve le format attendu par AIR.
+
 ## Validation
 
 - `go test ./... -count=1` depuis `SourcesGUI-wails` : OK.
 - `go test ./cmd ./script` : OK.
+- `go test ./cmd ./game/operator ./script` : OK.
+- `go test ./... -run "TestGetParamEmptyUTF8LStringConsumesTerminator|TestCodeStringEmptyUTF8LStringWritesTerminator"` : OK.
 - `go test ./... -run '^$'` depuis la racine : OK.
 - `npm run build` depuis `SourcesGUI-wails/frontend` : OK.
 - Repack du cas Discord sans `-p` :
@@ -139,6 +166,8 @@ Même logique pour `dev` et `preview`. Node ouvre le fichier JavaScript de Vite 
 ```
 
 - Redécompilation du PAK repacké : `LOG_BEGIN ("The roar of water fills my ears.")` conservé à la ligne attendue.
+- Décompilation du PAK AIR Steam original avec `data\AIR.py` : OK, y compris `seen203`.
+- Import des scripts AIR exportés puis redécompilation du PAK reconstruit : OK.
 
 ## Compatibilité
 

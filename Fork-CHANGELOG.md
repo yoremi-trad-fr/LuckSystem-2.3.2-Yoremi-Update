@@ -1,4 +1,4 @@
-# V3.20 — Script plugin auto-selection + Dialogue GUI LOG_BEGIN hardening
+# V3.20 — Script plugin auto-selection + Dialogue GUI LOG_BEGIN hardening + AIR empty string fix
 
 13/06/2026
 
@@ -38,10 +38,16 @@ Round-trip testing confirmed that `LOG_BEGIN` imports correctly when the Cartagr
 - Frontend npm scripts now invoke Vite through `node ./node_modules/vite/bin/vite.js` instead of executing the `.bin/vite` shim directly. This avoids `sh: 1: vite: Permission denied` on Linux builds when `node_modules/.bin/vite` lost its executable bit.
 - Updated CLI and GUI version labels to `v3.20`.
 
+**AIR**
+
+- AIR `MESSAGE` lines with an empty UTF-8 translated string now decompile correctly. Some AIR Steam scripts encode that field as `00 00 00` (zero length plus string terminator); the reader now consumes the terminator and the writer preserves it during import.
+- Fixes the `seen203` panic: `runtime error: slice bounds out of range` during AIR script extraction.
+
 ### Testing
 
 - `go test ./... -count=1` from `SourcesGUI-wails`: OK.
 - `go test ./cmd ./script`: OK.
+- `go test ./cmd ./game/operator ./script`: OK.
 - `go test ./... -run '^$'`: OK.
 - `npm run build` from `SourcesGUI-wails/frontend`: OK.
 - Repacked the supplied CartagraHD case without passing `-p`; auto-selection picked `data\CartagraHD.py`.
@@ -50,6 +56,9 @@ Round-trip testing confirmed that `LOG_BEGIN` imports correctly when the Cartagr
 ```text
 LOG_BEGIN ("The roar of water fills my ears.")
 ```
+
+- Decompile of the supplied AIR Steam `BAK-SCRIPT.PAK` with `data\AIR.py`: OK, including `seen203`.
+- Import of the exported AIR scripts followed by redecompile of the rebuilt PAK: OK.
 
 ---
 
