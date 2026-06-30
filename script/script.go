@@ -189,7 +189,11 @@ func (s *Script) SetOperateParams(index int, mode enum.VMRunMode, params ...inte
 					return fmt.Errorf("[%s] line %d (%s): param %d type mismatch: expected string for byte conversion, got %T",
 						s.Name, index+1, code.OpStr, i, code.Params[i])
 				}
-				val, _ := strconv.ParseUint(str[2:], 16, 8)
+				val, err := parseImportUint(str, 8)
+				if err != nil {
+					return fmt.Errorf("[%s] line %d (%s): invalid byte parameter %d %q: %w",
+						s.Name, index+1, code.OpStr, i, str, err)
+				}
 				code.Params[i] = byte(val)
 			case uint16:
 				str, ok := code.Params[i].(string)
@@ -197,7 +201,11 @@ func (s *Script) SetOperateParams(index int, mode enum.VMRunMode, params ...inte
 					return fmt.Errorf("[%s] line %d (%s): param %d type mismatch: expected string for uint16 conversion, got %T",
 						s.Name, index+1, code.OpStr, i, code.Params[i])
 				}
-				val, _ := strconv.ParseUint(str, 10, 16)
+				val, err := parseImportUint(str, 16)
+				if err != nil {
+					return fmt.Errorf("[%s] line %d (%s): invalid uint16 parameter %d %q: %w",
+						s.Name, index+1, code.OpStr, i, str, err)
+				}
 				code.Params[i] = uint16(val)
 			case uint32:
 				str, ok := code.Params[i].(string)
@@ -205,7 +213,11 @@ func (s *Script) SetOperateParams(index int, mode enum.VMRunMode, params ...inte
 					return fmt.Errorf("[%s] line %d (%s): param %d type mismatch: expected string for uint32 conversion, got %T",
 						s.Name, index+1, code.OpStr, i, code.Params[i])
 				}
-				val, _ := strconv.ParseUint(str, 10, 32)
+				val, err := parseImportUint(str, 32)
+				if err != nil {
+					return fmt.Errorf("[%s] line %d (%s): invalid uint32 parameter %d %q: %w",
+						s.Name, index+1, code.OpStr, i, str, err)
+				}
 				code.Params[i] = uint32(val)
 			}
 			//fmt.Println(code.OpStr, code.Params[i], paramList[i])
@@ -279,6 +291,19 @@ func (s *Script) SetOperateParams(index int, mode enum.VMRunMode, params ...inte
 		s.CodeParamsToBytes(code, strCharset, allParamList)
 	}
 	return nil
+}
+
+func parseImportUint(str string, bitSize int) (uint64, error) {
+	value := strings.TrimSpace(str)
+	base := 10
+	if strings.HasPrefix(value, "0x") || strings.HasPrefix(value, "0X") {
+		base = 16
+		value = value[2:]
+	}
+	if value == "" {
+		return 0, strconv.ErrSyntax
+	}
+	return strconv.ParseUint(value, base, bitSize)
 }
 
 // Export 导出可编辑脚本

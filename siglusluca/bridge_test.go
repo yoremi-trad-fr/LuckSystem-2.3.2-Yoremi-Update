@@ -168,3 +168,23 @@ func TestRunUsesSoftEnglishNormalizationForRewordedLines(t *testing.T) {
 		t.Fatalf("reworded line was exported as HD-only:\n%s", string(hdBytes))
 	}
 }
+
+func TestReplaceNthQuotedStringPreservesOriginalLineBreakSuffix(t *testing.T) {
+	line := `MESSAGE (0, "jp\n", "English line.\n", "cn\n", 1, 2, 0x0)`
+
+	got := replaceNthQuotedString(line, 1, "Ligne française.")
+
+	if !strings.Contains(got, `"Ligne française.\n"`) {
+		t.Fatalf("expected replacement to preserve \\n suffix:\n%s", got)
+	}
+}
+
+func TestReplaceNthQuotedStringDoesNotAddLineBreakWithoutOriginalSuffix(t *testing.T) {
+	line := `MESSAGE (1, "jp", "English line.", "cn", 1, 2, 0x0)`
+
+	got := replaceNthQuotedString(line, 1, "Ligne française.")
+
+	if strings.Contains(got, `"Ligne française.\n"`) {
+		t.Fatalf("replacement unexpectedly gained \\n suffix:\n%s", got)
+	}
+}

@@ -17,7 +17,7 @@ func ToStringCodeParams(code *CodeLine) string {
 		case byte:
 			paramStr = append(paramStr, fmt.Sprintf("0x%X", param))
 		case string:
-			paramStr = append(paramStr, `"`+param+`"`)
+			paramStr = append(paramStr, quoteCodeParam(param))
 		case *JumpParam:
 			if param.LabelIndex > 0 {
 				paramStr = append(paramStr, fmt.Sprintf("{goto label%d}", param.LabelIndex))
@@ -44,6 +44,15 @@ func ToStringCodeParams(code *CodeLine) string {
 	return str
 }
 
+func quoteCodeParam(value string) string {
+	value = strings.ReplaceAll(value, `\`, `\\`)
+	value = strings.ReplaceAll(value, `"`, `\"`)
+	value = strings.ReplaceAll(value, "\r", "")
+	value = strings.ReplaceAll(value, "\n", `\n`)
+	value = strings.ReplaceAll(value, "\t", `\t`)
+	return `"` + value + `"`
+}
+
 func ParseCodeParams(code *CodeLine, codeStr string) {
 	word := make([]rune, 0, 32)
 	params := make([]interface{}, 0, 8)
@@ -57,10 +66,31 @@ func ParseCodeParams(code *CodeLine, codeStr string) {
 	specialGlobalGotoIndex := 0
 	specialGotoFile := ""
 	isString := false
+	isEscaped := false
 	isSpecial := false
 
 	for _, ch := range codeStr {
 		if isString {
+			if isEscaped {
+				switch ch {
+				case 'n':
+					word = append(word, '\n')
+				case 'r':
+					word = append(word, '\r')
+				case 't':
+					word = append(word, '\t')
+				case '"', '\\':
+					word = append(word, ch)
+				default:
+					word = append(word, '\\', ch)
+				}
+				isEscaped = false
+				continue
+			}
+			if ch == '\\' {
+				isEscaped = true
+				continue
+			}
 			if ch == '"' {
 				if len(word) == 0 { // 空字符串
 					word = append(word, '\x00')
@@ -126,6 +156,7 @@ func ParseCodeParams(code *CodeLine, codeStr string) {
 			word = word[0:0]
 		case '"':
 			isString = true
+			isEscaped = false
 		case '{':
 			isSpecial = true
 		default:

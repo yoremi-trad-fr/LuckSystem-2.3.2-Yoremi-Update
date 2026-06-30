@@ -831,6 +831,10 @@ func extractQuotedStrings(line string) []string {
 }
 
 func replaceNthQuotedString(line string, n int, newText string) string {
+	quoted := extractQuotedStrings(line)
+	if n >= 0 && n < len(quoted) {
+		newText = preserveOriginalLineBreakSuffix(quoted[n], newText)
+	}
 	escaped := strings.ReplaceAll(newText, "\\", "\\\\")
 	escaped = strings.ReplaceAll(escaped, "\"", "\\\"")
 	escaped = strings.ReplaceAll(escaped, "\r", "")
@@ -882,6 +886,16 @@ func replaceNthQuotedString(line string, n int, newText string) string {
 		}
 	}
 	return result.String()
+}
+
+func preserveOriginalLineBreakSuffix(original, replacement string) string {
+	if strings.HasSuffix(replacement, "\\n") {
+		replacement = strings.TrimSuffix(replacement, "\\n") + "\n"
+	}
+	if (strings.HasSuffix(original, "\\n") || strings.HasSuffix(original, "\n")) && !strings.HasSuffix(replacement, "\n") {
+		return replacement + "\n"
+	}
+	return replacement
 }
 
 func prepareText(s string) preparedText {

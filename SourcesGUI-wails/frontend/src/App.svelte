@@ -1,6 +1,6 @@
 <script>
   import { onMount, onDestroy, tick } from 'svelte';
-  import { EventsOn, EventsOff } from '../wailsjs/runtime/runtime.js';
+  import { EventsOn, EventsOff, ClipboardGetText, ClipboardSetText } from '../wailsjs/runtime/runtime.js';
   import {
     GetLuckSystemPath,
     SetLuckSystemPath,
@@ -41,6 +41,9 @@
   let running = false;
   let consoleLines = [];
   let consoleEl;
+  let consoleMenuVisible = false;
+  let consoleMenuX = 0;
+  let consoleMenuY = 0;
   let lsPath = '';
 
   // --- Script fields ---
@@ -203,7 +206,87 @@
   }
   function clearConsole() { consoleLines = []; pendingLines = []; }
 
+  function getConsoleText() {
+    return [...consoleLines, ...pendingLines].map(line => line.text).join('\n');
+  }
+
+  function openConsoleMenu(event) {
+    event.preventDefault();
+    const menuWidth = 190;
+    const menuHeight = 116;
+    consoleMenuX = Math.min(event.clientX, window.innerWidth - menuWidth - 8);
+    consoleMenuY = Math.min(event.clientY, window.innerHeight - menuHeight - 8);
+    consoleMenuVisible = true;
+  }
+
+  function closeConsoleMenu() {
+    consoleMenuVisible = false;
+  }
+
+  async function setClipboardText(text) {
+    if (!text) return false;
+    try {
+      const ok = await ClipboardSetText(text);
+      if (ok) return true;
+    } catch (e) {
+      // Browser fallback below.
+    }
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+    return false;
+  }
+
+  async function getClipboardText() {
+    try {
+      return await ClipboardGetText();
+    } catch (e) {
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.readText) {
+        return await navigator.clipboard.readText();
+      }
+    }
+    return '';
+  }
+
+  async function copyConsoleSelection() {
+    const selection = typeof window !== 'undefined' ? window.getSelection()?.toString() || '' : '';
+    await setClipboardText(selection || getConsoleText());
+    closeConsoleMenu();
+  }
+
+  async function copyConsoleAll() {
+    await setClipboardText(getConsoleText());
+    closeConsoleMenu();
+  }
+
+  async function pasteConsoleClipboard() {
+    const text = await getClipboardText();
+    if (text) {
+      text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').forEach(line => addLine(line));
+    }
+    closeConsoleMenu();
+  }
+
+  function handleConsoleKeydown(event) {
+    if (!(event.ctrlKey || event.metaKey)) return;
+    const key = event.key.toLowerCase();
+    if (key === 'c') {
+      event.preventDefault();
+      copyConsoleSelection();
+    } else if (key === 'v') {
+      event.preventDefault();
+      pasteConsoleClipboard();
+    }
+  }
+
+  function handleWindowKeydown(event) {
+    if (event.key === 'Escape') closeConsoleMenu();
+  }
+
   onMount(async () => {
+    window.addEventListener('click', closeConsoleMenu);
+    window.addEventListener('keydown', handleWindowKeydown);
     EventsOn('log', (msg) => addLine(msg));
     lsPath = await GetLuckSystemPath();
     if (lsPath) {
@@ -220,7 +303,11 @@
     }
     addLine('Ready.');
   });
-  onDestroy(() => { EventsOff('log'); });
+  onDestroy(() => {
+    EventsOff('log');
+    window.removeEventListener('click', closeConsoleMenu);
+    window.removeEventListener('keydown', handleWindowKeydown);
+  });
 
   // ===== Browse helpers =====
   async function browsePak() { const f = await SelectPakFile(); if (f) pakFile = f; }
@@ -858,8 +945,29 @@
         <button class="console-clear" on:click={clearConsole}>Clear</button>
       </div>
     </div>
-    <div class="console" bind:this={consoleEl}>
+    <div
+      class="console"
+      bind:this={consoleEl}
+      role="textbox"
+      aria-label="Console Output"
+      aria-readonly="true"
+      tabindex="0"
+      on:contextmenu={openConsoleMenu}
+      on:keydown={handleConsoleKeydown}
+    >
       {#each consoleLines as line}<div class={line.cls}>{line.text}</div>{/each}
     </div>
   </div>
+
+  {#if consoleMenuVisible}
+    <div
+      class="console-menu"
+      role="menu"
+      style="left: {consoleMenuX}px; top: {consoleMenuY}px;"
+    >
+      <button type="button" on:click={copyConsoleSelection}>Copier sélection</button>
+      <button type="button" on:click={copyConsoleAll}>Copier tout</button>
+      <button type="button" on:click={pasteConsoleClipboard}>Coller</button>
+    </div>
+  {/if}
 </div>
