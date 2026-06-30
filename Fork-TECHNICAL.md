@@ -1,3 +1,118 @@
+# V3.22 — Pont Siglus -> Luca pour scripts
+
+## Fichiers modifiés
+
+### CLI
+- `cmd/root.go` — bump de version CLI vers `2.3.2-yoremi.3.22`.
+- `cmd/scriptSiglusLuca.go` — nouvelle commande `script siglus-luca`.
+- `cmd/script.go` — suppression de l'obligation globale `--source` pour les sous-commandes `script` qui ne lisent pas directement un `SCRIPT.PAK`.
+
+### GUI
+- `SourcesGUI-wails/app.go` — méthode Wails `SiglusLucaBridge()` branchée sur le moteur `siglusluca`.
+- `SourcesGUI-wails/frontend/src/App.svelte` — nouvel outil `SCRIPT -> Siglus -> Luca`.
+- `SourcesGUI-wails/frontend/wailsjs/go/main/App.js`
+- `SourcesGUI-wails/frontend/wailsjs/go/main/App.d.ts`
+- `SourcesGUI-wails/frontend/package.json` — version frontend `3.22`.
+- `SourcesGUI-wails/frontend/package-lock.json` — version frontend `3.22`.
+- `SourcesGUI-wails/main.go` — titre de fenêtre `v3.22`.
+- `SourcesGUI-wails/GUI-Windows-README.md`
+- `SourcesGUI-wails/GUI-Linux-README.md`
+
+### Bibliothèque
+- `siglusluca/bridge.go` — alignement Siglus/Luca, injection FR, rapports HD/revue.
+- `siglusluca/bridge_test.go` — tests ciblés import normal, bloc fusionné, ligne HD, et reformulation anglaise.
+
+### Documentation
+- `README.md`
+- `Fork-CHANGELOG.md`
+- `Fork-TECHNICAL.md`
+
+## Objectif
+
+Le format Siglus n'est pas converti opcode par opcode vers Luca. Le pont garde les scripts Luca décompilés comme structure maître et remplace seulement le slot texte choisi par les traductions issues des exports Siglus.
+
+Flux attendu :
+
+```text
+Siglus .ss.txt traduits -> script siglus-luca -> scripts Luca .txt patchés -> script import -> SCRIPT_TRAD.PAK
+```
+
+## Commande
+
+```text
+lucksystem script siglus-luca ^
+  --luca "...\SCRIPT.PAK" ^
+  --siglus "...\TRAD-silgus\Full" ^
+  -o "...\Luca_from_Siglus_FR"
+```
+
+Options principales :
+
+| Option | Rôle |
+|---|---|
+| `--luca` | dossier des scripts Luca décompilés `.txt` |
+| `--siglus` | dossier Siglus `Full` contenant les `.ss.txt` |
+| `--output` / `-o` | dossier des scripts Luca patchés |
+| `--target-col` | chaîne entre guillemets à remplacer, défaut `2` |
+| `--hd-output` | TSV des lignes candidates HD-only |
+| `--review-output` | TSV des lignes à vérifier |
+| `--min-score` | score minimum pour importer une ligne alignée, défaut `0` |
+
+## GUI
+
+L'interface propose maintenant :
+
+```text
+SCRIPT -> Siglus -> Luca
+```
+
+Elle demande le dossier des scripts Luca décompilés, le dossier Siglus `Full`, le dossier de sortie et la colonne cible. Par défaut, la colonne cible est `Lang 2`, ce qui correspond aux scripts Luca où le deuxième slot texte est la langue à remplacer.
+
+## Alignement
+
+Le pont extrait :
+
+- côté Luca : `MESSAGE`, `LOG_BEGIN`, `SELECT`, avec support des préfixes `labelN:` / `globalN:`;
+- côté Siglus : les couples `○ID○source` / `●ID●traduction`.
+
+Les entrées techniques sont filtrées : speakers simples, marqueurs de langue, assets (`bgm`, `fg`, `si`, `tp`, etc.), identifiants `$...`, trophées et lignes sans cible en écriture latine.
+
+L'alignement utilise une programmation dynamique avec trois opérations :
+
+- match Siglus/Luca;
+- ligne Siglus absente de Luca;
+- ligne Luca absente de Siglus.
+
+Le score combine les mots significatifs partagés, la similarité cosinus, Jaccard et une couverture partielle. Une petite normalisation anglaise rapproche aussi les variations simples comme `good sound` / `nice sound`, `helpful` / `helping`, ou `cleaning` / `cleaned`. Le score n'est pas destiné à juger la qualité de traduction ; il sert seulement à garder l'ordre des scènes stable.
+
+## Garde-fous d'import
+
+Une ligne alignée remplace le slot Luca choisi avec échappement de `\`, `"`, tabulations et retours ligne.
+
+Les cas suivants ne sont pas importés automatiquement :
+
+1. lignes Luca non alignées et substantielles -> `hd_candidates.tsv`;
+2. lignes Siglus sans équivalent Luca -> `review.tsv`;
+3. longues lignes Siglus qui couvrent plusieurs lignes Luca voisines -> `review.tsv`, raison `siglus_merged_or_luca_split`;
+4. lignes Luca proches d'une entrée Siglus sautée -> `review.tsv`, raison `siglus_luca_split_or_rewrite`;
+5. petites lignes Luca isolées ou ponctuation pure -> `review.tsv`, raison `luca_only_short_or_punctuation`;
+6. lignes sous `--min-score` -> `review.tsv`, raison `below_min_score_not_imported`.
+
+Les lignes faibles mais importées avec le réglage par défaut sont aussi listées dans `review.tsv` sous `low_confidence_imported`.
+
+## Validation
+
+- `go test ./siglusluca ./cmd` : OK.
+- `go test ./...` depuis `SourcesGUI-wails` : OK.
+- `npm run build` depuis `SourcesGUI-wails/frontend` : OK, avec les avertissements Svelte d'accessibilité déjà connus.
+- `wails build` depuis `SourcesGUI-wails` : OK.
+
+Cas vérifié : une longue entrée Siglus couvrant plusieurs lignes Luca n'est pas injectée dans une seule ligne Luca ; les lignes correspondantes restent dans le script et sont listées pour découpage manuel.
+
+Cas vérifié : les reformulations simples autour de mots anglais proches, par exemple `good sound` / `nice sound` ou `helpful` / `helping`, restent alignées au lieu d'être classées en Luca-only.
+
+---
+
 # V3.21 — Extraction vidéo BGMOVIE.PAK / MVT + garde-fous export image
 
 ## Fichiers modifiés

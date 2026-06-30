@@ -62,6 +62,8 @@ export function SelectTsvFile():Promise<string>;
 
 export function SetLuckSystemPath():Promise<string>;
 
+export function SiglusLucaBridge(arg1:string,arg2:string,arg3:string,arg4:number):Promise<string>;
+
 export function StopProcess():Promise<void>;
 
 export function VietnameseFontPatch(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:string,arg7:Array<number>,arg8:boolean):Promise<string>;

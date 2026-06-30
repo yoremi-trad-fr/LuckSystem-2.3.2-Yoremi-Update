@@ -12,6 +12,7 @@
     StopProcess,
     ScriptDecompile,
     ScriptCompile,
+    SiglusLucaBridge,
     PakExtract,
     BGMOVIEExtract,
     PakReplace,
@@ -53,6 +54,12 @@
   let outputDir = '';
   let importDir = '';
   let outputPak = '';
+
+  // --- Siglus -> Luca bridge fields ---
+  let siglusLucaLucaDir = '';
+  let siglusLucaSiglusDir = '';
+  let siglusLucaOutput = '';
+  let siglusLucaTargetCol = 2;
 
   // --- PAK fields ---
   let pakExtSource = '';
@@ -144,6 +151,7 @@
     { id: '_s1', label: 'SCRIPT', section: true },
     { id: 'decompile', label: 'Script Decompile' },
     { id: 'compile', label: 'Script Compile' },
+    { id: 'siglus_luca', label: 'Siglus -> Luca' },
     { id: '_s2', label: 'PAK (CG)', section: true },
     { id: 'pak_cg_extract', label: 'CG Extract' },
     { id: 'pak_cg_replace', label: 'CG Replace' },
@@ -199,7 +207,7 @@
     EventsOn('log', (msg) => addLine(msg));
     lsPath = await GetLuckSystemPath();
     if (lsPath) {
-      addLine('LuckSystem 2.3.2 - Yoremi fork v3.21');
+      addLine('LuckSystem 2.3.2 - Yoremi fork v3.22');
       addLine('Executable: ' + lsPath);
       // Scan data/ folder for game presets
       gamePresets = (await ScanGameData()) || [];
@@ -221,6 +229,9 @@
   async function browseOutputDir() { const d = await SelectDirectory('Select output directory'); if (d) outputDir = d; }
   async function browseImportDir() { const d = await SelectDirectory('Select translated scripts directory'); if (d) importDir = d; }
   async function browseOutputPak() { const f = await SelectSaveFile('Save output PAK', 'SCRIPT_FR.PAK', '*.PAK;*.pak', 'PAK files'); if (f) outputPak = f; }
+  async function browseSiglusLucaLucaDir() { const d = await SelectDirectory('Select Luca decompiled scripts folder'); if (d) siglusLucaLucaDir = d; }
+  async function browseSiglusLucaSiglusDir() { const d = await SelectDirectory('Select Siglus Full folder'); if (d) siglusLucaSiglusDir = d; }
+  async function browseSiglusLucaOutput() { const d = await SelectDirectory('Select patched Luca output folder'); if (d) siglusLucaOutput = d; }
 
   function applyPreset(presetName) {
     selectedPreset = presetName;
@@ -306,6 +317,7 @@
 
   function startDecompile() { run(() => ScriptDecompile(pakFile, opcodeFile, pluginFile, charsetVal, outputDir, gameName)); }
   function startCompile() { run(() => ScriptCompile(pakFile, opcodeFile, pluginFile, charsetVal, importDir, outputPak, gameName)); }
+  function startSiglusLucaBridge() { run(() => SiglusLucaBridge(siglusLucaLucaDir, siglusLucaSiglusDir, siglusLucaOutput, siglusLucaTargetCol)); }
   function startPakExtract() { run(() => PakExtract(pakExtSource, pakExtOutput)); }
   function startBgMovieExtract() { run(() => BGMOVIEExtract(bgMoviePak, bgMovieOutput)); }
   function startPakReplace() {
@@ -420,7 +432,7 @@
 
 <div id="app">
   <div class="titlebar">
-    <span>LuckSystem 2.3.2 - Yoremi fork v3.21</span>
+    <span>LuckSystem 2.3.2 - Yoremi fork v3.22</span>
     <span class="titlebar-path" on:click={locateLuckSystem} title="Click to change">
       {#if lsPath}📁 {lsPath}{:else}⚠ lucksystem.exe not found - Click to locate{/if}
     </span>
@@ -472,6 +484,35 @@
         <div class="form-group"><label>Translated scripts folder:</label><div class="form-row"><input type="text" bind:value={importDir} readonly /><button class="btn" on:click={browseImportDir}>Select</button></div><div class="form-hint">Select the parent folder containing SCRIPT.PAK (e.g. TRAD), not SCRIPT.PAK itself</div></div>
         <div class="form-group"><label>Output PAK file:</label><div class="form-row"><input type="text" bind:value={outputPak} readonly /><button class="btn" on:click={browseOutputPak}>Select</button></div></div>
         <div class="form-actions">{#if running}<span class="running-indicator"></span> Running...{:else}<button class="btn btn-primary" on:click={startCompile} disabled={!pakFile || !importDir || !outputPak}>Start Compile</button>{/if}</div>
+
+      <!-- SIGLUS -> LUCA -->
+      {:else if selectedOp === 'siglus_luca'}
+        <div class="form-title">Siglus -> Luca Script Bridge</div>
+        <div class="form-hint" style="margin-bottom:10px">
+          Importe des lignes traduites depuis des exports Siglus dans des scripts Luca décompilés. Les lignes Luca-only et les découpages à vérifier sont exportés en TSV dans le dossier de sortie.
+        </div>
+        <div class="form-group"><label>Luca scripts folder:</label><div class="form-row"><input type="text" bind:value={siglusLucaLucaDir} readonly placeholder="SCRIPT.PAK decompiled folder" /><button class="btn" on:click={browseSiglusLucaLucaDir}>Select</button></div><div class="form-hint">Dossier contenant les scripts Luca .txt à patcher.</div></div>
+        <div class="form-group"><label>Siglus Full folder:</label><div class="form-row"><input type="text" bind:value={siglusLucaSiglusDir} readonly placeholder="TRAD-silgus\Full" /><button class="btn" on:click={browseSiglusLucaSiglusDir}>Select</button></div><div class="form-hint">Dossier contenant les exports Siglus .ss.txt avec source et traduction.</div></div>
+        <div class="form-group"><label>Output folder:</label><div class="form-row"><input type="text" bind:value={siglusLucaOutput} readonly placeholder="Luca_from_Siglus_FR" /><button class="btn" on:click={browseSiglusLucaOutput}>Select</button></div><div class="form-hint">Les scripts patchés, <code>hd_candidates.tsv</code> et <code>review.tsv</code> seront écrits ici.</div></div>
+        <div class="form-group">
+          <label>Target column:</label>
+          <div class="form-row">
+            <select bind:value={siglusLucaTargetCol}>
+              <option value={1}>Lang 1</option>
+              <option value={2}>Lang 2 (English slot)</option>
+              <option value={3}>Lang 3</option>
+              <option value={4}>Lang 4</option>
+            </select>
+          </div>
+          <div class="form-hint">Garder Lang 2 pour les scripts Luca dont le deuxième slot texte est la langue à remplacer.</div>
+        </div>
+        <div class="form-actions">
+          {#if running}<span class="running-indicator"></span> Running...
+          {:else}<button class="btn btn-primary" on:click={startSiglusLucaBridge}
+            disabled={!siglusLucaLucaDir || !siglusLucaSiglusDir || !siglusLucaOutput}>
+            Import Siglus FR
+          </button>{/if}
+        </div>
 
       <!-- PAK CG EXTRACT -->
       {:else if selectedOp === 'pak_cg_extract'}
@@ -785,7 +826,7 @@
         <div class="form-title">À propos</div>
         <div class="about-panel">
           <div class="about-logo">LuckSystem</div>
-          <div class="about-subtitle">Fork · Yoremi-v3.21</div>
+          <div class="about-subtitle">Fork · Yoremi-v3.22</div>
           <div class="about-desc">
             Interface graphique pour LuckSystem, l'outil de traduction de visual novels Visual Art's / Key.<br>
             Inclut des correctifs CZ (CZ1, CZ4), script, PAK, et une interface subprocess.
@@ -800,7 +841,7 @@
               <span class="about-link-url">https://github.com/yoremi-trad-fr/LuckSystem-2.3.2-Yoremi-Update</span>
             </div>
           </div>
-          <div class="about-version">v3.21 GUI · Wails + Svelte</div>
+          <div class="about-version">v3.22 GUI · Wails + Svelte</div>
         </div>
       {/if}
     </div>

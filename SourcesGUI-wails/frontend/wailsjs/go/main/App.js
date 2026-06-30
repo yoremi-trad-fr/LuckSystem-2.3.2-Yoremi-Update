@@ -122,6 +122,10 @@ export function SetLuckSystemPath() {
   return window['go']['main']['App']['SetLuckSystemPath']();
 }
 
+export function SiglusLucaBridge(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['SiglusLucaBridge'](arg1, arg2, arg3, arg4);
+}
+
 export function StopProcess() {
   return window['go']['main']['App']['StopProcess']();
 }

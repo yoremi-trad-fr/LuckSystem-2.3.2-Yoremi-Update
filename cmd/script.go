@@ -44,5 +44,4 @@ func init() {
 	scriptCmd.PersistentFlags().StringVarP(&ScriptPlugin, "plugin", "p", "", "游戏OPCODE解析插件")
 	scriptCmd.PersistentFlags().StringVarP(&ScriptGameName, "game", "g", "", "Game name (e.g. LB_EN, SP). Overrides auto-detection from OPCODE path")
 	scriptCmd.PersistentFlags().BoolVarP(&ScriptNoSubDir, "no_subdir", "n", false, "输入和输出路径的不追加 '/SCRIPT.PAK/' 子目录")
-	scriptCmd.MarkPersistentFlagRequired("source")
 }

@@ -12,6 +12,8 @@ import (
 	"strings"
 	"sync"
 
+	"lucksystem/siglusluca"
+
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
@@ -474,6 +476,58 @@ func (a *App) ScriptCompile(pakFile, opcodeFile, pluginFile, charsetStr, importD
 	}
 
 	a.logOK(fmt.Sprintf("Script compile completed -> %s", outputPak))
+	a.log("════════════════════════════════════════")
+	return "OK"
+}
+
+// ═══════════════════════════════════════
+// SIGLUS -> LUCA SCRIPT BRIDGE
+// ═══════════════════════════════════════
+// Imports translated Siglus script text into decompiled Luca scripts.
+
+func (a *App) SiglusLucaBridge(lucaDir, siglusDir, outputDir string, targetCol int) string {
+	if lucaDir == "" || siglusDir == "" || outputDir == "" {
+		a.logError("Luca scripts folder, Siglus Full folder, and output folder are required")
+		return "ERROR"
+	}
+	if targetCol <= 0 {
+		targetCol = 2
+	}
+
+	hdOutput := filepath.Join(outputDir, "hd_candidates.tsv")
+	reviewOutput := filepath.Join(outputDir, "review.tsv")
+
+	a.log("════════════════════════════════════════")
+	a.log("  SIGLUS -> LUCA SCRIPT BRIDGE")
+	a.log("════════════════════════════════════════")
+	a.log(fmt.Sprintf("Luca scripts: %s", lucaDir))
+	a.log(fmt.Sprintf("Siglus Full:  %s", siglusDir))
+	a.log(fmt.Sprintf("Output:       %s", outputDir))
+	a.log(fmt.Sprintf("Target col:   Lang %d", targetCol))
+
+	summary, err := siglusluca.Run(siglusluca.Options{
+		LucaDir:      lucaDir,
+		SiglusDir:    siglusDir,
+		OutputDir:    outputDir,
+		HDOutput:     hdOutput,
+		ReviewOutput: reviewOutput,
+		TargetCol:    targetCol,
+	})
+	if err != nil {
+		a.logError(err.Error())
+		return "ERROR"
+	}
+
+	a.logOK("Siglus -> Luca bridge completed")
+	a.log(fmt.Sprintf("  files processed: %d", summary.FilesProcessed))
+	a.log(fmt.Sprintf("  files copied unchanged: %d", summary.FilesCopied))
+	a.log(fmt.Sprintf("  imported lines: %d", summary.Imported))
+	a.log(fmt.Sprintf("  HD candidate lines: %d", summary.HDCandidates))
+	a.log(fmt.Sprintf("  review rows: %d", summary.ReviewRows))
+	a.log(fmt.Sprintf("  low-confidence rows: %d", summary.LowConfidence))
+	a.log(fmt.Sprintf("  output scripts: %s", outputDir))
+	a.log(fmt.Sprintf("  HD candidates: %s", hdOutput))
+	a.log(fmt.Sprintf("  review report: %s", reviewOutput))
 	a.log("════════════════════════════════════════")
 	return "OK"
 }

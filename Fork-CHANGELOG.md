@@ -1,3 +1,77 @@
+# V3.22 — Siglus -> Luca script bridge
+
+30/06/2026
+
+## Added: assisted Siglus translation import into Luca scripts
+
+### Context
+
+Some translation workflows need to reuse text exported from Siglus scripts inside decompiled Luca scripts. The goal is not to convert Siglus opcodes into Luca opcodes, but to keep the Luca script structure and import matching translated text safely.
+
+Direct line-by-line import is unsafe because:
+
+- some lines are translated/reworded differently between versions;
+- some Siglus entries are merged while Luca splits the same content into several `MESSAGE` / `LOG_BEGIN` lines;
+- Luca scripts can contain extra lines that have no direct Siglus text counterpart.
+
+### CLI
+
+Added:
+
+```text
+lucksystem script siglus-luca \
+  --luca SCRIPT.PAK \
+  --siglus TRAD-silgus\Full \
+  -o Luca_from_Siglus_FR
+```
+
+Default behavior:
+
+- reads decompiled Luca `.txt` scripts from `--luca`;
+- reads Siglus `.ss.txt` translation pairs from `--siglus`;
+- replaces Luca quoted string column `2` by default with aligned Siglus translation text;
+- copies non-matching Luca metadata `.txt` files unchanged;
+- writes patched scripts to `--output`;
+- writes `hd_candidates.tsv` for substantial Luca-only candidate lines;
+- writes `review.tsv` for low-confidence, Siglus-only, short Luca-only, reworded, and merged/split cases.
+
+The generated script folder is intended to be repacked with the existing `script import` command and the correct Luca plugin/OPCODE.
+
+### GUI
+
+- Added a dedicated `SCRIPT -> Siglus -> Luca` entry.
+- The GUI asks for the Luca scripts folder, Siglus `Full` folder, output folder, and target language column.
+- It calls the same Go bridge directly and writes `hd_candidates.tsv` plus `review.tsv` in the selected output folder.
+- Updated CLI and GUI version labels to `v3.22`.
+
+### Safeguards
+
+- Siglus entries whose target is not Latin-script translation text are ignored, avoiding accidental Japanese imports when Siglus exports contain both Japanese and translated lines.
+- Luca control-like quoted strings such as `$A2Shiona`, asset identifiers, and simple technical markers are skipped.
+- If one long Siglus entry appears to cover several nearby Luca lines, the whole block is left in English and exported to review instead of injecting a long French paragraph into a single Luca line.
+- Soft English token normalization keeps simple wording changes such as `good sound` / `nice sound` and `helpful` / `helping` aligned instead of reporting them as HD-only.
+- Short punctuation-only Luca leftovers such as isolated `...` replies are exported to review instead of polluting the HD candidate report.
+- `script --source` is no longer globally required for all script subcommands; commands that do not use a PAK source can run without a dummy `-s` value.
+
+### Testing
+
+- Added a focused unit test covering:
+  - normal aligned import;
+  - merged Siglus line left for review;
+  - Luca-only HD line exported to `hd_candidates.tsv`;
+  - reworded English lines aligned by soft normalization instead of being reported as HD-only.
+- Validated on a representative Siglus/Luca script set:
+  - normal chapter files processed;
+  - translated lines imported into Luca scripts;
+  - Luca-only candidate lines exported;
+  - review rows exported for split/reworded cases.
+- GUI checks:
+  - `go test ./...` from `SourcesGUI-wails`: OK.
+  - `npm run build` from `SourcesGUI-wails/frontend`: OK, with only pre-existing Svelte accessibility warnings.
+  - `wails build` from `SourcesGUI-wails`: OK.
+
+---
+
 # V3.21 — BGMOVIE.PAK / MVT video extraction + safer mixed media export
 
 30/06/2026

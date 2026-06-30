@@ -1,4 +1,4 @@
-# LuckSystem 2.3.2 — Yoremi Fork (v3.21)
+# LuckSystem 2.3.2 — Yoremi Fork (v3.22)
 
 Fork de [LuckSystem](https://github.com/wetor/LuckSystem) avec corrections de bugs, support de nouveaux formats, et interface graphique pour la traduction de visual novels Visual Art's/Key.
 
@@ -21,6 +21,7 @@ A graphical interface is available in this fork:
 - **Game presets** / Auto-detect available games from data/ folder (OPCODE + plugin auto-fill)
 - Dialogue Extract / Extract translatable dialogue from decompiled scripts to TSV (single file or batch)
 - Dialogue Import / Reimport translated dialogue from TSV back into scripts (single file or batch)
+- GUI + CLI Siglus -> Luca bridge / Import translated Siglus script text into Luca decompiled scripts while exporting Luca-only candidates to TSV
 - Script Decompile / Compile
 - PAK Extract / Replace (CG and Font workflows separated)
 - BGMOVIE.PAK video extraction to WebM
@@ -44,7 +45,18 @@ A Linux version is available as separate binaries (GUI + CLI). See the releases 
 
 ## Patches
 
-### Version 3.21 — *(latest)*
+### Version 3.22 — *(latest)*
+
+29. **Siglus -> Luca script bridge** — `siglusluca/bridge.go`, `cmd/scriptSiglusLuca.go`, `SourcesGUI-wails/app.go`, `SourcesGUI-wails/frontend/src/App.svelte`
+    - Added `lucksystem script siglus-luca` to keep Luca scripts as the master structure while importing matching translated text from Siglus `.ss.txt` exports.
+    - Added a dedicated GUI entry under `SCRIPT -> Siglus -> Luca`.
+    - Matching lines replace the selected Luca quoted string column, defaulting to `Lang 2`.
+    - Substantial Luca-only candidate lines are exported to `hd_candidates.tsv` for manual translation.
+    - Merged/split/reworded cases, where one Siglus line covers several Luca lines or a Luca line has a nearby Siglus counterpart, are left untouched and exported to `review.tsv` instead of being injected into the wrong slot.
+    - The generated Luca `.txt` folder can then be repacked with the normal `script import` workflow.
+    - GUI and CLI version labels updated to `v3.22`.
+
+### Version 3.21
 
 28. **BGMOVIE.PAK / MVT video extraction + safer mixed media export** — `movie/mvt.go`, `cmd/movie.go`, `cmd/movieExport.go`, `cmd/imageExport.go`, `SourcesGUI-wails/app.go`, `SourcesGUI-wails/frontend/src/App.svelte`
     - Added `lucksystem movie export -i input.mvt -o output.webm` for Luca Engine `MVT` movie files.

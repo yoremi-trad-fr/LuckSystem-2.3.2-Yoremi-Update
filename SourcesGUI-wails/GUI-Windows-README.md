@@ -1,4 +1,4 @@
-# LuckSystem GUI (Windows) — Yoremi fork v3.21
+# LuckSystem GUI (Windows) — Yoremi fork v3.22
 
 Graphical interface for [LuckSystem](https://github.com/wetor/LuckSystem), the Visual Art's/Key visual novel translation toolkit.
 
@@ -31,6 +31,7 @@ The GUI auto-detects `lucksystem.exe` in the same directory, current working dir
 |-----------|-------------|
 | **Script Decompile** | Extract scripts from SCRIPT.PAK to text files |
 | **Script Compile** | Repack translated scripts into a new SCRIPT.PAK |
+| **Siglus -> Luca** | Import translated Siglus script text into Luca scripts and export Luca-only/review TSV files |
 | **PAK Extract** | Extract all files from any .PAK archive |
 | **PAK Replace** | Replace files inside a .PAK archive |
 | **BGMOVIE Extract** | Extract Luca Engine BGMOVIE.PAK videos to WebM |
@@ -44,6 +45,10 @@ The GUI auto-detects `lucksystem.exe` in the same directory, current working dir
 ### BGMOVIE Extract
 
 `BGMOVIE.PAK` is the Luca Engine video archive found across Visual Art's/Key games. The GUI extracts the raw `MVT` entries first, then writes the embedded VP9/WebM payloads to a `webm` subfolder.
+
+### Siglus -> Luca
+
+This workflow keeps decompiled Luca scripts as the master structure and imports matching translated lines from Siglus `.ss.txt` exports. Select the Luca scripts folder, the Siglus `Full` folder, an output folder, and the target language column. The GUI writes patched scripts plus `hd_candidates.tsv` and `review.tsv`.
 
 ### Dialogue Extract / Import
 
