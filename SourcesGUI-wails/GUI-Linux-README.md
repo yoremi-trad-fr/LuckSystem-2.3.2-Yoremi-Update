@@ -1,4 +1,4 @@
-# LuckSystem GUI (Linux) — Yoremi fork v3.20
+# LuckSystem GUI (Linux) — Yoremi fork v3.21
 
 Graphical interface for [LuckSystem](https://github.com/wetor/LuckSystem), the Visual Art's/Key visual novel translation toolkit.
 
@@ -42,12 +42,17 @@ The GUI auto-detects `lucksystem` in the same directory, current working directo
 | **Script Compile** | Repack translated scripts into a new SCRIPT.PAK |
 | **PAK Extract** | Extract all files from any .PAK archive |
 | **PAK Replace** | Replace files inside a .PAK archive |
+| **BGMOVIE Extract** | Extract Luca Engine BGMOVIE.PAK videos to WebM |
 | **Font Extract** | Export CZ font atlas to PNG + charset list |
 | **Font Edit** | Redraw/append characters using a TTF font |
 | **Image Export** | Convert CZ images to PNG (single or batch) |
 | **Image Import** | Convert PNG back to CZ format (single or batch) |
 | **Dialogue Extract** | Extract translatable dialogue from decompiled scripts to TSV (single file or batch) |
 | **Dialogue Import** | Reimport translated dialogue from TSV back into scripts (single file or batch) |
+
+### BGMOVIE Extract
+
+`BGMOVIE.PAK` is the Luca Engine video archive found across Visual Art's/Key games. The GUI extracts the raw `MVT` entries first, then writes the embedded VP9/WebM payloads to a `webm` subfolder.
 
 ### Dialogue Extract / Import
 

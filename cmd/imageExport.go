@@ -1,6 +1,5 @@
 /*
 Copyright © 2022 NAME HERE <EMAIL ADDRESS>
-
 */
 package cmd
 
@@ -20,6 +19,9 @@ var imageExportCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("imageExport called")
 		cz := czimage.LoadCzImageFile(CzInput)
+		if cz == nil {
+			glog.Fatalf("%s is not a supported CZ image", CzInput)
+		}
 		out, err := os.Create(CzOutput)
 		if err != nil {
 			glog.Fatalln(err)

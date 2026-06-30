@@ -513,6 +513,99 @@ func (a *App) PakExtract(pakFile, outputDir string) string {
 }
 
 // ═══════════════════════════════════════
+// BGMOVIE / VIDEO EXTRACT
+// ═══════════════════════════════════════
+// Extracts BGMOVIE-style PAK files, then unwraps MVT movie files to WebM.
+
+func (a *App) BGMOVIEExtract(pakFile, outputRoot string) string {
+	if pakFile == "" || outputRoot == "" {
+		a.logError("BGMOVIE.PAK and output directory are required")
+		return "ERROR"
+	}
+
+	pakBase := strings.TrimSuffix(filepath.Base(pakFile), filepath.Ext(pakFile))
+	extractDir := outputRoot
+	if !strings.EqualFold(filepath.Base(outputRoot), pakBase) {
+		extractDir = filepath.Join(outputRoot, pakBase)
+	}
+	webmDir := filepath.Join(extractDir, "webm")
+
+	a.log("════════════════════════════════════════")
+	a.log("  BGMOVIE / VIDEO EXTRACT")
+	a.log("════════════════════════════════════════")
+	a.log(fmt.Sprintf("PAK:    %s", pakFile))
+	a.log(fmt.Sprintf("Raw:    %s", extractDir))
+	a.log(fmt.Sprintf("WebM:   %s", webmDir))
+	a.log("────────────────────────────────────────")
+
+	if err := os.MkdirAll(extractDir, os.ModePerm); err != nil {
+		a.logError(fmt.Sprintf("Cannot create output directory: %v", err))
+		return "ERROR"
+	}
+
+	listFile := filepath.Join(extractDir, pakBase+"_list.txt")
+	args := []string{"pak", "extract", "-i", pakFile, "-o", listFile, "--all", extractDir}
+	if err := a.runLuckSystem(args...); err != nil {
+		return "ERROR"
+	}
+
+	if err := os.MkdirAll(webmDir, os.ModePerm); err != nil {
+		a.logError(fmt.Sprintf("Cannot create WebM directory: %v", err))
+		return "ERROR"
+	}
+
+	entries, err := os.ReadDir(extractDir)
+	if err != nil {
+		a.logError(fmt.Sprintf("Cannot read extracted directory: %v", err))
+		return "ERROR"
+	}
+
+	movies := 0
+	skipped := 0
+	errors := 0
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		ext := strings.ToLower(filepath.Ext(name))
+		if ext == ".txt" || ext == ".webm" {
+			continue
+		}
+
+		inFile := filepath.Join(extractDir, name)
+		if detectImageBatchAssetKind(inFile) != "mvt" {
+			skipped++
+			continue
+		}
+
+		outFile := filepath.Join(webmDir, name+".webm")
+		a.log(fmt.Sprintf("  [%d] %s -> %s", movies+errors+1, name, filepath.Base(outFile)))
+		if err := a.runLuckSystem("movie", "export", "-i", inFile, "-o", outFile); err != nil {
+			errors++
+		} else {
+			movies++
+		}
+	}
+
+	result := fmt.Sprintf("%d videos exported, %d skipped, %d errors", movies, skipped, errors)
+	if movies == 0 && errors == 0 {
+		a.logError("No MVT movie files found after PAK extraction")
+		a.log("════════════════════════════════════════")
+		return "ERROR"
+	}
+	if errors > 0 {
+		a.logError(result)
+		a.log("════════════════════════════════════════")
+		return "ERROR"
+	}
+
+	a.logOK(result)
+	a.log("════════════════════════════════════════")
+	return "OK: " + result
+}
+
+// ═══════════════════════════════════════
 // PAK REPLACE
 // ═══════════════════════════════════════
 // Mode dossier : lucksystem pak replace -s PAK -i inputdir -o output.PAK
@@ -789,7 +882,9 @@ func (a *App) ImageBatchExport(inputDir, outputDir string) string {
 		return "ERROR"
 	}
 
-	count := 0
+	imageCount := 0
+	movieCount := 0
+	skipped := 0
 	errors := 0
 	for _, entry := range entries {
 		if entry.IsDir() {
@@ -798,26 +893,60 @@ func (a *App) ImageBatchExport(inputDir, outputDir string) string {
 		name := entry.Name()
 		// Skip files that already have a known extension (not CZ files)
 		ext := strings.ToLower(filepath.Ext(name))
-		if ext == ".png" || ext == ".txt" || ext == ".json" || ext == ".xml" {
+		if ext == ".png" || ext == ".webm" || ext == ".txt" || ext == ".json" || ext == ".xml" {
 			continue
 		}
 
 		inFile := filepath.Join(inputDir, name)
-		outFile := filepath.Join(outputDir, name+".png")
+		itemNumber := imageCount + movieCount + skipped + errors + 1
 
-		a.log(fmt.Sprintf("  [%d] %s ...", count+1, name))
-		args := []string{"image", "export", "-i", inFile, "-o", outFile}
-		if err := a.runLuckSystem(args...); err != nil {
-			errors++
-		} else {
-			count++
+		switch detectImageBatchAssetKind(inFile) {
+		case "cz":
+			outFile := filepath.Join(outputDir, name+".png")
+			a.log(fmt.Sprintf("  [%d] %s ...", itemNumber, name))
+			args := []string{"image", "export", "-i", inFile, "-o", outFile}
+			if err := a.runLuckSystem(args...); err != nil {
+				errors++
+			} else {
+				imageCount++
+			}
+		case "mvt":
+			outFile := filepath.Join(outputDir, name+".webm")
+			a.log(fmt.Sprintf("  [%d] %s (MVT movie) ...", itemNumber, name))
+			args := []string{"movie", "export", "-i", inFile, "-o", outFile}
+			if err := a.runLuckSystem(args...); err != nil {
+				errors++
+			} else {
+				movieCount++
+			}
+		default:
+			a.log(fmt.Sprintf("  [SKIP] %s (not CZ/MVT)", name))
+			skipped++
 		}
 	}
 
-	result := fmt.Sprintf("%d images exported, %d errors", count, errors)
+	result := fmt.Sprintf("%d images exported, %d movies exported, %d skipped, %d errors", imageCount, movieCount, skipped, errors)
 	a.logOK(result)
 	a.log("════════════════════════════════════════")
 	return "OK: " + result
+}
+
+func detectImageBatchAssetKind(file string) string {
+	f, err := os.Open(file)
+	if err != nil {
+		return ""
+	}
+	defer f.Close()
+
+	var magic [4]byte
+	n, _ := io.ReadFull(f, magic[:])
+	if n >= 2 && magic[0] == 'C' && magic[1] == 'Z' {
+		return "cz"
+	}
+	if n == 4 && magic[0] == 'M' && magic[1] == 'V' && magic[2] == 'T' && magic[3] == 0 {
+		return "mvt"
+	}
+	return ""
 }
 
 // ═══════════════════════════════════════

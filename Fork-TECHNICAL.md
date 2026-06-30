@@ -1,3 +1,138 @@
+# V3.21 — Extraction vidéo BGMOVIE.PAK / MVT + garde-fous export image
+
+## Fichiers modifiés
+
+### CLI
+- `cmd/root.go` — bump de version CLI vers `2.3.2-yoremi.3.21`.
+- `cmd/movie.go` — nouveau groupe de commandes `movie`.
+- `cmd/movieExport.go` — nouvelle commande `movie export`.
+- `movie/mvt.go` — extraction du flux WebM depuis un wrapper Luca `MVT`.
+- `movie/mvt_test.go` — tests unitaires de validation `MVT` / payload EBML.
+- `cmd/imageExport.go` — gestion propre du cas non-CZ avant création du PNG de sortie.
+
+### GUI
+- `SourcesGUI-wails/app.go` — workflow `BGMOVIEExtract()` et détection de signature CZ/MVT en batch image.
+- `SourcesGUI-wails/frontend/src/App.svelte` — nouvel onglet `PAK (Video) -> BGMOVIE Extract`, libellés `v3.21`.
+- `SourcesGUI-wails/frontend/wailsjs/go/main/App.js`
+- `SourcesGUI-wails/frontend/wailsjs/go/main/App.d.ts`
+- `SourcesGUI-wails/frontend/package.json` — version frontend `3.21`.
+- `SourcesGUI-wails/frontend/package-lock.json` — version frontend `3.21`.
+- `SourcesGUI-wails/main.go` — titre de fenêtre `v3.21`.
+- `SourcesGUI-wails/GUI-Windows-README.md`
+- `SourcesGUI-wails/GUI-Linux-README.md`
+
+### Documentation
+- `README.md`
+- `Fork-CHANGELOG.md`
+- `Fork-TECHNICAL.md`
+
+## Contexte
+
+Pendant l'extraction de LOOPERS, le dossier `BCGMOVIE` issu du PAK vidéo contenait des fichiers sans extension (`ef_gate`, `ef_ty_vanish`, etc.). Le batch d'export image les traitait comme des images CZ et appelait :
+
+```text
+lucksystem.exe image export -i ...\BCGMOVIE\ef_gate -o ...\BCGMOVIE\png\ef_gate.png
+```
+
+Le chargeur CZ rejetait correctement le fichier :
+
+```text
+Not a CZ file (magic: 0x4d56), skipping
+```
+
+mais `cmd/imageExport.go` appelait ensuite `cz.Export(out)` alors que `cz == nil`, provoquant un panic. Comme le PNG de sortie était créé avant l'appel `Export()`, le dossier se remplissait de fichiers `.png` de 0 octet.
+
+## Diagnostic format
+
+L'en-tête des fichiers `BCGMOVIE` commence par :
+
+```text
+4D 56 54 00 ... 1A 45 DF A3 ...
+M  V  T  \0     EBML/WebM
+```
+
+Le payload WebM démarre à l'octet 34 dans les 11 fichiers LOOPERS testés. Les fichiers sont donc des wrappers Luca `MVT` autour d'un flux WebM VP9, et non des images CZ.
+
+## Implémentation CLI
+
+Le nouveau paquet `movie` expose :
+
+```go
+ExtractWebMFromMVT(inputPath, outputPath string) error
+WebMPayload(data []byte) ([]byte, error)
+```
+
+Règles :
+
+1. vérifier la signature `MVT\0`;
+2. chercher la signature EBML `1A 45 DF A3`;
+3. écrire tous les octets à partir de cette signature dans le fichier `.webm`;
+4. créer le dossier parent de la sortie si nécessaire.
+
+La nouvelle commande CLI :
+
+```text
+lucksystem movie export -i input.mvt -o output.webm
+```
+
+reste volontairement simple : elle ne réencode pas la vidéo, elle retire seulement l'enveloppe propriétaire.
+
+## Garde-fou image export
+
+`cmd/imageExport.go` vérifie maintenant le retour de `czimage.LoadCzImageFile()` :
+
+```go
+cz := czimage.LoadCzImageFile(CzInput)
+if cz == nil {
+    glog.Fatalf("%s is not a supported CZ image", CzInput)
+}
+```
+
+Le fichier PNG de sortie n'est donc plus créé pour les sources non-CZ.
+
+## Implémentation GUI
+
+Nouvel onglet :
+
+```text
+PAK (Video) -> BGMOVIE Extract
+```
+
+Workflow :
+
+1. l'utilisateur sélectionne `BGMOVIE.PAK`;
+2. la GUI extrait le PAK dans un dossier nommé comme le PAK;
+3. le fichier liste `<PAK>_list.txt` est conservé;
+4. chaque entrée `MVT` est exportée en `.webm`;
+5. les vidéos finales sont écrites dans `webm/`.
+
+Le batch `Image Export` a aussi été durci pour les dossiers mixtes :
+
+| Signature | Action |
+|---|---|
+| `CZ` | `image export` -> `.png` |
+| `MVT\0` | `movie export` -> `.webm` |
+| autre | skip |
+
+## Validation
+
+- Export des 11 entrées `BCGMOVIE` de LOOPERS : OK.
+- Vérification `ffprobe` sur les 11 fichiers `.webm` : codec VP9, dimensions et durées détectées.
+- `go test ./movie` : OK.
+- `go test ./...` depuis `SourcesGUI-wails` : OK.
+- `npm run build` depuis `SourcesGUI-wails/frontend` : OK, avec les avertissements Svelte d'accessibilité déjà connus.
+- `wails build` depuis `SourcesGUI-wails` : OK.
+- `lucksystem movie export -i ef_gate -o ef_gate.webm` avec l'exécutable final : OK.
+- `lucksystem image export` sur un fichier `MVT` : échec propre, aucun PNG vide créé.
+
+## Nettoyage dépôt
+
+- Aucun fichier temporaire suivi par Git n'a été trouvé.
+- Les sorties `SourcesGUI-wails/build/bin/`, `SourcesGUI-wails/frontend/dist/`, `SourcesGUI-wails/frontend/node_modules/` restent ignorées par `.gitignore`.
+- Le binaire GUI construit reste utile pour test local, mais n'entre pas dans le diff Git.
+
+---
+
 # V3.20 — Auto-sélection du plugin script + durcissement LOG_BEGIN + fix AIR chaîne vide
 
 ## Fichiers modifiés

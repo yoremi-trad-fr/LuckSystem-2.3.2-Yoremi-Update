@@ -1,4 +1,4 @@
-# LuckSystem 2.3.2 — Yoremi Fork (v3.20)
+# LuckSystem 2.3.2 — Yoremi Fork (v3.21)
 
 Fork de [LuckSystem](https://github.com/wetor/LuckSystem) avec corrections de bugs, support de nouveaux formats, et interface graphique pour la traduction de visual novels Visual Art's/Key.
 
@@ -23,6 +23,7 @@ A graphical interface is available in this fork:
 - Dialogue Import / Reimport translated dialogue from TSV back into scripts (single file or batch)
 - Script Decompile / Compile
 - PAK Extract / Replace (CG and Font workflows separated)
+- BGMOVIE.PAK video extraction to WebM
 - Font Extract / Edit (append, insert, redraw modes)
 - Vietnamese Font Patch for AIR / Planetarian SG (slot/family selectors, TTF/OTF selection, Y-offset test folders, optional Latin redraw test mode)
 - Image Export / Import (single file + batch folder mode)
@@ -43,7 +44,17 @@ A Linux version is available as separate binaries (GUI + CLI). See the releases 
 
 ## Patches
 
-### Version 3.20 — *(latest)*
+### Version 3.21 — *(latest)*
+
+28. **BGMOVIE.PAK / MVT video extraction + safer mixed media export** — `movie/mvt.go`, `cmd/movie.go`, `cmd/movieExport.go`, `cmd/imageExport.go`, `SourcesGUI-wails/app.go`, `SourcesGUI-wails/frontend/src/App.svelte`
+    - Added `lucksystem movie export -i input.mvt -o output.webm` for Luca Engine `MVT` movie files.
+    - `BGMOVIE.PAK` entries are raw `MVT` wrappers containing VP9/WebM payloads; the exporter strips the wrapper and writes playable `.webm` files.
+    - Added a dedicated GUI tab: `PAK (Video) -> BGMOVIE Extract`. It extracts the PAK, keeps the raw `MVT` files, and writes final videos into a `webm` subfolder.
+    - Image batch export now recognizes mixed CZ/MVT folders: CZ files become PNG, MVT files become WebM, and unrelated files are skipped.
+    - `image export` now fails cleanly on non-CZ files instead of panicking after creating empty PNG outputs.
+    - GUI and CLI version labels updated to `v3.21`.
+
+### Version 3.20
 
 27. **Script plugin auto-selection + Dialogue GUI LOG_BEGIN hardening + Linux GUI build fix + AIR empty string fix** — `cmd/scriptDecompile.go`, `cmd/scriptImport.go`, `SourcesGUI-wails/app.go`, `SourcesGUI-wails/frontend/package.json`, `game/operator/util.go`, `script/script.go`
     - CLI: when an OPCODE file is selected but `-p` is omitted, LuckSystem now auto-selects the sibling Python plugin from the standard `data/GAME.txt` / `data/GAME.py` or `data/GAME/OPCODE.txt` / `data/GAME.py` layout.
@@ -194,6 +205,7 @@ Patch 2 : silent 18-bit truncation in `compressLZW2`
 | CZ3 image export/import | CZ3 | ✅ |
 | CZ4 image export/import | CZ4 | ✅ |
 | Font extract/edit (append, insert, redraw) | FONT.PAK (CZ2) | ✅ |
+| BGMOVIE video extract | BGMOVIE.PAK / MVT / WebM | ✅ |
 | PAK extract/replace | *.PAK | ✅ |
 | Graphical interface (GUI) | — | ✅ |
 
@@ -224,6 +236,9 @@ lucksystem script import -s SCRIPT.PAK -c UTF-8 -O data/AIR.txt -p data/AIR.py -
 # Export CZ image to PNG
 lucksystem image export -i image.cz3 -o image.png
 
+# Export Luca Engine MVT movie to WebM
+lucksystem movie export -i ef_gate -o ef_gate.webm
+
 # Extract FONT.PAK
 lucksystem pak extract -i FONT.PAK -o list.txt --all ./fonts/
 
@@ -247,7 +262,7 @@ lucksystem font edit -s 明朝32 -S info32 -f Arial.ttf -o 明朝32_out -O info3
 - **[wetor](https://github.com/wetor)** — LuckSystem original
 - **masagrator** — RawSize bug identification (CZ3 layers)
 - **[G2-Games](https://github.com/G2-Games)** — CZ4 reference ([lbee-utils](https://github.com/G2-Games/lbee-utils))
-- **Yoremi** — patches 1-25, AIR French translation, GUI
+- **Yoremi** — patches 1-28, AIR French translation, GUI
 --------------------
 # Important
 This project only accepts **bug issues** and **pull requests**, and does not provide assistance in use  

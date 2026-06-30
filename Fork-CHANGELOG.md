@@ -1,3 +1,60 @@
+# V3.21 — BGMOVIE.PAK / MVT video extraction + safer mixed media export
+
+30/06/2026
+
+## Added: Luca Engine BGMOVIE video extraction
+
+### Context
+
+`BGMOVIE.PAK` appears across Luca Engine / Visual Art's games and is not a normal CZ image archive. In LOOPERS, the extracted entries are raw `MVT` movie wrappers whose payload starts with an embedded WebM/EBML stream.
+
+Trying to run the existing image exporter on those files produced:
+
+```text
+Not a CZ file (magic: 0x4d56), skipping
+panic: runtime error: invalid memory address or nil pointer dereference
+```
+
+It also left empty `.png` files behind because the output file was created before the loader had confirmed that the source was a valid CZ image.
+
+### Fix
+
+**CLI**
+
+- Added a new `movie` command group.
+- Added:
+
+```text
+lucksystem movie export -i input.mvt -o output.webm
+```
+
+- The exporter validates the `MVT\0` wrapper, locates the embedded EBML/WebM payload (`1A 45 DF A3`), strips the Luca wrapper, and writes a playable `.webm` file.
+- `image export` now handles unsupported non-CZ files cleanly instead of dereferencing a nil image loader result.
+
+**GUI**
+
+- Added a dedicated `PAK (Video) -> BGMOVIE Extract` tab.
+- The workflow extracts `BGMOVIE.PAK`, keeps the raw `MVT` files, then writes final `.webm` files into a `webm` subfolder.
+- Image batch export now detects file magic:
+  - `CZ*` files are exported as PNG;
+  - `MVT\0` files are exported as WebM;
+  - unrelated files are skipped instead of being passed to the CZ exporter.
+- Updated CLI and GUI version labels to `v3.21`.
+
+### Testing
+
+- Exported all 11 LOOPERS `BCGMOVIE` entries to WebM.
+- Verified every generated WebM with `ffprobe`:
+  - codec: VP9;
+  - dimensions and durations read successfully for all files.
+- `go test ./movie`: OK.
+- `go test ./...` from `SourcesGUI-wails`: OK.
+- `npm run build` from `SourcesGUI-wails/frontend`: OK, with only pre-existing Svelte accessibility warnings.
+- `wails build` from `SourcesGUI-wails`: OK.
+- Full root `go test ./...` still has pre-existing fixture-only failures for missing local game assets (`FONT.PAK`, `SP.py`, LOOPERS `SCRIPT.PAK`), unrelated to this release.
+
+---
+
 # V3.20 — Script plugin auto-selection + Dialogue GUI LOG_BEGIN hardening + AIR empty string fix
 
 13/06/2026
@@ -906,6 +963,63 @@ The AIR.py definition script used `from base.air import *` to import functions f
 - **Yoremi** — all patches, AIR French translation, GUI
 
 ---
+---
+
+# V3.21 — Extraction vidéo BGMOVIE.PAK / MVT + export mixte plus sûr
+
+30/06/2026
+
+## Ajout : extraction vidéo Luca Engine BGMOVIE
+
+### Contexte
+
+`BGMOVIE.PAK` est une archive vidéo Luca Engine que l'on retrouve dans les jeux Visual Art's/Key. Dans LOOPERS, les entrées extraites ne sont pas des images CZ : ce sont des wrappers vidéo `MVT` contenant un flux WebM/EBML.
+
+Lancer l'export image dessus produisait :
+
+```text
+Not a CZ file (magic: 0x4d56), skipping
+panic: runtime error: invalid memory address or nil pointer dereference
+```
+
+Le workflow créait aussi des `.png` vides, car le fichier de sortie était ouvert avant que la source soit validée comme image CZ.
+
+### Correction
+
+**CLI**
+
+- Ajout d'un groupe de commandes `movie`.
+- Ajout de :
+
+```text
+lucksystem movie export -i input.mvt -o output.webm
+```
+
+- L'exporteur vérifie le wrapper `MVT\0`, localise le payload EBML/WebM (`1A 45 DF A3`), retire l'enveloppe Luca, puis écrit un `.webm` lisible.
+- `image export` échoue maintenant proprement sur les fichiers non-CZ au lieu de déréférencer un chargeur d'image nul.
+
+**GUI**
+
+- Ajout d'un onglet dédié `PAK (Video) -> BGMOVIE Extract`.
+- Le workflow extrait `BGMOVIE.PAK`, conserve les fichiers bruts `MVT`, puis écrit les `.webm` finaux dans un sous-dossier `webm`.
+- L'export image batch détecte maintenant la signature des fichiers :
+  - `CZ*` -> PNG;
+  - `MVT\0` -> WebM;
+  - autres fichiers ignorés proprement.
+- Passage des libellés CLI et GUI en `v3.21`.
+
+### Tests
+
+- Export des 11 entrées LOOPERS `BCGMOVIE` en WebM.
+- Vérification des WebM générés avec `ffprobe` :
+  - codec : VP9;
+  - dimensions et durées détectées pour tous les fichiers.
+- `go test ./movie` : OK.
+- `go test ./...` depuis `SourcesGUI-wails` : OK.
+- `npm run build` depuis `SourcesGUI-wails/frontend` : OK, avec seulement les avertissements Svelte d'accessibilité déjà présents.
+- `wails build` depuis `SourcesGUI-wails` : OK.
+- Le `go test ./...` complet depuis la racine garde des échecs préexistants liés à des assets locaux absents (`FONT.PAK`, `SP.py`, LOOPERS `SCRIPT.PAK`), sans lien avec cette release.
+
 ---
 
 # V3.20 — Auto-sélection du plugin script + durcissement LOG_BEGIN dans la GUI Dialogue
