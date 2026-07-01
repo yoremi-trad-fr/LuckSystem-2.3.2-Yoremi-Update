@@ -1,4 +1,4 @@
-# LuckSystem 2.3.2 — Yoremi Fork (v3.22)
+# LuckSystem 2.3.2 — Yoremi Fork (v3.23)
 
 Fork de [LuckSystem](https://github.com/wetor/LuckSystem) avec corrections de bugs, support de nouveaux formats, et interface graphique pour la traduction de visual novels Visual Art's/Key.
 
@@ -45,7 +45,15 @@ A Linux version is available as separate binaries (GUI + CLI). See the releases 
 
 ## Patches
 
-### Version 3.22 — *(latest)*
+### Version 3.23 — *(latest)*
+
+30. **CZ3 PNG canvas guard for safer image import** — `czimage/cz3.go`, `cmd/imageImport.go`
+    - `image import` now rejects CZ3 PNGs whose canvas size does not match the source CZ dimensions instead of silently creating an empty 32-byte CZ3.
+    - Incomplete output files are removed when import/write fails, and the CLI reports a clear mismatch such as `PNG is 848x136, expected 856x136`.
+    - This protects Luck Engine image PAK workflows where transparent padding around normal/blurred text variants can be accidentally cropped by image editors.
+    - GUI and CLI version labels updated to `v3.23`.
+
+### Version 3.22
 
 29. **Siglus -> Luca script bridge** — `siglusluca/bridge.go`, `cmd/scriptSiglusLuca.go`, `SourcesGUI-wails/app.go`, `SourcesGUI-wails/frontend/src/App.svelte`
     - Added `lucksystem script siglus-luca` to keep Luca scripts as the master structure while importing matching translated text from Siglus `.ss.txt` exports.

@@ -93,12 +93,18 @@ an error.
 ```bash
 # From the game subfolder (where patches.py and the exe live):
 python3 patches.py        # validates offsets, writes patches.h + patches.csv
-make -C ..                # compiles version.dll  (requires mingw-w64)
+make -C .. PATCH_DIR=Kanon # compiles Kanon/version.dll  (requires mingw-w64)
 ```
 
 Or from the root:
 ```bash
-cd Kanon && python3 patches.py && cd .. && make
+cd Kanon && python3 patches.py && cd .. && make PATCH_DIR=Kanon
+```
+
+For another game folder, replace `Kanon` with the folder name, for example:
+
+```bash
+cd HarmoniaHD && python3 patches.py && cd .. && make PATCH_DIR=HarmoniaHD
 ```
 
 ### 5. Install

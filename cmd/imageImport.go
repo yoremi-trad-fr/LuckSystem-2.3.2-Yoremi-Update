@@ -1,6 +1,5 @@
 /*
 Copyright © 2022 NAME HERE <EMAIL ADDRESS>
-
 */
 package cmd
 
@@ -33,11 +32,17 @@ var imageImportCmd = &cobra.Command{
 		defer f.Close()
 		err = cz.Import(f, Fill)
 		if err != nil {
-			glog.Fatalln(err)
+			out.Close()
+			os.Remove(CzOutput)
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
 		}
 		err = cz.Write(out)
 		if err != nil {
-			glog.Fatalln(err)
+			out.Close()
+			os.Remove(CzOutput)
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
 		}
 	},
 }

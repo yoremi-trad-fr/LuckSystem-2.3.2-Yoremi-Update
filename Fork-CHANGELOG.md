@@ -1,3 +1,31 @@
+# V3.23 — CZ3 PNG canvas guard
+
+01/07/2026
+
+## Fixed: prevent invalid 32-byte CZ3 files after image import
+
+### Context
+
+Some Luck Engine CZ3 assets rely on exact transparent canvas dimensions. If an edited PNG is saved with cropped transparent padding, importing it into a CZ3 whose header expects a larger canvas previously let the importer continue with empty diff data.
+
+The resulting CZ3 could be only 32 bytes and crash the game when the asset was loaded.
+
+### Fix
+
+- `czimage/cz3.go` now checks the decoded PNG width/height against the source CZ3 header dimensions before computing pixel differences.
+- CZ3 import now fails if the diff stage produces no pixel data, avoiding silent empty outputs.
+- `cmd/imageImport.go` now closes and removes incomplete CZ outputs when import/write fails.
+- Errors now report the mismatch clearly, for example: `PNG is 848x136, expected 856x136`.
+- Updated CLI and GUI version labels to `v3.23`.
+
+### Testing
+
+- Verified that a mismatched PNG import exits with an error, removes the partial output, and reports the expected dimensions.
+- `go test ./czimage ./cmd`: OK.
+- `go build -o .\lucksystem.exe .`: OK.
+
+---
+
 # V3.22 — Siglus -> Luca script bridge
 
 30/06/2026

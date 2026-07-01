@@ -1,3 +1,59 @@
+# V3.23 — Garde-fou CZ3 contre PNG rognés
+
+## Fichiers modifiés
+
+### CLI
+- `cmd/root.go` — bump de version CLI vers `2.3.2-yoremi.3.23`.
+- `cmd/imageImport.go` — arrêt propre en cas d'échec d'import/écriture, fermeture et suppression du fichier de sortie incomplet.
+
+### GUI
+- `SourcesGUI-wails/frontend/src/App.svelte` — libellés `v3.23`.
+- `SourcesGUI-wails/frontend/package.json` — version frontend `3.23`.
+- `SourcesGUI-wails/frontend/package-lock.json` — version frontend `3.23`.
+- `SourcesGUI-wails/main.go` — titre de fenêtre `v3.23`.
+- `SourcesGUI-wails/GUI-Windows-README.md`
+- `SourcesGUI-wails/GUI-Linux-README.md`
+
+### Bibliothèque
+- `czimage/cz3.go` — validation des dimensions PNG avant calcul du diff CZ3, et refus d'un diff vide.
+
+### Documentation
+- `README.md`
+- `Fork-CHANGELOG.md`
+- `Fork-TECHNICAL.md`
+
+## Contexte
+
+Les images CZ3 conservent dans leur en-tête une largeur/hauteur attendue. Certains assets Luck Engine utilisent des variantes proches, par exemple une image normale et une variante floutée, mais la variante floutée peut avoir une toile transparente légèrement différente.
+
+Si un éditeur d'image rogne automatiquement les zones transparentes, le PNG exporté peut garder le même texte visible tout en perdant quelques pixels de toile. Avant cette version, `image import` acceptait ce cas et `DiffLine()` pouvait retourner une donnée vide. La compression écrivait alors un CZ3 minimal de 32 octets, valide seulement en apparence, qui pouvait provoquer un crash du jeu au chargement de l'asset.
+
+## Correction
+
+`czimage/cz3.go` vérifie maintenant que la taille réelle du PNG décodé correspond exactement à la taille déclarée dans le CZ3 source :
+
+```text
+PNG width/height == CZ3 header width/height
+```
+
+En cas d'écart, l'import échoue avec une erreur explicite :
+
+```text
+CZ3 import size mismatch: PNG is 848x136, expected 856x136
+```
+
+Une seconde sécurité refuse aussi un import CZ3 qui produirait un bloc de pixels vide après `DiffLine()`.
+
+`cmd/imageImport.go` nettoie maintenant correctement les sorties partielles : si l'import ou l'écriture échoue, le fichier `.cz` en cours de génération est fermé puis supprimé. Cela évite de laisser dans le dossier de sortie un asset incomplet qui pourrait être repacké par erreur.
+
+## Validation
+
+- Cas vérifié : un PNG trop petit est refusé, aucun CZ3 partiel n'est conservé, et l'erreur indique les dimensions attendues.
+- `go test ./czimage ./cmd` : OK.
+- `go build -o .\lucksystem.exe .` : OK.
+
+---
+
 # V3.22 — Pont Siglus -> Luca pour scripts
 
 ## Fichiers modifiés
