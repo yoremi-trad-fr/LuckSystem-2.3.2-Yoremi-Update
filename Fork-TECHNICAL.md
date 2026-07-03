@@ -1,3 +1,128 @@
+# V3.24 — Réglages de métriques arabes pour Font Edit
+
+## Fichiers modifiés
+
+### CLI
+- `cmd/root.go` — bump de version CLI vers `2.3.2-yoremi.3.24`.
+- `cmd/fontEdit.go` — nouveaux flags `--arabic-metrics`, `--metric-set-y`, `--metric-y-offset`, `--metric-x-offset`, `--metric-w-offset`.
+
+### GUI
+- `SourcesGUI-wails/app.go` — passage des nouvelles options métriques au subprocess `font edit`.
+- `SourcesGUI-wails/frontend/src/App.svelte` — section `Metrics adjustment` dans Font Edit, libellés `v3.24`.
+- `SourcesGUI-wails/frontend/wailsjs/go/main/App.js`
+- `SourcesGUI-wails/frontend/wailsjs/go/main/App.d.ts`
+- `SourcesGUI-wails/frontend/package.json` — version frontend `3.24`.
+- `SourcesGUI-wails/frontend/package-lock.json` — version frontend `3.24`.
+- `SourcesGUI-wails/main.go` — titre de fenêtre `v3.24`.
+- `SourcesGUI-wails/GUI-Windows-README.md`
+- `SourcesGUI-wails/GUI-Linux-README.md`
+
+### Bibliothèque
+- `font/info.go` — `MetricAdjustOptions`, `Info.AdjustMetrics()`, helpers de métriques signées.
+- `font/font.go` — preview string interne utilisant `draw_x` / `draw_y` comme octets signés.
+- `font/metrics_test.go` — tests ciblés métriques signées, clamp et charset avec doublons.
+
+### Documentation
+- `README.md`
+- `Fork-CHANGELOG.md`
+- `Fork-TECHNICAL.md`
+
+## Contexte
+
+L'issue GitHub #1 portait sur l'injection de glyphes arabes via `font edit`. Les fichiers fournis (`FONT__INFO.PAK`, `FONT_MINCHO.PAK`, `info30_glyphs.txt`, `SCRIPT.PAK`) montraient deux symptômes :
+
+- les glyphes arabes étaient placés trop haut par rapport au point final et aux glyphes latins;
+- les mots arabes gardaient des espacements visibles entre certaines formes.
+
+Le cas ressemble au correctif vietnamien v3.1.7/v3.1.8 : les métriques sorties par la TTF ne sont pas directement adaptées au renderer bitmap du Luck Engine.
+
+Différence importante avec le vietnamien : le script arabe fourni utilise déjà des formes de présentation Unicode (`U+FE70..U+FEFF`, `U+FB50..U+FDFF`). Le problème n'était donc pas de faire du shaping RTL dans LuckSystem, mais d'ajuster les métriques écrites dans le `info`.
+
+## Diagnostic
+
+Pour `info30`, `font_size=30` et `block_size=31` sont normaux. `block_size` correspond à la cellule de l'atlas bitmap; le ramener à `30` casse le mapping attendu et peut rendre la taille 30 invisible en jeu.
+
+Les métriques arabes injectées contenaient par exemple :
+
+```text
+U+FE91 idx=7210 draw_x=-1 draw_w=9  draw_y=-15
+U+FE92 idx=7211 draw_x=-1 draw_w=11 draw_y=-13
+U+FEB3 idx=7244 draw_x=-1 draw_w=23 draw_y=-13
+```
+
+Alors que les glyphes latins de référence de la même taille utilisent une baseline autour de `draw_y=3`.
+
+Autre piège confirmé : `DrawSize.X` et `DrawSize.Y` sont stockés comme `uint8`, mais doivent être interprétés comme des valeurs signées (`255 == -1`). Le code d'aperçu `GetStringImage()` utilisait auparavant `int(draws[i].X)` et `int(draws[i].Y)`, ce qui produisait une interprétation incorrecte pour les offsets négatifs.
+
+## Correction
+
+### 1. Ajustement post-import des métriques
+
+`font.Info.AdjustMetrics()` applique des réglages sur les glyphes édités :
+
+```go
+type MetricAdjustOptions struct {
+    SetY    bool
+    Y       int
+    YOffset int
+    XOffset int
+    WOffset int
+}
+```
+
+Les offsets X/Y sont clampés dans la plage signée `[-128, 127]`; `W` est clampé dans `[1, 255]`.
+
+Les index de glyphes sont dédupliqués avant application. Cela évite qu'un charset contenant deux fois le même caractère applique deux fois `W offset = -1` au même glyphe.
+
+### 2. Preset arabe
+
+`font edit --arabic-metrics` :
+
+- filtre uniquement les caractères arabes, y compris Arabic Presentation Forms;
+- cherche une baseline latine de référence parmi `a`, `o`, `A`, `O`;
+- force les glyphes arabes édités sur cette baseline;
+- réduit l'avance de 1 pixel.
+
+Les options manuelles sont appliquées ensuite. Dans la GUI, un testeur peut donc garder `Arabic preset` activé puis essayer `W offset = -3`, `-4`, etc. selon la police.
+
+### 3. Options manuelles
+
+Flags CLI ajoutés :
+
+```text
+--metric-set-y N
+--metric-y-offset N
+--metric-x-offset N
+--metric-w-offset N
+```
+
+Ces options ciblent les glyphes édités par `font edit` :
+
+- charset fourni avec `-c` en mode append/insert;
+- charset original en mode redraw.
+
+## Limites connues
+
+LuckSystem ne fait pas de shaping arabe automatique. Le script doit rester pré-shapé en formes de présentation, comme dans les fichiers fournis par l'utilisateur.
+
+Selon la TTF, certaines formes arabes peuvent garder un raccord imparfait malgré des métriques plus serrées. Dans ce cas, il faut soit tester une autre police arabe, soit garder `Arabic preset` activé et comparer plusieurs valeurs négatives de `W offset`.
+
+## Validation
+
+- Reproduction locale avec les PAK et `info30_glyphs.txt` fournis.
+- Génération `font edit --arabic-metrics` sur `明朝30` / `info30`.
+- Vérification binaire : `U+FE91` passe de `draw_y=-15` à `draw_y=3`, avec avance resserrée.
+- Round-trip `font extract` du CZ2 généré : OK.
+- Tests visuels avec `NotoNaskhArabic-Regular.ttf` et la police utilisateur `ios15.ttf`.
+- `go test ./font -run TestAdjustMetrics` : OK.
+- `go test ./cmd ./czimage ./charset ./utils ./tools/vietfontpatch ./tools/fontdiag` : OK.
+- `go build .` : OK.
+- `go test ./...` depuis `SourcesGUI-wails` : OK.
+- `npm run build` depuis `SourcesGUI-wails/frontend` : OK, uniquement les warnings Svelte d'accessibilité déjà existants.
+- `go build .` depuis `SourcesGUI-wails` : OK.
+
+---
+
 # V3.23 — Garde-fou CZ3 contre PNG rognés
 
 ## Fichiers modifiés

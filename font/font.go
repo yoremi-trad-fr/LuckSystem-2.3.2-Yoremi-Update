@@ -123,7 +123,7 @@ func (f *LucaFont) GetStringImage(str string) image.Image {
 	X := 0
 	for i, img := range imgs {
 
-		draw.Draw(pic, pic.Bounds().Add(image.Pt(X+int(draws[i].X), int(draws[i].Y))), img, img.Bounds().Min, draw.Src)
+		draw.Draw(pic, pic.Bounds().Add(image.Pt(X+signedMetricInt(draws[i].X), signedMetricInt(draws[i].Y))), img, img.Bounds().Min, draw.Src)
 		X += int(draws[i].W)
 	}
 	_ = draws

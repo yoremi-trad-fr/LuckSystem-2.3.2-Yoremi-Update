@@ -817,7 +817,7 @@ func (a *App) FontExtract(czFile, infoFile, outputPng, outputCharset string) str
 // ═══════════════════════════════════════
 // lucksystem font edit -s cz -S info -f ttf -o outcz -O outinfo [-r] [-a] [-i idx] [-c charset]
 
-func (a *App) FontEdit(czFile, infoFile, ttfFile, outputCz, outputInfo, charsetFile string, redraw, appendMode bool, startIndex int) string {
+func (a *App) FontEdit(czFile, infoFile, ttfFile, outputCz, outputInfo, charsetFile string, redraw, appendMode bool, startIndex int, arabicMetrics bool, metricSetYEnabled bool, metricSetY int, metricYOffset int, metricXOffset int, metricWOffset int) string {
 	if czFile == "" || infoFile == "" || ttfFile == "" || outputCz == "" {
 		a.logError("Font CZ, info, TTF, and output CZ are required")
 		return "ERROR"
@@ -841,6 +841,21 @@ func (a *App) FontEdit(czFile, infoFile, ttfFile, outputCz, outputInfo, charsetF
 		args = append(args, "-a")
 	} else if !redraw && startIndex > 0 {
 		args = append(args, "-i", fmt.Sprintf("%d", startIndex))
+	}
+	if arabicMetrics {
+		args = append(args, "--arabic-metrics")
+	}
+	if metricSetYEnabled {
+		args = append(args, "--metric-set-y", fmt.Sprintf("%d", metricSetY))
+	}
+	if metricYOffset != 0 {
+		args = append(args, "--metric-y-offset", fmt.Sprintf("%d", metricYOffset))
+	}
+	if metricXOffset != 0 {
+		args = append(args, "--metric-x-offset", fmt.Sprintf("%d", metricXOffset))
+	}
+	if metricWOffset != 0 {
+		args = append(args, "--metric-w-offset", fmt.Sprintf("%d", metricWOffset))
 	}
 
 	err := a.runLuckSystem(args...)

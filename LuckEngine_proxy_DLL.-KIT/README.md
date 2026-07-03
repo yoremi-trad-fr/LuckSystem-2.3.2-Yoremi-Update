@@ -5,8 +5,9 @@ on the Luck Engine. Lets you patch hardcoded UI strings in RAM at runtime, with
 **zero modifications to the on-disk exe** — SteamStub DRM and file integrity
 remain intact.
 
-Tested on: **Kanon** (Steam), **AIR** (Steam). Should work on any Luck Engine
-title that ships a `VERSION.dll`-importing exe with SteamStub.
+Tested on: **Kanon** (Steam), **AIR** (Steam), **Harmonia Full HD Edition**
+(Steam), **LOOPERS** (Steam). Should work on any Luck Engine title that ships a
+`VERSION.dll`-importing exe with SteamStub.
 
 ---
 
@@ -35,7 +36,7 @@ version.def     ← export forwarding table
 Makefile        ← build recipe
 ```
 
-One subfolder per game (e.g. `Kanon/`, `AIR/`), each with its own
+One subfolder per game (e.g. `Kanon/`, `AIR/`, `HarmoniaHD/`, `Loopers/`), each with its own
 `patches.py` / `patches.h` / `patches.csv` / pre-built `version.dll`.
 The `version.c`, `version.def`, and `Makefile` at the root are shared.
 
@@ -107,6 +108,18 @@ For another game folder, replace `Kanon` with the folder name, for example:
 cd HarmoniaHD && python3 patches.py && cd .. && make PATCH_DIR=HarmoniaHD
 ```
 
+```bash
+cd Loopers && python3 patches.py && cd .. && make PATCH_DIR=Loopers
+```
+
+If MinGW `make` is not available but Visual Studio Build Tools are installed,
+the DLL can also be built from the kit root with:
+
+```bat
+call "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64
+cl /nologo /O2 /W3 /LD /I Loopers /Fe:Loopers\version.dll version.c /link /DEF:version.def /SUBSYSTEM:WINDOWS /NOLOGO
+```
+
 ### 5. Install
 
 1. Back up any existing `version.dll` in the game folder.
@@ -117,7 +130,7 @@ cd HarmoniaHD && python3 patches.py && cd .. && make PATCH_DIR=HarmoniaHD
 
 ## Build requirements
 
-- `x86_64-w64-mingw32-gcc` (mingw-w64 cross-compiler)
+- `x86_64-w64-mingw32-gcc` (mingw-w64 cross-compiler), or Visual Studio Build Tools for the MSVC fallback
 - Python 3.8+ (for `patches.py`)
 - `pefile` Python package if using the RVA delta helper (`pip install pefile`)
 

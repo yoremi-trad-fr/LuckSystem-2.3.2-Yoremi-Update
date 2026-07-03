@@ -1,4 +1,4 @@
-# LuckSystem GUI (Windows) — Yoremi fork v3.23
+# LuckSystem GUI (Windows) — Yoremi fork v3.24
 
 Graphical interface for [LuckSystem](https://github.com/wetor/LuckSystem), the Visual Art's/Key visual novel translation toolkit.
 
@@ -36,7 +36,7 @@ The GUI auto-detects `lucksystem.exe` in the same directory, current working dir
 | **PAK Replace** | Replace files inside a .PAK archive |
 | **BGMOVIE Extract** | Extract Luca Engine BGMOVIE.PAK videos to WebM |
 | **Font Extract** | Export CZ font atlas to PNG + charset list |
-| **Font Edit** | Redraw/append characters using a TTF font |
+| **Font Edit** | Redraw/append characters using a TTF font, with Arabic metrics preset and manual X/Y/W offsets |
 | **Image Export** | Convert CZ images to PNG (single or batch) |
 | **Image Import** | Convert PNG back to CZ format (single or batch) |
 | **Dialogue Extract** | Extract translatable dialogue from decompiled scripts to TSV (single file or batch) |

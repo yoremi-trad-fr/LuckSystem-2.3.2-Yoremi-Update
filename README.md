@@ -1,4 +1,4 @@
-# LuckSystem 2.3.2 — Yoremi Fork (v3.23)
+# LuckSystem 2.3.2 — Yoremi Fork (v3.24)
 
 Fork de [LuckSystem](https://github.com/wetor/LuckSystem) avec corrections de bugs, support de nouveaux formats, et interface graphique pour la traduction de visual novels Visual Art's/Key.
 
@@ -25,7 +25,7 @@ A graphical interface is available in this fork:
 - Script Decompile / Compile
 - PAK Extract / Replace (CG and Font workflows separated)
 - BGMOVIE.PAK video extraction to WebM
-- Font Extract / Edit (append, insert, redraw modes)
+- Font Extract / Edit (append, insert, redraw modes, Arabic metrics preset and manual X/Y/W metric offsets)
 - Vietnamese Font Patch for AIR / Planetarian SG (slot/family selectors, TTF/OTF selection, Y-offset test folders, optional Latin redraw test mode)
 - Image Export / Import (single file + batch folder mode)
 - Real-time console output
@@ -45,7 +45,16 @@ A Linux version is available as separate binaries (GUI + CLI). See the releases 
 
 ## Patches
 
-### Version 3.23 — *(latest)*
+### Version 3.24 — *(latest)*
+
+31. **Arabic font metrics controls for Font Edit** — `font/info.go`, `font/font.go`, `cmd/fontEdit.go`, `SourcesGUI-wails/app.go`, `SourcesGUI-wails/frontend/src/App.svelte`
+    - Added an Arabic metrics preset for `font edit` and the GUI Font Edit page.
+    - The preset aligns Arabic presentation-form glyphs to the Latin baseline and tightens glyph advance to reduce visible gaps.
+    - Added manual signed metric controls for edited glyphs: set Y, Y offset, X offset, and W/advance offset.
+    - Fixed internal string preview rendering so signed `draw_x` / `draw_y` values are interpreted correctly.
+    - GUI and CLI version labels updated to `v3.24`.
+
+### Version 3.23
 
 30. **CZ3 PNG canvas guard for safer image import** — `czimage/cz3.go`, `cmd/imageImport.go`
     - `image import` now rejects CZ3 PNGs whose canvas size does not match the source CZ dimensions instead of silently creating an empty 32-byte CZ3.

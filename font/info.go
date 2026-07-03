@@ -11,9 +11,9 @@ import (
 )
 
 type DrawSize struct {
-	X uint8 // x offset
+	X uint8 // signed x offset
 	W uint8 // width
-	Y uint8 // y offset
+	Y uint8 // signed y offset
 }
 type CharSize struct {
 	X uint8
@@ -32,6 +32,18 @@ type Info struct {
 	FontFace     font.Face `struct:"-"`
 	IndexUnicode []rune    `struct:"-"` // imgindex -> unicode
 	UseCharNum2  bool      `struct:"-"` // preserve legacy CharNum=100 + CharNum2 layout
+}
+
+type MetricAdjustOptions struct {
+	SetY    bool
+	Y       int
+	YOffset int
+	XOffset int
+	WOffset int
+}
+
+func (o MetricAdjustOptions) Empty() bool {
+	return !o.SetY && o.YOffset == 0 && o.XOffset == 0 && o.WOffset == 0
 }
 
 func LoadFontInfoFile(file string) *Info {
@@ -238,6 +250,61 @@ func (i *Info) SetChars(fontFile io.Reader, allChar string, startIndex int, reDr
 func (i *Info) Import(r io.Reader, startIndex int, redraw bool, allChar string) error {
 	i.SetChars(r, allChar, startIndex, redraw)
 	return nil
+}
+
+func (i *Info) AdjustMetrics(chars []rune, options MetricAdjustOptions) {
+	if options.Empty() {
+		return
+	}
+	seen := make(map[uint16]bool, len(chars))
+	for _, char := range chars {
+		if char < 0 || int(char) >= len(i.UnicodeIndex) {
+			continue
+		}
+		index := i.UnicodeIndex[int(char)]
+		if index == 0 && char != ' ' {
+			continue
+		}
+		if seen[index] {
+			continue
+		}
+		seen[index] = true
+		draw := &i.DrawSize[int(index)]
+		if options.SetY {
+			draw.Y = signedMetricByte(options.Y)
+		}
+		if options.YOffset != 0 {
+			draw.Y = signedMetricByte(signedMetricInt(draw.Y) + options.YOffset)
+		}
+		if options.XOffset != 0 {
+			draw.X = signedMetricByte(signedMetricInt(draw.X) + options.XOffset)
+		}
+		if options.WOffset != 0 {
+			width := int(draw.W) + options.WOffset
+			if width < 1 {
+				width = 1
+			}
+			if width > 255 {
+				width = 255
+			}
+			draw.W = uint8(width)
+			i.UnicodeSize[int(char)].W = uint8(width)
+		}
+	}
+}
+
+func signedMetricInt(raw uint8) int {
+	return int(int8(raw))
+}
+
+func signedMetricByte(value int) uint8 {
+	if value < -128 {
+		value = -128
+	}
+	if value > 127 {
+		value = 127
+	}
+	return uint8(int8(value))
 }
 
 // Export

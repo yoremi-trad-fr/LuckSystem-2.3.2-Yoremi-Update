@@ -103,6 +103,12 @@
   let fontEditCharsetFile = '';
   let fontEditMode = 'append'; // 'redraw' | 'append' | 'insert'
   let fontEditIndex = 0;
+  let fontEditArabicMetrics = false;
+  let fontEditMetricSetYEnabled = false;
+  let fontEditMetricSetY = 0;
+  let fontEditMetricYOffset = 0;
+  let fontEditMetricXOffset = 0;
+  let fontEditMetricWOffset = 0;
 
   // --- Vietnamese Font Patch ---
   let vietFontRoot = '';
@@ -290,7 +296,7 @@
     EventsOn('log', (msg) => addLine(msg));
     lsPath = await GetLuckSystemPath();
     if (lsPath) {
-      addLine('LuckSystem 2.3.2 - Yoremi fork v3.23');
+      addLine('LuckSystem 2.3.2 - Yoremi fork v3.24');
       addLine('Executable: ' + lsPath);
       // Scan data/ folder for game presets
       gamePresets = (await ScanGameData()) || [];
@@ -423,7 +429,12 @@
     const redraw  = fontEditMode === 'redraw';
     const append  = fontEditMode === 'append';
     const index   = (fontEditMode === 'insert') ? fontEditIndex : 0;
-    run(() => FontEdit(fontEditCz, fontEditInfo, fontEditTtf, fontEditOutCz, fontEditOutInfo, fontEditCharsetFile, redraw, append, index));
+    run(() => FontEdit(
+      fontEditCz, fontEditInfo, fontEditTtf, fontEditOutCz, fontEditOutInfo, fontEditCharsetFile,
+      redraw, append, index,
+      fontEditArabicMetrics, fontEditMetricSetYEnabled, fontEditMetricSetY,
+      fontEditMetricYOffset, fontEditMetricXOffset, fontEditMetricWOffset
+    ));
   }
 
   function getVietYOffsets() {
@@ -519,7 +530,7 @@
 
 <div id="app">
   <div class="titlebar">
-    <span>LuckSystem 2.3.2 - Yoremi fork v3.23</span>
+    <span>LuckSystem 2.3.2 - Yoremi fork v3.24</span>
     <span class="titlebar-path" on:click={locateLuckSystem} title="Click to change">
       {#if lsPath}📁 {lsPath}{:else}⚠ lucksystem.exe not found - Click to locate{/if}
     </span>
@@ -726,6 +737,26 @@
           <div class="form-group"><label>Charset file <span class="required">*</span> :</label><div class="form-row"><input type="text" bind:value={fontEditCharsetFile} readonly /><button class="btn" on:click={browseFontEditCharset}>Select</button></div><div class="form-hint">Fichier texte listant les caractères à ajouter/insérer (ex : accents_fr.txt)</div></div>
         {/if}
 
+        <div class="form-group">
+          <label>Metrics adjustment :</label>
+          <div class="form-row checkbox-row" style="margin-bottom:6px">
+            <label class="checkbox-label"><input type="checkbox" bind:checked={fontEditArabicMetrics} /> Arabic preset</label>
+            <label class="checkbox-label"><input type="checkbox" bind:checked={fontEditMetricSetYEnabled} /> Set Y</label>
+            {#if fontEditMetricSetYEnabled}
+              <input type="number" bind:value={fontEditMetricSetY} style="width:70px;height:26px;padding:0 6px;border:1px solid #c0c0c0;border-radius:2px" />
+            {/if}
+          </div>
+          <div class="form-row" style="gap:8px;flex-wrap:wrap">
+            <span style="font-size:12px">Y offset</span>
+            <input type="number" bind:value={fontEditMetricYOffset} style="width:70px;height:26px;padding:0 6px;border:1px solid #c0c0c0;border-radius:2px" />
+            <span style="font-size:12px">X offset</span>
+            <input type="number" bind:value={fontEditMetricXOffset} style="width:70px;height:26px;padding:0 6px;border:1px solid #c0c0c0;border-radius:2px" />
+            <span style="font-size:12px">W offset</span>
+            <input type="number" bind:value={fontEditMetricWOffset} style="width:70px;height:26px;padding:0 6px;border:1px solid #c0c0c0;border-radius:2px" />
+          </div>
+          <div class="form-hint">Arabic preset aligns Arabic glyphs to the Latin baseline and tightens advance by 1px. Manual values are signed.</div>
+        </div>
+
         <div class="form-group"><label>Output CZ <span class="required">*</span> :</label><div class="form-row"><input type="text" bind:value={fontEditOutCz} placeholder="ex: C:\dossier\ゴシック26" /><button class="btn" on:click={browseFontEditOutCz}>📁</button></div><div class="form-hint">Tapez le chemin complet sans extension — le bouton sélectionne le dossier</div></div>
         <div class="form-group"><label>Output info <span class="required">*</span> :</label><div class="form-row"><input type="text" bind:value={fontEditOutInfo} placeholder="ex: C:\dossier\info26" /><button class="btn" on:click={browseFontEditOutInfo}>📁</button></div><div class="form-hint">Tapez le chemin complet sans extension — requis pour mettre à jour le compte de caractères</div></div>
 
@@ -913,7 +944,7 @@
         <div class="form-title">À propos</div>
         <div class="about-panel">
           <div class="about-logo">LuckSystem</div>
-          <div class="about-subtitle">Fork · Yoremi-v3.23</div>
+          <div class="about-subtitle">Fork · Yoremi-v3.24</div>
           <div class="about-desc">
             Interface graphique pour LuckSystem, l'outil de traduction de visual novels Visual Art's / Key.<br>
             Inclut des correctifs CZ (CZ1, CZ4), script, PAK, et une interface subprocess.
@@ -928,7 +959,7 @@
               <span class="about-link-url">https://github.com/yoremi-trad-fr/LuckSystem-2.3.2-Yoremi-Update</span>
             </div>
           </div>
-          <div class="about-version">v3.23 GUI · Wails + Svelte</div>
+          <div class="about-version">v3.24 GUI · Wails + Svelte</div>
         </div>
       {/if}
     </div>

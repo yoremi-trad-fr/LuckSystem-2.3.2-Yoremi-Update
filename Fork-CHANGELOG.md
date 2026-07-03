@@ -1,3 +1,61 @@
+# V3.24 — Arabic font metrics controls
+
+03/07/2026
+
+## Added: Arabic metrics preset and manual metric offsets in Font Edit
+
+### Context
+
+GitHub issue #1 reported two problems when injecting Arabic presentation-form glyphs with `font edit`: Arabic text was rendered too high compared with the punctuation baseline, and glyphs showed visible gaps that made words harder to read.
+
+The supplied `info30` data showed injected Arabic glyphs with signed negative `draw_y` values, while Latin glyphs in the same font size used a positive baseline around `Y+3`. This matched the Vietnamese font work from v3.1.7/v3.1.8: the TTF metrics were valid for the font, but not directly suitable for Luck Engine's bitmap-cell renderer.
+
+### CLI
+
+Added to `lucksystem font edit`:
+
+```text
+--arabic-metrics
+--metric-set-y N
+--metric-y-offset N
+--metric-x-offset N
+--metric-w-offset N
+```
+
+`--arabic-metrics` applies only to Arabic Unicode ranges, including Arabic Presentation Forms. It aligns the edited Arabic glyphs to the Latin baseline and tightens glyph advance by 1 pixel.
+
+The manual metric flags can then be used for per-font tuning. In the reported test case, the user-side `ios15.ttf` font improved further by keeping Arabic preset enabled and testing additional negative `W offset` values in the GUI.
+
+### GUI
+
+- Added a `Metrics adjustment` section to Font Edit.
+- Added an `Arabic preset` checkbox.
+- Added manual signed controls for `Set Y`, `Y offset`, `X offset`, and `W offset`.
+- Extended the Wails `FontEdit()` binding to pass the new metric options to the CLI subprocess.
+
+### Font library
+
+- Added `font.Info.AdjustMetrics()` for post-import metric adjustment.
+- Treats `DrawSize.X` and `DrawSize.Y` as signed bytes when adjusting or previewing glyphs.
+- Deduplicates glyph indexes before applying offsets so repeated characters in a charset file do not stack the same adjustment several times.
+
+### Testing
+
+- Reproduced the issue using the supplied `FONT__INFO.PAK`, `FONT_MINCHO.PAK`, `info30_glyphs.txt`, and Arabic text samples.
+- Verified `font edit --arabic-metrics` on `info30` / `明朝30`; Arabic glyphs moved from negative `draw_y` values such as `-15` to the Latin baseline `Y+3`.
+- Verified generated CZ2 fonts can be extracted again with `font extract`.
+- Tested the user-supplied `ios15.ttf` and compared additional `W offset` values for visual tuning.
+- Added focused unit tests for signed metric adjustment, clamping, and duplicate glyph handling.
+- Validation commands:
+  - `go test ./font -run TestAdjustMetrics`: OK.
+  - `go test ./cmd ./czimage ./charset ./utils ./tools/vietfontpatch ./tools/fontdiag`: OK.
+  - `go build .`: OK.
+  - `go test ./...` from `SourcesGUI-wails`: OK.
+  - `npm run build` from `SourcesGUI-wails/frontend`: OK, with only pre-existing Svelte accessibility warnings.
+  - `go build .` from `SourcesGUI-wails`: OK.
+
+---
+
 # V3.23 — CZ3 PNG canvas guard
 
 01/07/2026

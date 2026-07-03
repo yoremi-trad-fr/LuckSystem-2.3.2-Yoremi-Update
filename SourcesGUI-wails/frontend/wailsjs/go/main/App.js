@@ -26,8 +26,8 @@ export function DialogueImportFile(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['DialogueImportFile'](arg1, arg2, arg3, arg4);
 }
 
-export function FontEdit(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9) {
-  return window['go']['main']['App']['FontEdit'](arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
+export function FontEdit(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15) {
+  return window['go']['main']['App']['FontEdit'](arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15);
 }
 
 export function FontExtract(arg1, arg2, arg3, arg4) {
