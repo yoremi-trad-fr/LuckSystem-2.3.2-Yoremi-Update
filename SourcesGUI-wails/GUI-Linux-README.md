@@ -42,7 +42,7 @@ The GUI auto-detects `lucksystem` in the same directory, current working directo
 | **Script Compile** | Repack translated scripts into a new SCRIPT.PAK |
 | **Siglus -> Luca** | Import translated Siglus script text into Luca scripts and export Luca-only/review TSV files |
 | **PAK Extract** | Extract all files from any .PAK archive |
-| **PAK Replace** | Replace files inside a .PAK archive |
+| **PAK Replace** | Replace files inside a .PAK archive; Font Replace supports list, folder, and single-file-by-internal-name modes |
 | **BGMOVIE Extract** | Extract Luca Engine BGMOVIE.PAK videos to WebM |
 | **Font Extract** | Export CZ font atlas to PNG + charset list |
 | **Font Edit** | Redraw/append characters using a TTF font, with Arabic metrics preset, manual X/Y/advance offsets, and experimental connector bleed |

@@ -1,4 +1,4 @@
-# V3.24 — Arabic font metrics controls
+# V3.24 — Arabic font metrics controls + PAK Font Replace single-file mode
 
 03/07/2026
 
@@ -36,6 +36,24 @@ The same follow-up showed that the game rendering did not visibly react to stron
 - Added manual signed controls for `Set Y`, `Y offset`, `X offset`, and `Advance offset`.
 - Added experimental `Connector bleed` control for Arabic gap tests; checking `Arabic preset` in the GUI now pre-fills it with `2`.
 - Extended the Wails `FontEdit()` binding to pass the new metric options to the CLI subprocess.
+
+## Added: PAK Font Replace single-file-by-name mode
+
+The GUI `PAK (Font) -> Font Replace` workflow now has three mutually exclusive input modes:
+
+```text
+list file
+folder
+single file by internal name
+```
+
+Single-file mode selects one replacement file and an exact internal PAK name, then calls:
+
+```text
+lucksystem pak replace -s source.PAK -i replacement --name internalName -o output.PAK -c charset
+```
+
+This avoids preparing a list file or replacement folder when only one font entry needs to be updated, for example `info30` in `FONT__INFO.PAK` or `明朝30` in `FONT_MINCHO.PAK`. The backend validates that exactly one input mode is selected and that single-file mode includes both the replacement file and the internal name.
 
 ### Font library
 

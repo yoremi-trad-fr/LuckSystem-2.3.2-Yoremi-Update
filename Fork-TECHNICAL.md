@@ -1,4 +1,4 @@
-# V3.24 — Réglages de métriques arabes pour Font Edit
+# V3.24 — Réglages de métriques arabes pour Font Edit + PAK Font Replace fichier unique
 
 ## Fichiers modifiés
 
@@ -8,8 +8,8 @@
 - `cmd/fontEdit_test.go` — test du défaut `Connector bleed = 2` quand le preset arabe est activé.
 
 ### GUI
-- `SourcesGUI-wails/app.go` — passage des nouvelles options métriques au subprocess `font edit`.
-- `SourcesGUI-wails/frontend/src/App.svelte` — section `Metrics adjustment` dans Font Edit, libellés `v3.24`.
+- `SourcesGUI-wails/app.go` — passage des nouvelles options métriques au subprocess `font edit`; extension de `PakFontReplace()` au mode fichier unique avec `--name`.
+- `SourcesGUI-wails/frontend/src/App.svelte` — section `Metrics adjustment` dans Font Edit; mode `Fichier unique par nom` dans PAK Font Replace; libellés `v3.24`.
 - `SourcesGUI-wails/frontend/wailsjs/go/main/App.js`
 - `SourcesGUI-wails/frontend/wailsjs/go/main/App.d.ts`
 - `SourcesGUI-wails/frontend/package.json` — version frontend `3.24`.
@@ -117,6 +117,29 @@ Le retour du test 4 confirme que `Connector bleed 2` donne le meilleur rendu act
 
 Ce traitement n'est pas utilisé par le patch vietnamien dédié. Le workflow vietnamien continue à passer par `SourcesGUI-wails/vietnamese_font.go` / `tools/vietfontpatch` et ne reçoit aucun bleed bitmap.
 
+## PAK Font Replace : fichier unique par nom interne
+
+Le workflow GUI `PAK (Font) -> Font Replace` propose maintenant trois modes d'entrée exclusifs :
+
+```text
+Fichier liste
+Dossier de fichiers
+Fichier unique par nom
+```
+
+Le mode fichier unique ajoute deux champs :
+
+- fichier de remplacement local;
+- nom interne exact dans le PAK.
+
+Côté backend, `PakFontReplace()` reçoit maintenant `singleFile` et `singleName`, vérifie qu'un seul mode est actif, puis lance :
+
+```text
+lucksystem pak replace -s source.PAK -i replacement --name internalName -o output.PAK -c charset
+```
+
+Ce mode sert aux remplacements ciblés où préparer un `_list.txt` ou un dossier complet serait inutile, par exemple une entrée `info30` dans `FONT__INFO.PAK` ou une entrée `明朝30` dans `FONT_MINCHO.PAK`.
+
 ## Limites connues
 
 LuckSystem ne fait pas de shaping arabe automatique. Le script doit rester pré-shapé en formes de présentation, comme dans les fichiers fournis par l'utilisateur.
@@ -134,6 +157,7 @@ Si `Advance offset` ne change pas le rendu en jeu, utiliser `Connector bleed = 2
 - Tests visuels avec `NotoNaskhArabic-Regular.ttf` et la police utilisateur `ios15.ttf`.
 - Génération locale avec `ios15.ttf`, `Arabic preset`, `Advance offset -4`, `Connector bleed 2` : atlas modifié uniquement sur les glyphes arabes ciblés.
 - Retour utilisateur test 4 : validation visuelle en jeu avec `Connector bleed 2`.
+- Vérification du mode PAK Font Replace fichier unique : binding Wails étendu à sept arguments, validation d'un mode unique, appel CLI avec `--name internalName`.
 - `go test ./font -run "TestAdjustMetrics|TestGetStringImageUsesUnicodeAdvance|TestBleedGlyphEdges"` : OK.
 - `go test ./cmd ./czimage ./charset ./utils ./tools/vietfontpatch ./tools/fontdiag` : OK.
 - `go build .` : OK.

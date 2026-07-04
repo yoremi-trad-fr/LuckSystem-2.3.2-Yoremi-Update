@@ -23,7 +23,7 @@ A graphical interface is available in this fork:
 - Dialogue Import / Reimport translated dialogue from TSV back into scripts (single file or batch)
 - GUI + CLI Siglus -> Luca bridge / Import translated Siglus script text into Luca decompiled scripts while exporting Luca-only candidates to TSV
 - Script Decompile / Compile
-- PAK Extract / Replace (CG and Font workflows separated)
+- PAK Extract / Replace (CG and Font workflows separated; Font Replace supports list, folder, and single-file-by-internal-name modes)
 - BGMOVIE.PAK video extraction to WebM
 - Font Extract / Edit (append, insert, redraw modes, Arabic metrics preset, manual X/Y/advance offsets, experimental connector bleed)
 - Vietnamese Font Patch for AIR / Planetarian SG (slot/family selectors, TTF/OTF selection, Y-offset test folders, optional Latin redraw test mode)
@@ -54,6 +54,11 @@ A Linux version is available as separate binaries (GUI + CLI). See the releases 
     - Added experimental Arabic connector bleed to extend bitmap edge pixels for engines that ignore advance tightening.
     - Fixed internal string preview rendering so signed `draw_x` / `draw_y` values are interpreted correctly.
     - GUI and CLI version labels updated to `v3.24`.
+
+32. **PAK Font Replace single-file mode** — `SourcesGUI-wails/app.go`, `SourcesGUI-wails/frontend/src/App.svelte`, `SourcesGUI-wails/frontend/wailsjs/go/main/App.js`, `SourcesGUI-wails/frontend/wailsjs/go/main/App.d.ts`
+    - Added a GUI input mode for replacing one file inside a font PAK by exact internal name.
+    - The Font Replace workflow now supports list file, folder, or single-file-by-name mode, with validation that exactly one mode is selected.
+    - Single-file mode passes `--name internalName` to `lucksystem pak replace`, useful for targeted entries such as `info30` or `明朝30`.
 
 ### Version 3.23
 
