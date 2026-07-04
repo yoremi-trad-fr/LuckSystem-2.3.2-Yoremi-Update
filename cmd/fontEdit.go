@@ -103,7 +103,7 @@ var (
 	FontArabicConnectorBleed int
 )
 
-const defaultArabicConnectorBleed = 2
+const defaultArabicConnectorBleed = 0
 
 func fontEditEffectiveArabicConnectorBleed(arabicMetrics bool, bleed int, bleedChanged bool) int {
 	if bleedChanged {
@@ -226,11 +226,11 @@ func init() {
 
 	fontEditCmd.Flags().IntVarP(&FontStartIndex, "index", "i", 0, "字符集绘制并添加到的位置，从0开始")
 	fontEditCmd.Flags().BoolVarP(&FontRedraw, "redraw", "r", false, "重绘原字体图片")
-	fontEditCmd.Flags().BoolVar(&FontArabicMetrics, "arabic-metrics", false, "apply Arabic presentation-form metrics: shift toward Latin baseline, reduce advance by 1px, and use connector bleed 2 unless overridden")
+	fontEditCmd.Flags().BoolVar(&FontArabicMetrics, "arabic-metrics", false, "apply Arabic presentation-form metrics: shift toward Latin baseline and reduce advance by 1px")
 	fontEditCmd.Flags().IntVar(&FontMetricSetY, "metric-set-y", 0, "set signed draw_y for edited glyphs")
 	fontEditCmd.Flags().IntVar(&FontMetricYOffset, "metric-y-offset", 0, "add signed offset to draw_y for edited glyphs")
 	fontEditCmd.Flags().IntVar(&FontMetricXOffset, "metric-x-offset", 0, "add signed offset to draw_x for edited glyphs")
 	fontEditCmd.Flags().IntVar(&FontMetricWOffset, "metric-w-offset", 0, "add signed offset to character advance/usize_w for edited glyphs")
-	fontEditCmd.Flags().IntVar(&FontArabicConnectorBleed, "arabic-connector-bleed", 0, "extend Arabic glyph edge pixels by N px to reduce connector gaps; defaults to 2 with --arabic-metrics when omitted")
+	fontEditCmd.Flags().IntVar(&FontArabicConnectorBleed, "arabic-connector-bleed", 0, "experimentally extend Arabic connector pixels by N px to reduce connector gaps")
 	fontEditCmd.MarkFlagsMutuallyExclusive("append", "index")
 }

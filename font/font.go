@@ -141,6 +141,23 @@ func (f *LucaFont) GetStringImage(str string) image.Image {
 	return pic
 }
 
+type glyphBleedSides uint8
+
+const (
+	glyphBleedLeft glyphBleedSides = 1 << iota
+	glyphBleedRight
+
+	glyphBleedBoth           = glyphBleedLeft | glyphBleedRight
+	maxGlyphBleedPixels      = 8
+	glyphBleedAlphaThreshold = 192
+	minGlyphBleedRunWidth    = 5
+)
+
+var (
+	arabicFinalFormSides   = []glyphBleedSides{0, glyphBleedRight}
+	arabicJoiningFormSides = []glyphBleedSides{0, glyphBleedRight, glyphBleedLeft, glyphBleedBoth}
+)
+
 // BleedGlyphEdges extends row edge pixels inside selected glyph cells.
 // It is intended for bitmap renderers that leave visible gaps between
 // pre-shaped connecting glyphs even when metric advances are tightened.
@@ -148,8 +165,8 @@ func (f *LucaFont) BleedGlyphEdges(chars []rune, pixels int) {
 	if f == nil || f.Info == nil || f.Image == nil || pixels <= 0 {
 		return
 	}
-	if pixels > 8 {
-		pixels = 8
+	if pixels > maxGlyphBleedPixels {
+		pixels = maxGlyphBleedPixels
 	}
 	size := int(f.Info.BlockSize)
 	if size <= 0 {
@@ -167,12 +184,16 @@ func (f *LucaFont) BleedGlyphEdges(chars []rune, pixels int) {
 		if int(index) >= len(f.Info.DrawSize) || seen[index] {
 			continue
 		}
+		sides := glyphBleedSidesForRune(char)
+		if sides == 0 {
+			continue
+		}
 		seen[index] = true
-		f.bleedGlyphCell(int(index), size, pixels)
+		f.bleedGlyphCell(int(index), size, pixels, sides)
 	}
 }
 
-func (f *LucaFont) bleedGlyphCell(index, size, pixels int) {
+func (f *LucaFont) bleedGlyphCell(index, size, pixels int, sides glyphBleedSides) {
 	cellX := (index % 100) * size
 	cellY := (index / 100) * size
 	cellRect := image.Rect(cellX, cellY, cellX+size, cellY+size).Intersect(f.Image.Bounds())
@@ -187,7 +208,7 @@ func (f *LucaFont) bleedGlyphCell(index, size, pixels int) {
 		left := -1
 		right := -1
 		for x := 0; x < size; x++ {
-			if src.NRGBAAt(x, y).A <= 16 {
+			if src.NRGBAAt(x, y).A < glyphBleedAlphaThreshold {
 				continue
 			}
 			if left < 0 {
@@ -198,16 +219,16 @@ func (f *LucaFont) bleedGlyphCell(index, size, pixels int) {
 		if left < 0 {
 			continue
 		}
-		if right-left+1 < 5 {
+		if right-left+1 < minGlyphBleedRunWidth {
 			continue
 		}
 		leftPixel := src.NRGBAAt(left, y)
 		rightPixel := src.NRGBAAt(right, y)
 		for step := 1; step <= pixels; step++ {
-			if x := left - step; x >= 0 {
+			if x := left - step; sides&glyphBleedLeft != 0 && x >= 0 {
 				setMaxAlphaNRGBA(f.Image, cellX+x, cellY+y, leftPixel)
 			}
-			if x := right + step; x < size {
+			if x := right + step; sides&glyphBleedRight != 0 && x < size {
 				setMaxAlphaNRGBA(f.Image, cellX+x, cellY+y, rightPixel)
 				if x > maxTouchedX {
 					maxTouchedX = x
@@ -228,6 +249,48 @@ func (f *LucaFont) bleedGlyphCell(index, size, pixels int) {
 			drawSize.W = uint8(width)
 		}
 	}
+}
+
+func glyphBleedSidesForRune(char rune) glyphBleedSides {
+	if sides, ok := arabicPresentationFormBSides(char); ok {
+		return sides
+	}
+	return glyphBleedBoth
+}
+
+func arabicPresentationFormBSides(char rune) (glyphBleedSides, bool) {
+	if (char >= 0xFE70 && char <= 0xFE7F) || char == 0xFE80 || char == 0xFEFF {
+		return 0, true
+	}
+	for _, group := range arabicPresentationFormBGroups {
+		if char < group.start || char > group.end {
+			continue
+		}
+		offset := int(char - group.start)
+		return group.sides[offset%len(group.sides)], true
+	}
+	return 0, false
+}
+
+var arabicPresentationFormBGroups = []struct {
+	start rune
+	end   rune
+	sides []glyphBleedSides
+}{
+	{0xFE81, 0xFE82, arabicFinalFormSides},
+	{0xFE83, 0xFE84, arabicFinalFormSides},
+	{0xFE85, 0xFE86, arabicFinalFormSides},
+	{0xFE87, 0xFE88, arabicFinalFormSides},
+	{0xFE89, 0xFE8C, arabicJoiningFormSides},
+	{0xFE8D, 0xFE8E, arabicFinalFormSides},
+	{0xFE8F, 0xFE92, arabicJoiningFormSides},
+	{0xFE93, 0xFE94, arabicFinalFormSides},
+	{0xFE95, 0xFEA8, arabicJoiningFormSides},
+	{0xFEA9, 0xFEB0, arabicFinalFormSides},
+	{0xFEB1, 0xFEEC, arabicJoiningFormSides},
+	{0xFEED, 0xFEF0, arabicFinalFormSides},
+	{0xFEF1, 0xFEF4, arabicJoiningFormSides},
+	{0xFEF5, 0xFEFC, arabicFinalFormSides},
 }
 
 func setMaxAlphaNRGBA(img *image.NRGBA, x, y int, c color.NRGBA) {

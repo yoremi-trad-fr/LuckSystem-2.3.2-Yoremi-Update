@@ -5,7 +5,7 @@
 ### CLI
 - `cmd/root.go` — bump de version CLI vers `2.3.2-yoremi.3.24`.
 - `cmd/fontEdit.go` — nouveaux flags `--arabic-metrics`, `--metric-set-y`, `--metric-y-offset`, `--metric-x-offset`, `--metric-w-offset`, `--arabic-connector-bleed`.
-- `cmd/fontEdit_test.go` — test du défaut `Connector bleed = 2` quand le preset arabe est activé.
+- `cmd/fontEdit_test.go` — test du défaut `Connector bleed = 0` quand le preset arabe est activé.
 
 ### GUI
 - `SourcesGUI-wails/app.go` — passage des nouvelles options métriques au subprocess `font edit`; extension de `PakFontReplace()` au mode fichier unique avec `--name`.
@@ -87,8 +87,8 @@ Retour de test suivant : la hauteur est correcte et les glyphes ne sont plus rog
 - cherche une baseline latine de référence parmi `a`, `o`, `A`, `O`;
 - cherche le `draw_y` arabe le plus fréquent parmi les glyphes édités;
 - applique un `YOffset` commun pour rapprocher le groupe arabe de la baseline latine, sans écraser les différences verticales propres à chaque glyphe;
-- réduit l'avance `usize_w` de 1 pixel sans toucher `draw_w`.
-- applique maintenant `Connector bleed = 2` par défaut si `--arabic-connector-bleed` n'est pas fourni. Un testeur peut forcer `--arabic-connector-bleed 0`, `1`, ou une autre valeur pour comparer.
+- réduit l'avance `usize_w` de 1 pixel sans toucher `draw_w`;
+- laisse `Connector bleed` désactivé par défaut. Le testeur peut forcer `--arabic-connector-bleed 1`, `2`, ou une autre valeur pour comparer.
 
 Les options manuelles sont appliquées ensuite. Dans la GUI, un testeur peut donc garder `Arabic preset` activé puis essayer des valeurs négatives d'`Advance offset` (`W offset` côté CLI) selon la police.
 
@@ -109,11 +109,11 @@ Ces options ciblent les glyphes édités par `font edit` :
 - charset fourni avec `-c` en mode append/insert;
 - charset original en mode redraw.
 
-`--arabic-connector-bleed N` est volontairement séparé des métriques. Il modifie les pixels des cellules arabes éditées dans l'atlas CZ : pour chaque rangée contenant un trait horizontal suffisamment large, les pixels de bord sont prolongés de `N` pixels à gauche/droite. C'est une option de test pour fermer les petits trous de connexion quand les offsets de métrique ne sont pas utilisés par le moteur. Le preset arabe utilise désormais `2` par défaut, car le test 4 donne le meilleur retour actuel avec cette valeur.
+`--arabic-connector-bleed N` est volontairement séparé des métriques. Il modifie les pixels des cellules arabes éditées dans l'atlas CZ : pour chaque rangée contenant un trait horizontal suffisamment large et opaque, les pixels de bord sont prolongés de `N` pixels uniquement du côté connecteur de la forme arabe. C'est une option de test pour fermer les petits trous de connexion quand les offsets de métrique ne sont pas utilisés par le moteur. Le preset arabe ne l'active plus par défaut, car le premier retour sur `Connector bleed 2` l'a jugé trop flou.
 
 Le retour du test 3 a montré des captures de dialogue `Connector bleed 1` et `Connector bleed 2` identiques octet pour octet côté GitHub. La capture zoom confirme surtout que les raccords restent ouverts. Le fallback a donc été renforcé : si des pixels sont ajoutés à droite d'une cellule, `DrawSize.W` est agrandi uniquement jusqu'au dernier pixel ajouté, avec clamp sur `BlockSize`. On ne réduit jamais `draw_w`, pour éviter de reproduire le rognage observé lors du premier essai `W offset`.
 
-Le retour du test 4 confirme que `Connector bleed 2` donne le meilleur rendu actuel sur les captures de dialogue, sans retour évident du problème de baseline.
+Le retour suivant a ajouté une maquette Photoshop du résultat attendu : supprimer le trou de 1 px sans rendre le texte fluffy. Pour cela, le bleed ignore maintenant les pixels d'antialiasing doux (`alpha < 192`) et utilise les formes Arabic Presentation Forms-B pour déterminer les côtés réellement connecteurs : initial = gauche, final = droite, medial = deux côtés, isolated = aucun.
 
 Ce traitement n'est pas utilisé par le patch vietnamien dédié. Le workflow vietnamien continue à passer par `SourcesGUI-wails/vietnamese_font.go` / `tools/vietfontpatch` et ne reçoit aucun bleed bitmap.
 
@@ -146,7 +146,7 @@ LuckSystem ne fait pas de shaping arabe automatique. Le script doit rester pré-
 
 Selon la TTF, certaines formes arabes peuvent garder un raccord imparfait malgré des métriques plus serrées. Dans ce cas, il faut soit tester une autre police arabe, soit garder `Arabic preset` activé et comparer plusieurs valeurs négatives d'`Advance offset`.
 
-Si `Advance offset` ne change pas le rendu en jeu, utiliser `Connector bleed = 2` comme point de départ actuel. Au-delà, le risque d'épaissir visiblement les glyphes augmente.
+Si `Advance offset` ne change pas le rendu en jeu, garder d'abord `Connector bleed = 0` comme version nette de secours, puis tester le nouveau bleed sélectif avec `1` et `2`. Au-delà, le risque d'épaissir visiblement les glyphes augmente.
 
 ## Validation
 
@@ -155,10 +155,10 @@ Si `Advance offset` ne change pas le rendu en jeu, utiliser `Connector bleed = 2
 - Vérification binaire : les glyphes arabes gardent leur `draw_w`, leur groupe Y est déplacé par offset commun, et `usize_w` est resserré pour réduire l'avance.
 - Round-trip `font extract` du CZ2 généré : OK.
 - Tests visuels avec `NotoNaskhArabic-Regular.ttf` et la police utilisateur `ios15.ttf`.
-- Génération locale avec `ios15.ttf`, `Arabic preset`, `Advance offset -4`, `Connector bleed 2` : atlas modifié uniquement sur les glyphes arabes ciblés.
-- Retour utilisateur test 4 : validation visuelle en jeu avec `Connector bleed 2`.
+- Génération locale avec `ios15.ttf`, `Arabic preset`, `Advance offset -4`, `Connector bleed 0/1/2` : atlas modifié uniquement sur les glyphes arabes ciblés; le nouveau bleed sélectif modifie moins les franges antialiasées que l'ancien bleed.
+- Retour utilisateur : l'ancien `Connector bleed 2` ferme mieux les trous mais rend le texte trop flou; la version nette sans bleed reste le fallback si le nouveau bleed sélectif ne suffit pas.
 - Vérification du mode PAK Font Replace fichier unique : binding Wails étendu à sept arguments, validation d'un mode unique, appel CLI avec `--name internalName`.
-- `go test ./font -run "TestAdjustMetrics|TestGetStringImageUsesUnicodeAdvance|TestBleedGlyphEdges"` : OK.
+- `go test ./font -run "TestAdjustMetrics|TestGetStringImageUsesUnicodeAdvance|TestBleedGlyphEdges|TestArabicPresentationFormBleedSides"` : OK.
 - `go test ./cmd ./czimage ./charset ./utils ./tools/vietfontpatch ./tools/fontdiag` : OK.
 - `go build .` : OK.
 - `go test ./...` depuis `SourcesGUI-wails` : OK.

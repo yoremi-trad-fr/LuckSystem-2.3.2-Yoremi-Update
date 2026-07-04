@@ -23,18 +23,18 @@ Added to `lucksystem font edit`:
 --arabic-connector-bleed N
 ```
 
-`--arabic-metrics` applies only to Arabic Unicode ranges, including Arabic Presentation Forms. It shifts the edited Arabic glyph group toward the Latin baseline while preserving per-glyph vertical differences, tightens character advance by 1 pixel, and now uses connector bleed `2` by default unless `--arabic-connector-bleed` is explicitly set.
+`--arabic-metrics` applies only to Arabic Unicode ranges, including Arabic Presentation Forms. It shifts the edited Arabic glyph group toward the Latin baseline while preserving per-glyph vertical differences, and tightens character advance by 1 pixel. Connector bleed is no longer enabled by default because follow-up feedback judged the first bleed-2 result too fuzzy.
 
 The manual metric flags can then be used for per-font tuning. Follow-up testing confirmed that `W offset` must target `usize_w` / character advance only: `draw_w` is kept intact so negative spacing values do not cut the right side of Arabic glyphs.
 
-The same follow-up showed that the game rendering did not visibly react to stronger `usize_w` tightening (`Advance offset -4` and `-10` looked identical). Added `--arabic-connector-bleed` as an experimental bitmap-side fallback: it extends horizontal edge pixels inside edited Arabic glyph cells to reduce connector gaps without changing the Vietnamese font workflow. A later test report included duplicate `Connector bleed 1` / `2` dialogue captures, so the fallback now also expands `draw_w` only when needed to keep newly added right-edge pixels visible to renderers that crop by draw width. Test 4 visual feedback points to `Connector bleed 2` as the best current in-game result.
+The same follow-up showed that the game rendering did not visibly react to stronger `usize_w` tightening (`Advance offset -4` and `-10` looked identical). Added `--arabic-connector-bleed` as an experimental bitmap-side fallback: it extends horizontal edge pixels inside edited Arabic glyph cells to reduce connector gaps without changing the Vietnamese font workflow. A later target mock-up clarified that the fallback must close the 1 px gaps without making letters fluffy, so bleed now uses a higher alpha threshold and only extends the connector sides of Arabic Presentation Forms-B glyphs. It also expands `draw_w` only when needed to keep newly added right-edge pixels visible to renderers that crop by draw width.
 
 ### GUI
 
 - Added a `Metrics adjustment` section to Font Edit.
 - Added an `Arabic preset` checkbox.
 - Added manual signed controls for `Set Y`, `Y offset`, `X offset`, and `Advance offset`.
-- Added experimental `Connector bleed` control for Arabic gap tests; checking `Arabic preset` in the GUI now pre-fills it with `2`.
+- Added experimental `Connector bleed` control for Arabic gap tests. It stays manual and is not pre-filled by `Arabic preset`.
 - Extended the Wails `FontEdit()` binding to pass the new metric options to the CLI subprocess.
 
 ## Added: PAK Font Replace single-file-by-name mode
@@ -70,10 +70,10 @@ This avoids preparing a list file or replacement folder when only one font entry
 - Verified generated CZ2 fonts can be extracted again with `font extract`.
 - Tested the user-supplied `ios15.ttf` and confirmed additional negative advance offsets no longer reduce `draw_w` or crop glyph pixels.
 - Added local experimental `Connector bleed` generation for the same Arabic glyph range.
-- User test 4 validated the current Kanon Arabic visual tuning with `Connector bleed 2`.
-- Added focused unit tests for signed metric adjustment, clamping, and duplicate glyph handling.
+- Follow-up user feedback rejected the first `Connector bleed 2` result as too fuzzy; default output now keeps bleed disabled, while manual bleed uses stricter high-alpha, connector-side-only extension for another test round.
+- Added focused unit tests for signed metric adjustment, clamping, duplicate glyph handling, connector-side selection, and anti-aliased edge rejection.
 - Validation commands:
-  - `go test ./font -run "TestAdjustMetrics|TestGetStringImageUsesUnicodeAdvance|TestBleedGlyphEdges"`: OK.
+  - `go test ./font -run "TestAdjustMetrics|TestGetStringImageUsesUnicodeAdvance|TestBleedGlyphEdges|TestArabicPresentationFormBleedSides"`: OK.
   - `go test ./cmd ./czimage ./charset ./utils ./tools/vietfontpatch ./tools/fontdiag`: OK.
   - `go build .`: OK.
   - `go test ./...` from `SourcesGUI-wails`: OK.

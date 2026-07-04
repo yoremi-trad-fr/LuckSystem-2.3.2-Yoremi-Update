@@ -876,7 +876,7 @@ func (a *App) FontEdit(czFile, infoFile, ttfFile, outputCz, outputInfo, charsetF
 	if metricWOffset != 0 {
 		args = append(args, "--metric-w-offset", fmt.Sprintf("%d", metricWOffset))
 	}
-	if arabicConnectorBleed > 0 || arabicMetrics {
+	if arabicConnectorBleed > 0 {
 		args = append(args, "--arabic-connector-bleed", fmt.Sprintf("%d", arabicConnectorBleed))
 	}
 

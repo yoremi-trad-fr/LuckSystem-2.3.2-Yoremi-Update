@@ -129,7 +129,7 @@ func TestGetStringImageUsesUnicodeAdvance(t *testing.T) {
 }
 
 func TestBleedGlyphEdgesExtendsSelectedGlyphPixels(t *testing.T) {
-	char := 'ﺑ'
+	char := 'ﺒ'
 	info := &Info{
 		BlockSize:    10,
 		DrawSize:     make([]DrawSize, 2),
@@ -158,6 +158,83 @@ func TestBleedGlyphEdgesExtendsSelectedGlyphPixels(t *testing.T) {
 	}
 	if got := info.DrawSize[1].W; got != 10 {
 		t.Fatalf("draw_w = %d, want 10", got)
+	}
+}
+
+func TestBleedGlyphEdgesUsesArabicJoiningSides(t *testing.T) {
+	char := 'ﺑ'
+	info := &Info{
+		BlockSize:    10,
+		DrawSize:     make([]DrawSize, 2),
+		UnicodeIndex: make([]uint16, 65536),
+	}
+	info.DrawSize[1] = DrawSize{W: 8}
+	info.UnicodeIndex[char] = 1
+	atlas := image.NewNRGBA(image.Rect(0, 0, 20, 10))
+	for x := 13; x <= 17; x++ {
+		atlas.SetNRGBA(x, 4, color.NRGBA{R: 255, G: 255, B: 255, A: 255})
+	}
+	lucaFont := &LucaFont{
+		Info:  info,
+		Image: atlas,
+	}
+
+	lucaFont.BleedGlyphEdges([]rune{char}, 2)
+
+	for _, x := range []int{11, 12} {
+		if got := atlas.NRGBAAt(x, 4).A; got != 255 {
+			t.Fatalf("left connector alpha at x=%d = %d, want 255", x, got)
+		}
+	}
+	for _, x := range []int{18, 19} {
+		if got := atlas.NRGBAAt(x, 4).A; got != 0 {
+			t.Fatalf("right non-connector alpha at x=%d = %d, want 0", x, got)
+		}
+	}
+	if got := info.DrawSize[1].W; got != 8 {
+		t.Fatalf("draw_w = %d, want unchanged 8", got)
+	}
+}
+
+func TestBleedGlyphEdgesIgnoresSoftAntialiasRows(t *testing.T) {
+	char := 'ﺒ'
+	info := &Info{
+		BlockSize:    10,
+		DrawSize:     make([]DrawSize, 2),
+		UnicodeIndex: make([]uint16, 65536),
+	}
+	info.DrawSize[1] = DrawSize{W: 8}
+	info.UnicodeIndex[char] = 1
+	atlas := image.NewNRGBA(image.Rect(0, 0, 20, 10))
+	for x := 13; x <= 17; x++ {
+		atlas.SetNRGBA(x, 4, color.NRGBA{R: 64, G: 64, B: 64, A: 64})
+	}
+	lucaFont := &LucaFont{
+		Info:  info,
+		Image: atlas,
+	}
+
+	lucaFont.BleedGlyphEdges([]rune{char}, 2)
+
+	for _, x := range []int{11, 12, 18, 19} {
+		if got := atlas.NRGBAAt(x, 4).A; got != 0 {
+			t.Fatalf("soft edge bleed alpha at x=%d = %d, want 0", x, got)
+		}
+	}
+	if got := info.DrawSize[1].W; got != 8 {
+		t.Fatalf("draw_w = %d, want unchanged 8", got)
+	}
+}
+
+func TestArabicPresentationFormBleedSidesRepeatAcrossGroups(t *testing.T) {
+	if got := glyphBleedSidesForRune('ﻬ'); got != glyphBleedBoth {
+		t.Fatalf("HEH medial bleed sides = %d, want both sides", got)
+	}
+	if got := glyphBleedSidesForRune('ﻫ'); got != glyphBleedLeft {
+		t.Fatalf("HEH initial bleed sides = %d, want left side", got)
+	}
+	if got := glyphBleedSidesForRune('ﻪ'); got != glyphBleedRight {
+		t.Fatalf("HEH final bleed sides = %d, want right side", got)
 	}
 }
 

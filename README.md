@@ -49,9 +49,9 @@ A Linux version is available as separate binaries (GUI + CLI). See the releases 
 
 31. **Arabic font metrics controls for Font Edit** — `font/info.go`, `font/font.go`, `cmd/fontEdit.go`, `SourcesGUI-wails/app.go`, `SourcesGUI-wails/frontend/src/App.svelte`
     - Added an Arabic metrics preset for `font edit` and the GUI Font Edit page.
-    - The preset shifts Arabic presentation-form glyphs toward the Latin baseline while preserving per-glyph vertical metrics, tightens glyph advance, and now defaults connector bleed to `2` for the current Kanon Arabic test unless overridden.
+    - The preset shifts Arabic presentation-form glyphs toward the Latin baseline while preserving per-glyph vertical metrics and tightens glyph advance; connector bleed stays manual because the first bleed-2 in-game test was judged too fuzzy.
     - Added manual signed metric controls for edited glyphs: set Y, Y offset, X offset, and advance/usize_w offset.
-    - Added experimental Arabic connector bleed to extend bitmap edge pixels for engines that ignore advance tightening.
+    - Added experimental Arabic connector bleed to extend high-alpha connector pixels for engines that ignore advance tightening, with Arabic Presentation Forms-B side awareness to avoid inflating isolated/non-joining glyphs.
     - Fixed internal string preview rendering so signed `draw_x` / `draw_y` values are interpreted correctly.
     - GUI and CLI version labels updated to `v3.24`.
 

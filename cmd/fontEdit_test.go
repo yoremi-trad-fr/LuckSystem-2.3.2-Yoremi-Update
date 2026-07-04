@@ -12,7 +12,7 @@ func TestFontEditEffectiveArabicConnectorBleed(t *testing.T) {
 	}{
 		{name: "off by default", want: 0},
 		{name: "manual without preset", bleed: 1, bleedChanged: true, want: 1},
-		{name: "preset defaults to test value", arabicMetrics: true, want: defaultArabicConnectorBleed},
+		{name: "preset keeps connector bleed disabled by default", arabicMetrics: true, want: defaultArabicConnectorBleed},
 		{name: "preset allows explicit disable", arabicMetrics: true, bleedChanged: true, want: 0},
 		{name: "preset allows explicit override", arabicMetrics: true, bleed: 1, bleedChanged: true, want: 1},
 	}

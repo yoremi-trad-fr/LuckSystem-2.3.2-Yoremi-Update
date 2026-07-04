@@ -439,11 +439,6 @@
   function startFontExtract() { run(() => FontExtract(fontExtCz, fontExtInfo, fontExtPng, fontExtCharset)); }
   function setFontEditArabicPreset(checked) {
     fontEditArabicMetrics = checked;
-    if (checked && Number(fontEditArabicConnectorBleed) === 0) {
-      fontEditArabicConnectorBleed = 2;
-    } else if (!checked && Number(fontEditArabicConnectorBleed) === 2) {
-      fontEditArabicConnectorBleed = 0;
-    }
   }
   function startFontEdit() {
     const redraw  = fontEditMode === 'redraw';
@@ -782,7 +777,7 @@
             <span style="font-size:12px">Connector bleed</span>
             <input type="number" min="0" max="8" bind:value={fontEditArabicConnectorBleed} style="width:70px;height:26px;padding:0 6px;border:1px solid #c0c0c0;border-radius:2px" />
           </div>
-          <div class="form-hint">Arabic preset shifts Arabic glyphs toward the Latin baseline and defaults Connector bleed to 2 for the current Kanon Arabic test.</div>
+          <div class="form-hint">Arabic preset shifts Arabic glyphs toward the Latin baseline. Connector bleed is experimental and stays manual.</div>
         </div>
 
         <div class="form-group"><label>Output CZ <span class="required">*</span> :</label><div class="form-row"><input type="text" bind:value={fontEditOutCz} placeholder="ex: C:\dossier\ゴシック26" /><button class="btn" on:click={browseFontEditOutCz}>📁</button></div><div class="form-hint">Tapez le chemin complet sans extension — le bouton sélectionne le dossier</div></div>
