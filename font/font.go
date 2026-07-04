@@ -150,7 +150,7 @@ const (
 	glyphBleedBoth           = glyphBleedLeft | glyphBleedRight
 	maxGlyphBleedPixels      = 8
 	glyphBleedAlphaThreshold = 192
-	minGlyphBleedRunWidth    = 5
+	minGlyphBleedRunWidth    = 3
 )
 
 var (
@@ -189,25 +189,38 @@ func (f *LucaFont) BleedGlyphEdges(chars []rune, pixels int) {
 			continue
 		}
 		seen[index] = true
-		f.bleedGlyphCell(int(index), size, pixels, sides)
+		drawW := size
+		if int(index) < len(f.Info.DrawSize) && f.Info.DrawSize[int(index)].W > 0 {
+			drawW = int(f.Info.DrawSize[int(index)].W)
+			if drawW > size {
+				drawW = size
+			}
+		}
+		f.bleedGlyphCell(int(index), size, pixels, sides, drawW)
 	}
 }
 
-func (f *LucaFont) bleedGlyphCell(index, size, pixels int, sides glyphBleedSides) {
+func (f *LucaFont) bleedGlyphCell(index, size, pixels int, sides glyphBleedSides, drawW int) {
 	cellX := (index % 100) * size
 	cellY := (index / 100) * size
 	cellRect := image.Rect(cellX, cellY, cellX+size, cellY+size).Intersect(f.Image.Bounds())
 	if cellRect.Empty() || cellRect.Dx() != size || cellRect.Dy() != size {
 		return
 	}
+	if drawW <= 0 {
+		return
+	}
+	if drawW > size {
+		drawW = size
+	}
 
 	src := image.NewNRGBA(image.Rect(0, 0, size, size))
 	draw.Draw(src, src.Bounds(), f.Image, cellRect.Min, draw.Src)
-	maxTouchedX := -1
+	rows := make([]glyphBleedRow, size)
 	for y := 0; y < size; y++ {
 		left := -1
 		right := -1
-		for x := 0; x < size; x++ {
+		for x := 0; x < drawW; x++ {
 			if src.NRGBAAt(x, y).A < glyphBleedAlphaThreshold {
 				continue
 			}
@@ -222,31 +235,24 @@ func (f *LucaFont) bleedGlyphCell(index, size, pixels int, sides glyphBleedSides
 		if right-left+1 < minGlyphBleedRunWidth {
 			continue
 		}
-		leftPixel := src.NRGBAAt(left, y)
-		rightPixel := src.NRGBAAt(right, y)
+		rows[y] = glyphBleedRow{left: left, right: right, ok: true}
+	}
+	for y, row := range rows {
+		if !row.ok {
+			continue
+		}
+		if !hasBleedCoreSupport(rows, y) {
+			continue
+		}
+		leftPixel := src.NRGBAAt(row.left, y)
+		rightPixel := src.NRGBAAt(row.right, y)
 		for step := 1; step <= pixels; step++ {
-			if x := left - step; sides&glyphBleedLeft != 0 && x >= 0 {
+			if x := row.left - step; sides&glyphBleedLeft != 0 && x >= 0 {
 				setMaxAlphaNRGBA(f.Image, cellX+x, cellY+y, leftPixel)
 			}
-			if x := right + step; sides&glyphBleedRight != 0 && x < size {
+			if x := row.right + step; sides&glyphBleedRight != 0 && x < drawW {
 				setMaxAlphaNRGBA(f.Image, cellX+x, cellY+y, rightPixel)
-				if x > maxTouchedX {
-					maxTouchedX = x
-				}
 			}
-		}
-	}
-	if maxTouchedX >= 0 && index < len(f.Info.DrawSize) {
-		drawSize := &f.Info.DrawSize[index]
-		width := maxTouchedX + 1
-		if width > size {
-			width = size
-		}
-		if width > 255 {
-			width = 255
-		}
-		if width > int(drawSize.W) {
-			drawSize.W = uint8(width)
 		}
 	}
 }
@@ -291,6 +297,16 @@ var arabicPresentationFormBGroups = []struct {
 	{0xFEED, 0xFEF0, arabicFinalFormSides},
 	{0xFEF1, 0xFEF4, arabicJoiningFormSides},
 	{0xFEF5, 0xFEFC, arabicFinalFormSides},
+}
+
+type glyphBleedRow struct {
+	left  int
+	right int
+	ok    bool
+}
+
+func hasBleedCoreSupport(rows []glyphBleedRow, y int) bool {
+	return y > 0 && y+1 < len(rows) && rows[y-1].ok && rows[y+1].ok
 }
 
 func setMaxAlphaNRGBA(img *image.NRGBA, x, y int, c color.NRGBA) {

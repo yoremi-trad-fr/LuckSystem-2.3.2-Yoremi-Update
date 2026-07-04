@@ -1,6 +1,6 @@
 # V3.24 — Arabic font metrics controls + PAK Font Replace single-file mode
 
-03/07/2026
+04/07/2026
 
 ## Added: Arabic metrics preset and manual metric offsets in Font Edit
 
@@ -23,18 +23,20 @@ Added to `lucksystem font edit`:
 --arabic-connector-bleed N
 ```
 
-`--arabic-metrics` applies only to Arabic Unicode ranges, including Arabic Presentation Forms. It shifts the edited Arabic glyph group toward the Latin baseline while preserving per-glyph vertical differences, and tightens character advance by 1 pixel. Connector bleed is no longer enabled by default because follow-up feedback judged the first bleed-2 result too fuzzy.
+`--arabic-metrics` applies only to Arabic Unicode ranges, including Arabic Presentation Forms. It shifts the edited Arabic glyph group toward the Latin baseline while preserving per-glyph vertical differences, and tightens character advance by 1 pixel. Connector bleed remains a manual option so the preset stays conservative for other fonts and games.
 
 The manual metric flags can then be used for per-font tuning. Follow-up testing confirmed that `W offset` must target `usize_w` / character advance only: `draw_w` is kept intact so negative spacing values do not cut the right side of Arabic glyphs.
 
-The same follow-up showed that the game rendering did not visibly react to stronger `usize_w` tightening (`Advance offset -4` and `-10` looked identical). Added `--arabic-connector-bleed` as an experimental bitmap-side fallback: it extends horizontal edge pixels inside edited Arabic glyph cells to reduce connector gaps without changing the Vietnamese font workflow. A later target mock-up clarified that the fallback must close the 1 px gaps without making letters fluffy, so bleed now uses a higher alpha threshold and only extends the connector sides of Arabic Presentation Forms-B glyphs. It also expands `draw_w` only when needed to keep newly added right-edge pixels visible to renderers that crop by draw width.
+Added `--arabic-connector-bleed` as a bitmap-side fallback for engines where advance tightening is not enough to close connector gaps. The final implementation is crop-safe and side-aware: it only copies existing high-alpha pixels on connector sides of Arabic Presentation Forms-B glyphs, ignores isolated rows/dots, never invents new alpha values, and never expands `draw_w`.
+
+Final in-game testing for the reported Kanon case selected `Arabic preset` ON, `Connector bleed` 1, and `Advance offset` 0 as the cleanest compromise. Stronger bleed values and extra negative advance offsets closed a few gaps more aggressively but made the text visibly heavier or dirtier.
 
 ### GUI
 
 - Added a `Metrics adjustment` section to Font Edit.
 - Added an `Arabic preset` checkbox.
 - Added manual signed controls for `Set Y`, `Y offset`, `X offset`, and `Advance offset`.
-- Added experimental `Connector bleed` control for Arabic gap tests. It stays manual and is not pre-filled by `Arabic preset`.
+- Added manual `Connector bleed` control for Arabic gap tests. It stays manual and is not pre-filled by `Arabic preset`; the validated Kanon issue #1 setting is bleed 1 with no extra advance offset.
 - Extended the Wails `FontEdit()` binding to pass the new metric options to the CLI subprocess.
 
 ## Added: PAK Font Replace single-file-by-name mode
@@ -60,7 +62,7 @@ This avoids preparing a list file or replacement folder when only one font entry
 - Added `font.Info.AdjustMetrics()` for post-import metric adjustment.
 - Treats `DrawSize.X` and `DrawSize.Y` as signed bytes when adjusting or previewing glyphs.
 - Applies `WOffset` to `UnicodeSize.W` / `usize_w` only, leaving `DrawSize.W` / `draw_w` as the glyph crop width.
-- Added `font.LucaFont.BleedGlyphEdges()` for opt-in bitmap edge extension on selected glyph cells. It may expand `DrawSize.W` to include the added pixels, but never shrinks it.
+- Added `font.LucaFont.BleedGlyphEdges()` for opt-in bitmap edge extension on selected glyph cells. It works inside the existing crop width and leaves `DrawSize.W` unchanged.
 - Deduplicates glyph indexes for X/Y offsets and repeated Unicode characters for advance offsets, so charset duplicates do not stack the same adjustment several times.
 
 ### Testing
@@ -68,10 +70,10 @@ This avoids preparing a list file or replacement folder when only one font entry
 - Reproduced the issue using the supplied `FONT__INFO.PAK`, `FONT_MINCHO.PAK`, `info30_glyphs.txt`, and Arabic text samples.
 - Verified `font edit --arabic-metrics` on `info30` / `明朝30`; the Arabic glyph group is shifted toward the Latin baseline while preserving the original per-glyph Y differences.
 - Verified generated CZ2 fonts can be extracted again with `font extract`.
-- Tested the user-supplied `ios15.ttf` and confirmed additional negative advance offsets no longer reduce `draw_w` or crop glyph pixels.
-- Added local experimental `Connector bleed` generation for the same Arabic glyph range.
-- Follow-up user feedback rejected the first `Connector bleed 2` result as too fuzzy; default output now keeps bleed disabled, while manual bleed uses stricter high-alpha, connector-side-only extension for another test round.
-- Added focused unit tests for signed metric adjustment, clamping, duplicate glyph handling, connector-side selection, and anti-aliased edge rejection.
+- Tested the issue font workflow and confirmed additional negative advance offsets no longer reduce `draw_w` or crop glyph pixels.
+- Compared no bleed, bleed 1, bleed 2, and extra negative advance offsets. Final visual selection: `Arabic preset` ON, `Connector bleed` 1, `Advance offset` 0.
+- Confirmed stronger bleed / extra negative advance offsets can reduce some visible gaps but make the text blurrier, heavier, or dirtier.
+- Added focused unit tests for signed metric adjustment, clamping, duplicate glyph handling, crop-safe connector bleed, connector-side selection, and anti-aliased/isolated-row rejection.
 - Validation commands:
   - `go test ./font -run "TestAdjustMetrics|TestGetStringImageUsesUnicodeAdvance|TestBleedGlyphEdges|TestArabicPresentationFormBleedSides"`: OK.
   - `go test ./cmd ./czimage ./charset ./utils ./tools/vietfontpatch ./tools/fontdiag`: OK.

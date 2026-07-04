@@ -135,11 +135,13 @@ func TestBleedGlyphEdgesExtendsSelectedGlyphPixels(t *testing.T) {
 		DrawSize:     make([]DrawSize, 2),
 		UnicodeIndex: make([]uint16, 65536),
 	}
-	info.DrawSize[1] = DrawSize{W: 8}
+	info.DrawSize[1] = DrawSize{W: 10}
 	info.UnicodeIndex[char] = 1
 	atlas := image.NewNRGBA(image.Rect(0, 0, 20, 10))
-	for x := 13; x <= 17; x++ {
-		atlas.SetNRGBA(x, 4, color.NRGBA{R: 255, G: 255, B: 255, A: 255})
+	for y := 3; y <= 5; y++ {
+		for x := 13; x <= 17; x++ {
+			atlas.SetNRGBA(x, y, color.NRGBA{R: 255, G: 255, B: 255, A: 255})
+		}
 	}
 	lucaFont := &LucaFont{
 		Info:  info,
@@ -148,16 +150,99 @@ func TestBleedGlyphEdgesExtendsSelectedGlyphPixels(t *testing.T) {
 
 	lucaFont.BleedGlyphEdges([]rune{char}, 2)
 
-	for _, x := range []int{11, 12, 18, 19} {
+	for _, x := range []int{12, 18} {
 		if got := atlas.NRGBAAt(x, 4).A; got != 255 {
 			t.Fatalf("alpha at x=%d = %d, want 255", x, got)
 		}
+	}
+	for _, x := range []int{11, 19} {
+		if got := atlas.NRGBAAt(x, 4).A; got != 255 {
+			t.Fatalf("core alpha at x=%d = %d, want 255", x, got)
+		}
+	}
+	if got := atlas.NRGBAAt(11, 3).A; got != 0 {
+		t.Fatalf("non-core second-step alpha = %d, want 0", got)
 	}
 	if got := atlas.NRGBAAt(10, 4).A; got != 0 {
 		t.Fatalf("alpha outside bleed = %d, want 0", got)
 	}
 	if got := info.DrawSize[1].W; got != 10 {
-		t.Fatalf("draw_w = %d, want 10", got)
+		t.Fatalf("draw_w = %d, want unchanged 10", got)
+	}
+}
+
+func TestBleedGlyphEdgesDoesNotDrawPastGlyphCropWidth(t *testing.T) {
+	char := 'ﺒ'
+	info := &Info{
+		BlockSize:    10,
+		DrawSize:     make([]DrawSize, 2),
+		UnicodeIndex: make([]uint16, 65536),
+	}
+	info.DrawSize[1] = DrawSize{W: 8}
+	info.UnicodeIndex[char] = 1
+	atlas := image.NewNRGBA(image.Rect(0, 0, 20, 10))
+	for y := 3; y <= 5; y++ {
+		for x := 13; x <= 17; x++ {
+			atlas.SetNRGBA(x, y, color.NRGBA{R: 255, G: 255, B: 255, A: 255})
+		}
+	}
+	lucaFont := &LucaFont{
+		Info:  info,
+		Image: atlas,
+	}
+
+	lucaFont.BleedGlyphEdges([]rune{char}, 2)
+
+	if got := atlas.NRGBAAt(12, 4).A; got != 255 {
+		t.Fatalf("left crop-safe bleed alpha at x=12 = %d, want 255", got)
+	}
+	if got := atlas.NRGBAAt(11, 4).A; got != 255 {
+		t.Fatalf("left crop-safe second-step alpha at x=11 = %d, want 255", got)
+	}
+	for _, x := range []int{18, 19} {
+		if got := atlas.NRGBAAt(x, 4).A; got != 0 {
+			t.Fatalf("right alpha beyond draw_w at x=%d = %d, want 0", x, got)
+		}
+	}
+	if got := info.DrawSize[1].W; got != 8 {
+		t.Fatalf("draw_w = %d, want unchanged 8", got)
+	}
+}
+
+func TestBleedGlyphEdgesKeepsOnePixelBleedOpaque(t *testing.T) {
+	char := 'ﺒ'
+	info := &Info{
+		BlockSize:    10,
+		DrawSize:     make([]DrawSize, 2),
+		UnicodeIndex: make([]uint16, 65536),
+	}
+	info.DrawSize[1] = DrawSize{W: 10}
+	info.UnicodeIndex[char] = 1
+	atlas := image.NewNRGBA(image.Rect(0, 0, 20, 10))
+	for y := 3; y <= 5; y++ {
+		for x := 13; x <= 17; x++ {
+			atlas.SetNRGBA(x, y, color.NRGBA{R: 255, G: 255, B: 255, A: 255})
+		}
+	}
+	lucaFont := &LucaFont{
+		Info:  info,
+		Image: atlas,
+	}
+
+	lucaFont.BleedGlyphEdges([]rune{char}, 1)
+
+	for _, x := range []int{12, 18} {
+		if got := atlas.NRGBAAt(x, 4).A; got != 255 {
+			t.Fatalf("one-pixel bleed alpha at x=%d = %d, want 255", x, got)
+		}
+	}
+	for _, x := range []int{11, 19} {
+		if got := atlas.NRGBAAt(x, 4).A; got != 0 {
+			t.Fatalf("outside one-pixel bleed alpha at x=%d = %d, want 0", x, got)
+		}
+	}
+	if got := info.DrawSize[1].W; got != 10 {
+		t.Fatalf("draw_w = %d, want unchanged 10", got)
 	}
 }
 
@@ -171,8 +256,10 @@ func TestBleedGlyphEdgesUsesArabicJoiningSides(t *testing.T) {
 	info.DrawSize[1] = DrawSize{W: 8}
 	info.UnicodeIndex[char] = 1
 	atlas := image.NewNRGBA(image.Rect(0, 0, 20, 10))
-	for x := 13; x <= 17; x++ {
-		atlas.SetNRGBA(x, 4, color.NRGBA{R: 255, G: 255, B: 255, A: 255})
+	for y := 3; y <= 5; y++ {
+		for x := 13; x <= 17; x++ {
+			atlas.SetNRGBA(x, y, color.NRGBA{R: 255, G: 255, B: 255, A: 255})
+		}
 	}
 	lucaFont := &LucaFont{
 		Info:  info,
@@ -181,10 +268,11 @@ func TestBleedGlyphEdgesUsesArabicJoiningSides(t *testing.T) {
 
 	lucaFont.BleedGlyphEdges([]rune{char}, 2)
 
-	for _, x := range []int{11, 12} {
-		if got := atlas.NRGBAAt(x, 4).A; got != 255 {
-			t.Fatalf("left connector alpha at x=%d = %d, want 255", x, got)
-		}
+	if got := atlas.NRGBAAt(12, 4).A; got != 255 {
+		t.Fatalf("left connector alpha at x=12 = %d, want 255", got)
+	}
+	if got := atlas.NRGBAAt(11, 4).A; got != 255 {
+		t.Fatalf("left connector second-step alpha at x=11 = %d, want 255", got)
 	}
 	for _, x := range []int{18, 19} {
 		if got := atlas.NRGBAAt(x, 4).A; got != 0 {
@@ -223,6 +311,36 @@ func TestBleedGlyphEdgesIgnoresSoftAntialiasRows(t *testing.T) {
 	}
 	if got := info.DrawSize[1].W; got != 8 {
 		t.Fatalf("draw_w = %d, want unchanged 8", got)
+	}
+}
+
+func TestBleedGlyphEdgesIgnoresIsolatedHardRows(t *testing.T) {
+	char := 'ﺒ'
+	info := &Info{
+		BlockSize:    10,
+		DrawSize:     make([]DrawSize, 2),
+		UnicodeIndex: make([]uint16, 65536),
+	}
+	info.DrawSize[1] = DrawSize{W: 10}
+	info.UnicodeIndex[char] = 1
+	atlas := image.NewNRGBA(image.Rect(0, 0, 20, 10))
+	for x := 13; x <= 17; x++ {
+		atlas.SetNRGBA(x, 4, color.NRGBA{R: 255, G: 255, B: 255, A: 255})
+	}
+	lucaFont := &LucaFont{
+		Info:  info,
+		Image: atlas,
+	}
+
+	lucaFont.BleedGlyphEdges([]rune{char}, 2)
+
+	for _, x := range []int{11, 12, 18, 19} {
+		if got := atlas.NRGBAAt(x, 4).A; got != 0 {
+			t.Fatalf("isolated row bleed alpha at x=%d = %d, want 0", x, got)
+		}
+	}
+	if got := info.DrawSize[1].W; got != 10 {
+		t.Fatalf("draw_w = %d, want unchanged 10", got)
 	}
 }
 

@@ -25,7 +25,7 @@ A graphical interface is available in this fork:
 - Script Decompile / Compile
 - PAK Extract / Replace (CG and Font workflows separated; Font Replace supports list, folder, and single-file-by-internal-name modes)
 - BGMOVIE.PAK video extraction to WebM
-- Font Extract / Edit (append, insert, redraw modes, Arabic metrics preset, manual X/Y/advance offsets, experimental connector bleed)
+- Font Extract / Edit (append, insert, redraw modes, Arabic metrics preset, manual X/Y/advance offsets, manual connector bleed)
 - Vietnamese Font Patch for AIR / Planetarian SG (slot/family selectors, TTF/OTF selection, Y-offset test folders, optional Latin redraw test mode)
 - Image Export / Import (single file + batch folder mode)
 - Real-time console output
@@ -49,9 +49,10 @@ A Linux version is available as separate binaries (GUI + CLI). See the releases 
 
 31. **Arabic font metrics controls for Font Edit** — `font/info.go`, `font/font.go`, `cmd/fontEdit.go`, `SourcesGUI-wails/app.go`, `SourcesGUI-wails/frontend/src/App.svelte`
     - Added an Arabic metrics preset for `font edit` and the GUI Font Edit page.
-    - The preset shifts Arabic presentation-form glyphs toward the Latin baseline while preserving per-glyph vertical metrics and tightens glyph advance; connector bleed stays manual because the first bleed-2 in-game test was judged too fuzzy.
+    - The preset shifts Arabic presentation-form glyphs toward the Latin baseline while preserving per-glyph vertical metrics and tightens glyph advance by 1 px.
     - Added manual signed metric controls for edited glyphs: set Y, Y offset, X offset, and advance/usize_w offset.
-    - Added experimental Arabic connector bleed to extend high-alpha connector pixels for engines that ignore advance tightening, with Arabic Presentation Forms-B side awareness to avoid inflating isolated/non-joining glyphs.
+    - Added manual Arabic connector bleed to reduce small connector gaps by extending only high-alpha connector-side pixels inside the original glyph crop; it keeps `draw_w` unchanged and avoids isolated dots/diacritics.
+    - Final Kanon issue #1 visual testing selected `Arabic preset` ON, `Connector bleed` 1, and `Advance offset` 0 as the cleanest current compromise. Stronger bleed or extra negative advance offsets made the text visibly dirtier.
     - Fixed internal string preview rendering so signed `draw_x` / `draw_y` values are interpreted correctly.
     - GUI and CLI version labels updated to `v3.24`.
 

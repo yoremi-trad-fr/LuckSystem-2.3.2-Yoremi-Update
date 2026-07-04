@@ -36,7 +36,7 @@ The GUI auto-detects `lucksystem.exe` in the same directory, current working dir
 | **PAK Replace** | Replace files inside a .PAK archive; Font Replace supports list, folder, and single-file-by-internal-name modes |
 | **BGMOVIE Extract** | Extract Luca Engine BGMOVIE.PAK videos to WebM |
 | **Font Extract** | Export CZ font atlas to PNG + charset list |
-| **Font Edit** | Redraw/append characters using a TTF font, with Arabic metrics preset, manual X/Y/advance offsets, and experimental connector bleed |
+| **Font Edit** | Redraw/append characters using a TTF font, with Arabic metrics preset, manual X/Y/advance offsets, and manual connector bleed |
 | **Image Export** | Convert CZ images to PNG (single or batch) |
 | **Image Import** | Convert PNG back to CZ format (single or batch) |
 | **Dialogue Extract** | Extract translatable dialogue from decompiled scripts to TSV (single file or batch) |

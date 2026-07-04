@@ -20,8 +20,8 @@
 
 ### Bibliothèque
 - `font/info.go` — `MetricAdjustOptions`, `Info.AdjustMetrics()`, helpers de métriques signées.
-- `font/font.go` — preview string interne utilisant `draw_x` / `draw_y` comme octets signés; `BleedGlyphEdges()` expérimental pour les connecteurs arabes.
-- `font/metrics_test.go` — tests ciblés métriques signées, clamp et charset avec doublons.
+- `font/font.go` — preview string interne utilisant `draw_x` / `draw_y` comme octets signés; `BleedGlyphEdges()` manuel, crop-safe, pour les connecteurs arabes.
+- `font/metrics_test.go` — tests ciblés métriques signées, clamp, charset avec doublons, bleed crop-safe, côtés de connexion et rejet des rangées isolées.
 
 ### Documentation
 - `README.md`
@@ -30,7 +30,7 @@
 
 ## Contexte
 
-L'issue GitHub #1 portait sur l'injection de glyphes arabes via `font edit`. Les fichiers fournis (`FONT__INFO.PAK`, `FONT_MINCHO.PAK`, `info30_glyphs.txt`, `SCRIPT.PAK`) montraient deux symptômes :
+L'issue GitHub #1 portait sur l'injection de glyphes arabes via `font edit`. Les données de font fournies (`FONT__INFO.PAK`, `FONT_MINCHO.PAK`, `info30_glyphs.txt`) et les échantillons arabes montraient deux symptômes :
 
 - les glyphes arabes étaient placés trop haut par rapport au point final et aux glyphes latins;
 - les mots arabes gardaient des espacements visibles entre certaines formes.
@@ -77,7 +77,7 @@ Point important confirmé par le retour utilisateur : `WOffset` cible `UnicodeSi
 
 Les index de glyphes sont dédupliqués pour X/Y. Les caractères Unicode sont dédupliqués séparément pour l'avance. Cela évite qu'un charset contenant deux fois le même caractère applique deux fois `W offset = -1`.
 
-Retour de test suivant : la hauteur est correcte et les glyphes ne sont plus rognés, mais `Advance offset = -4` et `Advance offset = -10` produisent le même rendu en jeu. Conclusion probable : ce renderer n'utilise pas `usize_w` pour l'espacement final de cette police, ou pas dans ce chemin de rendu.
+Retour de test final : la hauteur est correcte et les glyphes ne sont plus rognés. Les offsets d'avance négatifs supplémentaires (`Advance offset = -1`, `-2`, `-4`) serrent parfois un peu les raccords, mais rendent le rendu plus compact, plus lourd ou plus sale. Le réglage final retenu ne met donc pas d'offset d'avance manuel en plus du resserrage interne du preset arabe.
 
 ### 2. Preset arabe
 
@@ -90,7 +90,7 @@ Retour de test suivant : la hauteur est correcte et les glyphes ne sont plus rog
 - réduit l'avance `usize_w` de 1 pixel sans toucher `draw_w`;
 - laisse `Connector bleed` désactivé par défaut. Le testeur peut forcer `--arabic-connector-bleed 1`, `2`, ou une autre valeur pour comparer.
 
-Les options manuelles sont appliquées ensuite. Dans la GUI, un testeur peut donc garder `Arabic preset` activé puis essayer des valeurs négatives d'`Advance offset` (`W offset` côté CLI) selon la police.
+Les options manuelles sont appliquées ensuite. Dans la GUI, un testeur peut donc garder `Arabic preset` activé puis ajuster `Connector bleed`. Pour le cas Kanon testé dans l'issue #1, le meilleur compromis est `Arabic preset` ON, `Connector bleed = 1`, `Advance offset = 0`.
 
 ### 3. Options manuelles
 
@@ -109,11 +109,19 @@ Ces options ciblent les glyphes édités par `font edit` :
 - charset fourni avec `-c` en mode append/insert;
 - charset original en mode redraw.
 
-`--arabic-connector-bleed N` est volontairement séparé des métriques. Il modifie les pixels des cellules arabes éditées dans l'atlas CZ : pour chaque rangée contenant un trait horizontal suffisamment large et opaque, les pixels de bord sont prolongés de `N` pixels uniquement du côté connecteur de la forme arabe. C'est une option de test pour fermer les petits trous de connexion quand les offsets de métrique ne sont pas utilisés par le moteur. Le preset arabe ne l'active plus par défaut, car le premier retour sur `Connector bleed 2` l'a jugé trop flou.
+`--arabic-connector-bleed N` est volontairement séparé des métriques. Il modifie les pixels des cellules arabes éditées dans l'atlas CZ : pour chaque rangée contenant un trait horizontal suffisamment large et opaque, les pixels de bord sont prolongés de `N` pixels uniquement du côté connecteur de la forme arabe. C'est une option de test pour fermer les petits trous de connexion quand les offsets de métrique ne suffisent pas.
 
-Le retour du test 3 a montré des captures de dialogue `Connector bleed 1` et `Connector bleed 2` identiques octet pour octet côté GitHub. La capture zoom confirme surtout que les raccords restent ouverts. Le fallback a donc été renforcé : si des pixels sont ajoutés à droite d'une cellule, `DrawSize.W` est agrandi uniquement jusqu'au dernier pixel ajouté, avec clamp sur `BlockSize`. On ne réduit jamais `draw_w`, pour éviter de reproduire le rognage observé lors du premier essai `W offset`.
+Le bleed final est volontairement conservateur :
 
-Le retour suivant a ajouté une maquette Photoshop du résultat attendu : supprimer le trou de 1 px sans rendre le texte fluffy. Pour cela, le bleed ignore maintenant les pixels d'antialiasing doux (`alpha < 192`) et utilise les formes Arabic Presentation Forms-B pour déterminer les côtés réellement connecteurs : initial = gauche, final = droite, medial = deux côtés, isolated = aucun.
+- il ignore les pixels d'antialiasing doux (`alpha < 192`);
+- il ignore les traits trop courts (`run width < 3`) et les rangées isolées sans support vertical au-dessus et au-dessous, ce qui évite de grossir les points et diacritiques;
+- il utilise les formes Arabic Presentation Forms-B pour déterminer les côtés connecteurs : initial = gauche, final = droite, medial = deux côtés, isolated = aucun;
+- il reste à l'intérieur du `draw_w` original du glyphe et ne modifie jamais `DrawSize.W`;
+- il copie uniquement des pixels déjà présents dans l'atlas, sans créer de nouvelles valeurs alpha.
+
+Le dernier point est important pour les CZ2 : lors de l'import CZ2, le canal alpha de l'image NRGBA est utilisé comme valeur d'index/palette. Une variante de test avec alpha artificiel pouvait rendre le font PAK invalide au démarrage. Le code final évite donc tout alpha inventé et ne fait que recopier des pixels source existants.
+
+Tests visuels finaux : `Connector bleed = 2` ferme parfois un peu plus les raccords, mais il rend le texte plus lourd ou plus sale. Les offsets `Advance offset = -1`, `-2`, puis `-4` dégradent aussi la propreté. Le meilleur compromis retenu pour l'issue Kanon est `Arabic preset` ON, `Connector bleed = 1`, `Advance offset = 0`.
 
 Ce traitement n'est pas utilisé par le patch vietnamien dédié. Le workflow vietnamien continue à passer par `SourcesGUI-wails/vietnamese_font.go` / `tools/vietfontpatch` et ne reçoit aucun bleed bitmap.
 
@@ -144,19 +152,20 @@ Ce mode sert aux remplacements ciblés où préparer un `_list.txt` ou un dossie
 
 LuckSystem ne fait pas de shaping arabe automatique. Le script doit rester pré-shapé en formes de présentation, comme dans les fichiers fournis par l'utilisateur.
 
-Selon la TTF, certaines formes arabes peuvent garder un raccord imparfait malgré des métriques plus serrées. Dans ce cas, il faut soit tester une autre police arabe, soit garder `Arabic preset` activé et comparer plusieurs valeurs négatives d'`Advance offset`.
+Selon la TTF, certaines formes arabes peuvent garder un raccord imparfait malgré le bleed. Pour le cas testé, c'est la limite du repack de glyphes bitmap : une correction parfaite demanderait probablement un traitement côté renderer, shaping/kerning/espacement contextuel, et pas seulement une retouche d'atlas.
 
-Si `Advance offset` ne change pas le rendu en jeu, garder d'abord `Connector bleed = 0` comme version nette de secours, puis tester le nouveau bleed sélectif avec `1` et `2`. Au-delà, le risque d'épaissir visiblement les glyphes augmente.
+Le réglage conseillé pour ce cas est `Arabic preset` ON, `Connector bleed = 1`, `Advance offset = 0`. Pour une autre police, tester d'abord sans offset manuel; les valeurs négatives d'`Advance offset` doivent rester des essais visuels ponctuels, car elles peuvent rapidement rendre le texte compact et sale.
 
 ## Validation
 
-- Reproduction locale avec les PAK et `info30_glyphs.txt` fournis.
+- Reproduction locale avec les données de font et `info30_glyphs.txt` fournis dans l'issue.
 - Génération `font edit --arabic-metrics` sur `明朝30` / `info30`.
 - Vérification binaire : les glyphes arabes gardent leur `draw_w`, leur groupe Y est déplacé par offset commun, et `usize_w` est resserré pour réduire l'avance.
 - Round-trip `font extract` du CZ2 généré : OK.
-- Tests visuels avec `NotoNaskhArabic-Regular.ttf` et la police utilisateur `ios15.ttf`.
-- Génération locale avec `ios15.ttf`, `Arabic preset`, `Advance offset -4`, `Connector bleed 0/1/2` : atlas modifié uniquement sur les glyphes arabes ciblés; le nouveau bleed sélectif modifie moins les franges antialiasées que l'ancien bleed.
-- Retour utilisateur : l'ancien `Connector bleed 2` ferme mieux les trous mais rend le texte trop flou; la version nette sans bleed reste le fallback si le nouveau bleed sélectif ne suffit pas.
+- Tests visuels avec `NotoNaskhArabic-Regular.ttf` et `ios15.ttf`.
+- Comparaison finale : no bleed, bleed 1, bleed 2, `Advance offset = -1`, `-2`, `-4`.
+- Réglage final retenu pour l'issue Kanon : `Arabic preset` ON, `Connector bleed = 1`, `Advance offset = 0`.
+- Résultat attendu documenté : quelques micro-coupures peuvent rester, mais les réglages plus agressifs rendent le texte plus flou, plus compact ou plus sale.
 - Vérification du mode PAK Font Replace fichier unique : binding Wails étendu à sept arguments, validation d'un mode unique, appel CLI avec `--name internalName`.
 - `go test ./font -run "TestAdjustMetrics|TestGetStringImageUsesUnicodeAdvance|TestBleedGlyphEdges|TestArabicPresentationFormBleedSides"` : OK.
 - `go test ./cmd ./czimage ./charset ./utils ./tools/vietfontpatch ./tools/fontdiag` : OK.
