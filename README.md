@@ -25,7 +25,7 @@ A graphical interface is available in this fork:
 - Script Decompile / Compile
 - PAK Extract / Replace (CG and Font workflows separated)
 - BGMOVIE.PAK video extraction to WebM
-- Font Extract / Edit (append, insert, redraw modes, Arabic metrics preset and manual X/Y/W metric offsets)
+- Font Extract / Edit (append, insert, redraw modes, Arabic metrics preset, manual X/Y/advance offsets, experimental connector bleed)
 - Vietnamese Font Patch for AIR / Planetarian SG (slot/family selectors, TTF/OTF selection, Y-offset test folders, optional Latin redraw test mode)
 - Image Export / Import (single file + batch folder mode)
 - Real-time console output
@@ -49,8 +49,9 @@ A Linux version is available as separate binaries (GUI + CLI). See the releases 
 
 31. **Arabic font metrics controls for Font Edit** — `font/info.go`, `font/font.go`, `cmd/fontEdit.go`, `SourcesGUI-wails/app.go`, `SourcesGUI-wails/frontend/src/App.svelte`
     - Added an Arabic metrics preset for `font edit` and the GUI Font Edit page.
-    - The preset aligns Arabic presentation-form glyphs to the Latin baseline and tightens glyph advance to reduce visible gaps.
-    - Added manual signed metric controls for edited glyphs: set Y, Y offset, X offset, and W/advance offset.
+    - The preset shifts Arabic presentation-form glyphs toward the Latin baseline while preserving per-glyph vertical metrics, tightens glyph advance, and now defaults connector bleed to `2` for the current Kanon Arabic test unless overridden.
+    - Added manual signed metric controls for edited glyphs: set Y, Y offset, X offset, and advance/usize_w offset.
+    - Added experimental Arabic connector bleed to extend bitmap edge pixels for engines that ignore advance tightening.
     - Fixed internal string preview rendering so signed `draw_x` / `draw_y` values are interpreted correctly.
     - GUI and CLI version labels updated to `v3.24`.
 

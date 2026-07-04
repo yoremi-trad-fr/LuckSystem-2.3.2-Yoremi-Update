@@ -20,34 +20,42 @@ Added to `lucksystem font edit`:
 --metric-y-offset N
 --metric-x-offset N
 --metric-w-offset N
+--arabic-connector-bleed N
 ```
 
-`--arabic-metrics` applies only to Arabic Unicode ranges, including Arabic Presentation Forms. It aligns the edited Arabic glyphs to the Latin baseline and tightens glyph advance by 1 pixel.
+`--arabic-metrics` applies only to Arabic Unicode ranges, including Arabic Presentation Forms. It shifts the edited Arabic glyph group toward the Latin baseline while preserving per-glyph vertical differences, tightens character advance by 1 pixel, and now uses connector bleed `2` by default unless `--arabic-connector-bleed` is explicitly set.
 
-The manual metric flags can then be used for per-font tuning. In the reported test case, the user-side `ios15.ttf` font improved further by keeping Arabic preset enabled and testing additional negative `W offset` values in the GUI.
+The manual metric flags can then be used for per-font tuning. Follow-up testing confirmed that `W offset` must target `usize_w` / character advance only: `draw_w` is kept intact so negative spacing values do not cut the right side of Arabic glyphs.
+
+The same follow-up showed that the game rendering did not visibly react to stronger `usize_w` tightening (`Advance offset -4` and `-10` looked identical). Added `--arabic-connector-bleed` as an experimental bitmap-side fallback: it extends horizontal edge pixels inside edited Arabic glyph cells to reduce connector gaps without changing the Vietnamese font workflow. A later test report included duplicate `Connector bleed 1` / `2` dialogue captures, so the fallback now also expands `draw_w` only when needed to keep newly added right-edge pixels visible to renderers that crop by draw width. Test 4 visual feedback points to `Connector bleed 2` as the best current in-game result.
 
 ### GUI
 
 - Added a `Metrics adjustment` section to Font Edit.
 - Added an `Arabic preset` checkbox.
-- Added manual signed controls for `Set Y`, `Y offset`, `X offset`, and `W offset`.
+- Added manual signed controls for `Set Y`, `Y offset`, `X offset`, and `Advance offset`.
+- Added experimental `Connector bleed` control for Arabic gap tests; checking `Arabic preset` in the GUI now pre-fills it with `2`.
 - Extended the Wails `FontEdit()` binding to pass the new metric options to the CLI subprocess.
 
 ### Font library
 
 - Added `font.Info.AdjustMetrics()` for post-import metric adjustment.
 - Treats `DrawSize.X` and `DrawSize.Y` as signed bytes when adjusting or previewing glyphs.
-- Deduplicates glyph indexes before applying offsets so repeated characters in a charset file do not stack the same adjustment several times.
+- Applies `WOffset` to `UnicodeSize.W` / `usize_w` only, leaving `DrawSize.W` / `draw_w` as the glyph crop width.
+- Added `font.LucaFont.BleedGlyphEdges()` for opt-in bitmap edge extension on selected glyph cells. It may expand `DrawSize.W` to include the added pixels, but never shrinks it.
+- Deduplicates glyph indexes for X/Y offsets and repeated Unicode characters for advance offsets, so charset duplicates do not stack the same adjustment several times.
 
 ### Testing
 
 - Reproduced the issue using the supplied `FONT__INFO.PAK`, `FONT_MINCHO.PAK`, `info30_glyphs.txt`, and Arabic text samples.
-- Verified `font edit --arabic-metrics` on `info30` / `明朝30`; Arabic glyphs moved from negative `draw_y` values such as `-15` to the Latin baseline `Y+3`.
+- Verified `font edit --arabic-metrics` on `info30` / `明朝30`; the Arabic glyph group is shifted toward the Latin baseline while preserving the original per-glyph Y differences.
 - Verified generated CZ2 fonts can be extracted again with `font extract`.
-- Tested the user-supplied `ios15.ttf` and compared additional `W offset` values for visual tuning.
+- Tested the user-supplied `ios15.ttf` and confirmed additional negative advance offsets no longer reduce `draw_w` or crop glyph pixels.
+- Added local experimental `Connector bleed` generation for the same Arabic glyph range.
+- User test 4 validated the current Kanon Arabic visual tuning with `Connector bleed 2`.
 - Added focused unit tests for signed metric adjustment, clamping, and duplicate glyph handling.
 - Validation commands:
-  - `go test ./font -run TestAdjustMetrics`: OK.
+  - `go test ./font -run "TestAdjustMetrics|TestGetStringImageUsesUnicodeAdvance|TestBleedGlyphEdges"`: OK.
   - `go test ./cmd ./czimage ./charset ./utils ./tools/vietfontpatch ./tools/fontdiag`: OK.
   - `go build .`: OK.
   - `go test ./...` from `SourcesGUI-wails`: OK.

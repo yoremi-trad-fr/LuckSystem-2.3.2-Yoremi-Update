@@ -39,7 +39,7 @@ type MetricAdjustOptions struct {
 	Y       int
 	YOffset int
 	XOffset int
-	WOffset int
+	WOffset int // UnicodeSize.W advance offset; DrawSize.W remains the glyph crop width.
 }
 
 func (o MetricAdjustOptions) Empty() bool {
@@ -256,7 +256,8 @@ func (i *Info) AdjustMetrics(chars []rune, options MetricAdjustOptions) {
 	if options.Empty() {
 		return
 	}
-	seen := make(map[uint16]bool, len(chars))
+	seenDraw := make(map[uint16]bool, len(chars))
+	seenAdvance := make(map[rune]bool, len(chars))
 	for _, char := range chars {
 		if char < 0 || int(char) >= len(i.UnicodeIndex) {
 			continue
@@ -265,29 +266,37 @@ func (i *Info) AdjustMetrics(chars []rune, options MetricAdjustOptions) {
 		if index == 0 && char != ' ' {
 			continue
 		}
-		if seen[index] {
+		if int(index) >= len(i.DrawSize) {
 			continue
 		}
-		seen[index] = true
 		draw := &i.DrawSize[int(index)]
-		if options.SetY {
-			draw.Y = signedMetricByte(options.Y)
+
+		if !seenDraw[index] {
+			seenDraw[index] = true
+			if options.SetY {
+				draw.Y = signedMetricByte(options.Y)
+			}
+			if options.YOffset != 0 {
+				draw.Y = signedMetricByte(signedMetricInt(draw.Y) + options.YOffset)
+			}
+			if options.XOffset != 0 {
+				draw.X = signedMetricByte(signedMetricInt(draw.X) + options.XOffset)
+			}
 		}
-		if options.YOffset != 0 {
-			draw.Y = signedMetricByte(signedMetricInt(draw.Y) + options.YOffset)
-		}
-		if options.XOffset != 0 {
-			draw.X = signedMetricByte(signedMetricInt(draw.X) + options.XOffset)
-		}
-		if options.WOffset != 0 {
-			width := int(draw.W) + options.WOffset
+
+		if options.WOffset != 0 && !seenAdvance[char] {
+			seenAdvance[char] = true
+			width := int(i.UnicodeSize[int(char)].W)
+			if width == 0 {
+				width = int(draw.W)
+			}
+			width += options.WOffset
 			if width < 1 {
 				width = 1
 			}
 			if width > 255 {
 				width = 255
 			}
-			draw.W = uint8(width)
 			i.UnicodeSize[int(char)].W = uint8(width)
 		}
 	}

@@ -85,8 +85,10 @@
   let pakFontRepCharset = 'UTF-8';
   let pakFontRepListFile = '';
   let pakFontRepInput = '';
+  let pakFontRepSingleFile = '';
+  let pakFontRepSingleName = '';
   let pakFontRepOutput = '';
-  let pakFontRepUseList = true; // mode par défaut : fichier liste
+  let pakFontRepMode = 'list'; // 'list' | 'dir' | 'single'
 
   // --- Font Extract ---
   let fontExtCz = '';
@@ -109,6 +111,7 @@
   let fontEditMetricYOffset = 0;
   let fontEditMetricXOffset = 0;
   let fontEditMetricWOffset = 0;
+  let fontEditArabicConnectorBleed = 0;
 
   // --- Vietnamese Font Patch ---
   let vietFontRoot = '';
@@ -348,6 +351,13 @@
   async function browsePakFontRepSource() { const f = await SelectPakFile(); if (f) pakFontRepSource = f; }
   async function browsePakFontRepListFile() { const f = await SelectFile('Sélectionner le fichier liste (_list.txt)', '*.txt', 'Fichiers liste'); if (f) pakFontRepListFile = f; }
   async function browsePakFontRepInput() { const d = await SelectDirectory('Dossier des fichiers modifiés'); if (d) pakFontRepInput = d; }
+  async function browsePakFontRepSingleFile() {
+    const f = await SelectFile('Sélectionner le fichier à remplacer', '*.*', 'Tous les fichiers');
+    if (f) {
+      pakFontRepSingleFile = f;
+      if (!pakFontRepSingleName) pakFontRepSingleName = f.split(/[\\/]/).pop();
+    }
+  }
   async function browsePakFontRepOutput() { const f = await SelectSaveFile('Save output PAK', 'FONT.out.PAK', '*.PAK;*.pak', 'PAK files'); if (f) pakFontRepOutput = f; }
 
   async function browseFontExtCz() { const f = await SelectFile('Select font CZ file', '*.*', 'Font CZ files'); if (f) fontExtCz = f; }
@@ -420,11 +430,21 @@
   }
   function startPakFontExtract() { run(() => PakFontExtract(pakFontExtSource, pakFontExtCharset, pakFontExtOutput)); }
   function startPakFontReplace() {
-    const listArg = pakFontRepUseList ? pakFontRepListFile : '';
-    const dirArg  = pakFontRepUseList ? '' : pakFontRepInput;
-    run(() => PakFontReplace(pakFontRepSource, pakFontRepCharset, dirArg, listArg, pakFontRepOutput));
+    const listArg = pakFontRepMode === 'list' ? pakFontRepListFile : '';
+    const dirArg  = pakFontRepMode === 'dir' ? pakFontRepInput : '';
+    const fileArg = pakFontRepMode === 'single' ? pakFontRepSingleFile : '';
+    const nameArg = pakFontRepMode === 'single' ? pakFontRepSingleName : '';
+    run(() => PakFontReplace(pakFontRepSource, pakFontRepCharset, dirArg, listArg, fileArg, nameArg, pakFontRepOutput));
   }
   function startFontExtract() { run(() => FontExtract(fontExtCz, fontExtInfo, fontExtPng, fontExtCharset)); }
+  function setFontEditArabicPreset(checked) {
+    fontEditArabicMetrics = checked;
+    if (checked && Number(fontEditArabicConnectorBleed) === 0) {
+      fontEditArabicConnectorBleed = 2;
+    } else if (!checked && Number(fontEditArabicConnectorBleed) === 2) {
+      fontEditArabicConnectorBleed = 0;
+    }
+  }
   function startFontEdit() {
     const redraw  = fontEditMode === 'redraw';
     const append  = fontEditMode === 'append';
@@ -433,7 +453,8 @@
       fontEditCz, fontEditInfo, fontEditTtf, fontEditOutCz, fontEditOutInfo, fontEditCharsetFile,
       redraw, append, index,
       fontEditArabicMetrics, fontEditMetricSetYEnabled, fontEditMetricSetY,
-      fontEditMetricYOffset, fontEditMetricXOffset, fontEditMetricWOffset
+      fontEditMetricYOffset, fontEditMetricXOffset, fontEditMetricWOffset,
+      fontEditArabicConnectorBleed
     ));
   }
 
@@ -672,15 +693,20 @@
         <div class="form-group">
           <label>Mode d'entrée :</label>
           <div class="form-row checkbox-row" style="margin-bottom:6px">
-            <label class="checkbox-label"><input type="radio" bind:group={pakFontRepUseList} value={true} /> Fichier liste (<code>*_list.txt</code>)</label>
-            <label class="checkbox-label"><input type="radio" bind:group={pakFontRepUseList} value={false} /> Dossier de fichiers</label>
+            <label class="checkbox-label"><input type="radio" bind:group={pakFontRepMode} value="list" /> Fichier liste (<code>*_list.txt</code>)</label>
+            <label class="checkbox-label"><input type="radio" bind:group={pakFontRepMode} value="dir" /> Dossier de fichiers</label>
+            <label class="checkbox-label"><input type="radio" bind:group={pakFontRepMode} value="single" /> Fichier unique par nom</label>
           </div>
-          {#if pakFontRepUseList}
+          {#if pakFontRepMode === 'list'}
             <div class="form-row"><input type="text" bind:value={pakFontRepListFile} placeholder="FONT__INFO_list.txt" readonly /><button class="btn" on:click={browsePakFontRepListFile}>Select</button></div>
             <div class="form-hint">Fichier liste généré lors de l'extraction (ex : FONT__INFO_list.txt)</div>
-          {:else}
+          {:else if pakFontRepMode === 'dir'}
             <div class="form-row"><input type="text" bind:value={pakFontRepInput} readonly /><button class="btn" on:click={browsePakFontRepInput}>Select</button></div>
-            <div class="form-hint">⚠ Le mode dossier peut échouer selon lucksystem — préférer le fichier liste</div>
+            <div class="form-hint">Remplace uniquement les fichiers du dossier dont le nom existe dans le PAK.</div>
+          {:else}
+            <div class="form-row"><input type="text" bind:value={pakFontRepSingleFile} readonly placeholder="ex : C:\dossier\info30" /><button class="btn" on:click={browsePakFontRepSingleFile}>Select</button></div>
+            <div class="form-row" style="margin-top:6px"><input type="text" bind:value={pakFontRepSingleName} placeholder="Nom interne exact : info30 ou 明朝30" /></div>
+            <div class="form-hint">Recommandé pour Kanon : faites deux remplacements séparés, <code>info30</code> dans <code>FONT__INFO.PAK</code>, puis <code>明朝30</code> dans <code>FONT_MINCHO.PAK</code>.</div>
           {/if}
         </div>
         <div class="form-group"><label>Output PAK :</label><div class="form-row"><input type="text" bind:value={pakFontRepOutput} readonly /><button class="btn" on:click={browsePakFontRepOutput}>Select</button></div></div>
@@ -689,7 +715,7 @@
             <span class="running-indicator"></span> Running...
           {:else}
             <button class="btn btn-primary" on:click={startPakFontReplace}
-              disabled={!pakFontRepSource || !pakFontRepOutput || (pakFontRepUseList ? !pakFontRepListFile : !pakFontRepInput)}>
+              disabled={!pakFontRepSource || !pakFontRepOutput || (pakFontRepMode === 'list' ? !pakFontRepListFile : pakFontRepMode === 'dir' ? !pakFontRepInput : (!pakFontRepSingleFile || !pakFontRepSingleName))}>
               Start Replace
             </button>
           {/if}
@@ -740,7 +766,7 @@
         <div class="form-group">
           <label>Metrics adjustment :</label>
           <div class="form-row checkbox-row" style="margin-bottom:6px">
-            <label class="checkbox-label"><input type="checkbox" bind:checked={fontEditArabicMetrics} /> Arabic preset</label>
+            <label class="checkbox-label"><input type="checkbox" checked={fontEditArabicMetrics} on:change={(e) => setFontEditArabicPreset(e.target.checked)} /> Arabic preset</label>
             <label class="checkbox-label"><input type="checkbox" bind:checked={fontEditMetricSetYEnabled} /> Set Y</label>
             {#if fontEditMetricSetYEnabled}
               <input type="number" bind:value={fontEditMetricSetY} style="width:70px;height:26px;padding:0 6px;border:1px solid #c0c0c0;border-radius:2px" />
@@ -751,10 +777,12 @@
             <input type="number" bind:value={fontEditMetricYOffset} style="width:70px;height:26px;padding:0 6px;border:1px solid #c0c0c0;border-radius:2px" />
             <span style="font-size:12px">X offset</span>
             <input type="number" bind:value={fontEditMetricXOffset} style="width:70px;height:26px;padding:0 6px;border:1px solid #c0c0c0;border-radius:2px" />
-            <span style="font-size:12px">W offset</span>
+            <span style="font-size:12px">Advance offset</span>
             <input type="number" bind:value={fontEditMetricWOffset} style="width:70px;height:26px;padding:0 6px;border:1px solid #c0c0c0;border-radius:2px" />
+            <span style="font-size:12px">Connector bleed</span>
+            <input type="number" min="0" max="8" bind:value={fontEditArabicConnectorBleed} style="width:70px;height:26px;padding:0 6px;border:1px solid #c0c0c0;border-radius:2px" />
           </div>
-          <div class="form-hint">Arabic preset aligns Arabic glyphs to the Latin baseline and tightens advance by 1px. Manual values are signed.</div>
+          <div class="form-hint">Arabic preset shifts Arabic glyphs toward the Latin baseline and defaults Connector bleed to 2 for the current Kanon Arabic test.</div>
         </div>
 
         <div class="form-group"><label>Output CZ <span class="required">*</span> :</label><div class="form-row"><input type="text" bind:value={fontEditOutCz} placeholder="ex: C:\dossier\ゴシック26" /><button class="btn" on:click={browseFontEditOutCz}>📁</button></div><div class="form-hint">Tapez le chemin complet sans extension — le bouton sélectionne le dossier</div></div>

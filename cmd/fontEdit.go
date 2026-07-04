@@ -49,14 +49,13 @@ var fontEditCmd = &cobra.Command{
 		if FontArabicMetrics {
 			arabicRunes := filterArabicMetricRunes(metricRunes)
 			if len(arabicRunes) > 0 {
-				y, ok := fontEditReferenceY(f.Info, []rune{'a', 'o', 'A', 'O'})
-				if ok {
-					f.Info.AdjustMetrics(arabicRunes, font.MetricAdjustOptions{
-						SetY:    true,
-						Y:       y,
-						WOffset: -1,
-					})
+				metricOptions := font.MetricAdjustOptions{WOffset: -1}
+				latinY, latinOK := fontEditReferenceY(f.Info, []rune{'a', 'o', 'A', 'O'})
+				arabicY, arabicOK := fontEditCommonY(f.Info, arabicRunes)
+				if latinOK && arabicOK {
+					metricOptions.YOffset = latinY - arabicY
 				}
+				f.Info.AdjustMetrics(arabicRunes, metricOptions)
 			}
 		}
 		metricOptions := font.MetricAdjustOptions{
@@ -67,6 +66,15 @@ var fontEditCmd = &cobra.Command{
 			WOffset: FontMetricWOffset,
 		}
 		f.Info.AdjustMetrics(metricRunes, metricOptions)
+		effectiveArabicConnectorBleed := fontEditEffectiveArabicConnectorBleed(
+			FontArabicMetrics,
+			FontArabicConnectorBleed,
+			cmd.Flags().Changed("arabic-connector-bleed"),
+		)
+		if effectiveArabicConnectorBleed > 0 {
+			arabicRunes := filterArabicMetricRunes(metricRunes)
+			f.BleedGlyphEdges(arabicRunes, effectiveArabicConnectorBleed)
+		}
 		var outInfo *os.File = nil
 		if len(FontInfoOutput) > 0 {
 			outInfo, err = os.Create(FontInfoOutput)
@@ -82,17 +90,30 @@ var fontEditCmd = &cobra.Command{
 	},
 }
 var (
-	FontTTFInput      string // ttf字体文件
-	FontCharsetInput  string // 替换或追加的字符集
-	FontRedraw        bool   // 重绘
-	FontAppend        bool   // 追加到最后
-	FontStartIndex    int    // 替换或者重绘的序号，从零开始
-	FontArabicMetrics bool
-	FontMetricSetY    int
-	FontMetricYOffset int
-	FontMetricXOffset int
-	FontMetricWOffset int
+	FontTTFInput             string // ttf字体文件
+	FontCharsetInput         string // 替换或追加的字符集
+	FontRedraw               bool   // 重绘
+	FontAppend               bool   // 追加到最后
+	FontStartIndex           int    // 替换或者重绘的序号，从零开始
+	FontArabicMetrics        bool
+	FontMetricSetY           int
+	FontMetricYOffset        int
+	FontMetricXOffset        int
+	FontMetricWOffset        int
+	FontArabicConnectorBleed int
 )
+
+const defaultArabicConnectorBleed = 2
+
+func fontEditEffectiveArabicConnectorBleed(arabicMetrics bool, bleed int, bleedChanged bool) int {
+	if bleedChanged {
+		return bleed
+	}
+	if arabicMetrics {
+		return defaultArabicConnectorBleed
+	}
+	return bleed
+}
 
 func fontEditMetricRunes(f *font.LucaFont, charsetFile string, redraw bool) ([]rune, error) {
 	if len(charsetFile) > 0 {
@@ -150,9 +171,49 @@ func fontEditReferenceY(info *font.Info, candidates []rune) (int, bool) {
 		if index == 0 && char != ' ' {
 			continue
 		}
+		if int(index) >= len(info.DrawSize) {
+			continue
+		}
 		return int(int8(info.DrawSize[int(index)].Y)), true
 	}
 	return 0, false
+}
+
+func fontEditCommonY(info *font.Info, chars []rune) (int, bool) {
+	if info == nil {
+		return 0, false
+	}
+	counts := make(map[int]int)
+	order := make([]int, 0)
+	seen := make(map[uint16]bool, len(chars))
+	for _, char := range chars {
+		if char < 0 || int(char) >= len(info.UnicodeIndex) {
+			continue
+		}
+		index := info.UnicodeIndex[int(char)]
+		if index == 0 && char != ' ' {
+			continue
+		}
+		if int(index) >= len(info.DrawSize) || seen[index] {
+			continue
+		}
+		seen[index] = true
+		y := int(int8(info.DrawSize[int(index)].Y))
+		if counts[y] == 0 {
+			order = append(order, y)
+		}
+		counts[y]++
+	}
+	if len(order) == 0 {
+		return 0, false
+	}
+	best := order[0]
+	for _, y := range order[1:] {
+		if counts[y] > counts[best] {
+			best = y
+		}
+	}
+	return best, true
 }
 
 func init() {
@@ -165,10 +226,11 @@ func init() {
 
 	fontEditCmd.Flags().IntVarP(&FontStartIndex, "index", "i", 0, "字符集绘制并添加到的位置，从0开始")
 	fontEditCmd.Flags().BoolVarP(&FontRedraw, "redraw", "r", false, "重绘原字体图片")
-	fontEditCmd.Flags().BoolVar(&FontArabicMetrics, "arabic-metrics", false, "apply Arabic presentation-form metrics: match Latin baseline and reduce advance by 1px")
+	fontEditCmd.Flags().BoolVar(&FontArabicMetrics, "arabic-metrics", false, "apply Arabic presentation-form metrics: shift toward Latin baseline, reduce advance by 1px, and use connector bleed 2 unless overridden")
 	fontEditCmd.Flags().IntVar(&FontMetricSetY, "metric-set-y", 0, "set signed draw_y for edited glyphs")
 	fontEditCmd.Flags().IntVar(&FontMetricYOffset, "metric-y-offset", 0, "add signed offset to draw_y for edited glyphs")
 	fontEditCmd.Flags().IntVar(&FontMetricXOffset, "metric-x-offset", 0, "add signed offset to draw_x for edited glyphs")
-	fontEditCmd.Flags().IntVar(&FontMetricWOffset, "metric-w-offset", 0, "add signed offset to draw_w/advance for edited glyphs")
+	fontEditCmd.Flags().IntVar(&FontMetricWOffset, "metric-w-offset", 0, "add signed offset to character advance/usize_w for edited glyphs")
+	fontEditCmd.Flags().IntVar(&FontArabicConnectorBleed, "arabic-connector-bleed", 0, "extend Arabic glyph edge pixels by N px to reduce connector gaps; defaults to 2 with --arabic-metrics when omitted")
 	fontEditCmd.MarkFlagsMutuallyExclusive("append", "index")
 }

@@ -4,7 +4,8 @@
 
 ### CLI
 - `cmd/root.go` — bump de version CLI vers `2.3.2-yoremi.3.24`.
-- `cmd/fontEdit.go` — nouveaux flags `--arabic-metrics`, `--metric-set-y`, `--metric-y-offset`, `--metric-x-offset`, `--metric-w-offset`.
+- `cmd/fontEdit.go` — nouveaux flags `--arabic-metrics`, `--metric-set-y`, `--metric-y-offset`, `--metric-x-offset`, `--metric-w-offset`, `--arabic-connector-bleed`.
+- `cmd/fontEdit_test.go` — test du défaut `Connector bleed = 2` quand le preset arabe est activé.
 
 ### GUI
 - `SourcesGUI-wails/app.go` — passage des nouvelles options métriques au subprocess `font edit`.
@@ -19,7 +20,7 @@
 
 ### Bibliothèque
 - `font/info.go` — `MetricAdjustOptions`, `Info.AdjustMetrics()`, helpers de métriques signées.
-- `font/font.go` — preview string interne utilisant `draw_x` / `draw_y` comme octets signés.
+- `font/font.go` — preview string interne utilisant `draw_x` / `draw_y` comme octets signés; `BleedGlyphEdges()` expérimental pour les connecteurs arabes.
 - `font/metrics_test.go` — tests ciblés métriques signées, clamp et charset avec doublons.
 
 ### Documentation
@@ -70,9 +71,13 @@ type MetricAdjustOptions struct {
 }
 ```
 
-Les offsets X/Y sont clampés dans la plage signée `[-128, 127]`; `W` est clampé dans `[1, 255]`.
+Les offsets X/Y sont clampés dans la plage signée `[-128, 127]`; l'offset d'avance `WOffset` est clampé dans `[1, 255]`.
 
-Les index de glyphes sont dédupliqués avant application. Cela évite qu'un charset contenant deux fois le même caractère applique deux fois `W offset = -1` au même glyphe.
+Point important confirmé par le retour utilisateur : `WOffset` cible `UnicodeSize.W` / `usize_w`, pas `DrawSize.W` / `draw_w`. `draw_w` reste la largeur de crop du glyphe; le réduire mange la lettre à droite. `usize_w` sert d'avance caractère et peut donc réduire l'espace sans rétrécir le dessin.
+
+Les index de glyphes sont dédupliqués pour X/Y. Les caractères Unicode sont dédupliqués séparément pour l'avance. Cela évite qu'un charset contenant deux fois le même caractère applique deux fois `W offset = -1`.
+
+Retour de test suivant : la hauteur est correcte et les glyphes ne sont plus rognés, mais `Advance offset = -4` et `Advance offset = -10` produisent le même rendu en jeu. Conclusion probable : ce renderer n'utilise pas `usize_w` pour l'espacement final de cette police, ou pas dans ce chemin de rendu.
 
 ### 2. Preset arabe
 
@@ -80,10 +85,12 @@ Les index de glyphes sont dédupliqués avant application. Cela évite qu'un cha
 
 - filtre uniquement les caractères arabes, y compris Arabic Presentation Forms;
 - cherche une baseline latine de référence parmi `a`, `o`, `A`, `O`;
-- force les glyphes arabes édités sur cette baseline;
-- réduit l'avance de 1 pixel.
+- cherche le `draw_y` arabe le plus fréquent parmi les glyphes édités;
+- applique un `YOffset` commun pour rapprocher le groupe arabe de la baseline latine, sans écraser les différences verticales propres à chaque glyphe;
+- réduit l'avance `usize_w` de 1 pixel sans toucher `draw_w`.
+- applique maintenant `Connector bleed = 2` par défaut si `--arabic-connector-bleed` n'est pas fourni. Un testeur peut forcer `--arabic-connector-bleed 0`, `1`, ou une autre valeur pour comparer.
 
-Les options manuelles sont appliquées ensuite. Dans la GUI, un testeur peut donc garder `Arabic preset` activé puis essayer `W offset = -3`, `-4`, etc. selon la police.
+Les options manuelles sont appliquées ensuite. Dans la GUI, un testeur peut donc garder `Arabic preset` activé puis essayer des valeurs négatives d'`Advance offset` (`W offset` côté CLI) selon la police.
 
 ### 3. Options manuelles
 
@@ -94,6 +101,7 @@ Flags CLI ajoutés :
 --metric-y-offset N
 --metric-x-offset N
 --metric-w-offset N
+--arabic-connector-bleed N
 ```
 
 Ces options ciblent les glyphes édités par `font edit` :
@@ -101,20 +109,32 @@ Ces options ciblent les glyphes édités par `font edit` :
 - charset fourni avec `-c` en mode append/insert;
 - charset original en mode redraw.
 
+`--arabic-connector-bleed N` est volontairement séparé des métriques. Il modifie les pixels des cellules arabes éditées dans l'atlas CZ : pour chaque rangée contenant un trait horizontal suffisamment large, les pixels de bord sont prolongés de `N` pixels à gauche/droite. C'est une option de test pour fermer les petits trous de connexion quand les offsets de métrique ne sont pas utilisés par le moteur. Le preset arabe utilise désormais `2` par défaut, car le test 4 donne le meilleur retour actuel avec cette valeur.
+
+Le retour du test 3 a montré des captures de dialogue `Connector bleed 1` et `Connector bleed 2` identiques octet pour octet côté GitHub. La capture zoom confirme surtout que les raccords restent ouverts. Le fallback a donc été renforcé : si des pixels sont ajoutés à droite d'une cellule, `DrawSize.W` est agrandi uniquement jusqu'au dernier pixel ajouté, avec clamp sur `BlockSize`. On ne réduit jamais `draw_w`, pour éviter de reproduire le rognage observé lors du premier essai `W offset`.
+
+Le retour du test 4 confirme que `Connector bleed 2` donne le meilleur rendu actuel sur les captures de dialogue, sans retour évident du problème de baseline.
+
+Ce traitement n'est pas utilisé par le patch vietnamien dédié. Le workflow vietnamien continue à passer par `SourcesGUI-wails/vietnamese_font.go` / `tools/vietfontpatch` et ne reçoit aucun bleed bitmap.
+
 ## Limites connues
 
 LuckSystem ne fait pas de shaping arabe automatique. Le script doit rester pré-shapé en formes de présentation, comme dans les fichiers fournis par l'utilisateur.
 
-Selon la TTF, certaines formes arabes peuvent garder un raccord imparfait malgré des métriques plus serrées. Dans ce cas, il faut soit tester une autre police arabe, soit garder `Arabic preset` activé et comparer plusieurs valeurs négatives de `W offset`.
+Selon la TTF, certaines formes arabes peuvent garder un raccord imparfait malgré des métriques plus serrées. Dans ce cas, il faut soit tester une autre police arabe, soit garder `Arabic preset` activé et comparer plusieurs valeurs négatives d'`Advance offset`.
+
+Si `Advance offset` ne change pas le rendu en jeu, utiliser `Connector bleed = 2` comme point de départ actuel. Au-delà, le risque d'épaissir visiblement les glyphes augmente.
 
 ## Validation
 
 - Reproduction locale avec les PAK et `info30_glyphs.txt` fournis.
 - Génération `font edit --arabic-metrics` sur `明朝30` / `info30`.
-- Vérification binaire : `U+FE91` passe de `draw_y=-15` à `draw_y=3`, avec avance resserrée.
+- Vérification binaire : les glyphes arabes gardent leur `draw_w`, leur groupe Y est déplacé par offset commun, et `usize_w` est resserré pour réduire l'avance.
 - Round-trip `font extract` du CZ2 généré : OK.
 - Tests visuels avec `NotoNaskhArabic-Regular.ttf` et la police utilisateur `ios15.ttf`.
-- `go test ./font -run TestAdjustMetrics` : OK.
+- Génération locale avec `ios15.ttf`, `Arabic preset`, `Advance offset -4`, `Connector bleed 2` : atlas modifié uniquement sur les glyphes arabes ciblés.
+- Retour utilisateur test 4 : validation visuelle en jeu avec `Connector bleed 2`.
+- `go test ./font -run "TestAdjustMetrics|TestGetStringImageUsesUnicodeAdvance|TestBleedGlyphEdges"` : OK.
 - `go test ./cmd ./czimage ./charset ./utils ./tools/vietfontpatch ./tools/fontdiag` : OK.
 - `go build .` : OK.
 - `go test ./...` depuis `SourcesGUI-wails` : OK.

@@ -14,7 +14,7 @@ export function DialogueImportBatch(arg1:string,arg2:string,arg3:number,arg4:str
 
 export function DialogueImportFile(arg1:string,arg2:string,arg3:number,arg4:string):Promise<string>;
 
-export function FontEdit(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:string,arg7:boolean,arg8:boolean,arg9:number,arg10:boolean,arg11:boolean,arg12:number,arg13:number,arg14:number,arg15:number):Promise<string>;
+export function FontEdit(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:string,arg7:boolean,arg8:boolean,arg9:number,arg10:boolean,arg11:boolean,arg12:number,arg13:number,arg14:number,arg15:number,arg16:number):Promise<string>;
 
 export function FontExtract(arg1:string,arg2:string,arg3:string,arg4:string):Promise<string>;
 
@@ -32,7 +32,7 @@ export function PakExtract(arg1:string,arg2:string):Promise<string>;
 
 export function PakFontExtract(arg1:string,arg2:string,arg3:string):Promise<string>;
 
-export function PakFontReplace(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string):Promise<string>;
+export function PakFontReplace(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:string,arg7:string):Promise<string>;
 
 export function PakReplace(arg1:string,arg2:string,arg3:string,arg4:string):Promise<string>;
 

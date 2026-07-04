@@ -26,8 +26,8 @@ export function DialogueImportFile(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['DialogueImportFile'](arg1, arg2, arg3, arg4);
 }
 
-export function FontEdit(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15) {
-  return window['go']['main']['App']['FontEdit'](arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15);
+export function FontEdit(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15, arg16) {
+  return window['go']['main']['App']['FontEdit'](arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15, arg16);
 }
 
 export function FontExtract(arg1, arg2, arg3, arg4) {
@@ -62,8 +62,8 @@ export function PakFontExtract(arg1, arg2, arg3) {
   return window['go']['main']['App']['PakFontExtract'](arg1, arg2, arg3);
 }
 
-export function PakFontReplace(arg1, arg2, arg3, arg4, arg5) {
-  return window['go']['main']['App']['PakFontReplace'](arg1, arg2, arg3, arg4, arg5);
+export function PakFontReplace(arg1, arg2, arg3, arg4, arg5, arg6, arg7) {
+  return window['go']['main']['App']['PakFontReplace'](arg1, arg2, arg3, arg4, arg5, arg6, arg7);
 }
 
 export function PakReplace(arg1, arg2, arg3, arg4) {

@@ -741,18 +741,34 @@ func (a *App) PakFontExtract(pakFile, charsetStr, outputDir string) string {
 // ═══════════════════════════════════════
 // PAK FONT REPLACE
 // ═══════════════════════════════════════
-// Mode liste   : lucksystem pak replace -s PAK -i listfile --list -o output.PAK -c charset
-// Mode dossier : lucksystem pak replace -s PAK -i inputdir  -o output.PAK -c charset
+// Mode liste          : lucksystem pak replace -s PAK -i listfile --list -o output.PAK -c charset
+// Mode dossier        : lucksystem pak replace -s PAK -i inputdir  -o output.PAK -c charset
+// Mode fichier par nom: lucksystem pak replace -s PAK -i file --name internalName -o output.PAK -c charset
 
-func (a *App) PakFontReplace(pakSource, charsetStr, inputDir, listFile, outputPak string) string {
+func (a *App) PakFontReplace(pakSource, charsetStr, inputDir, listFile, singleFile, singleName, outputPak string) string {
 	if pakSource == "" || outputPak == "" {
 		a.logError("Original PAK and output PAK are required")
 		return "ERROR"
 	}
 	useList := listFile != ""
 	useDir := inputDir != ""
-	if !useList && !useDir {
-		a.logError("Provide either a list file or a folder as input")
+	useSingle := singleFile != "" || singleName != ""
+	modeCount := 0
+	if useList {
+		modeCount++
+	}
+	if useDir {
+		modeCount++
+	}
+	if useSingle {
+		modeCount++
+	}
+	if modeCount != 1 {
+		a.logError("Provide exactly one input mode: list, folder, or single file by name")
+		return "ERROR"
+	}
+	if useSingle && (singleFile == "" || singleName == "") {
+		a.logError("Single-file mode requires both a file and an internal PAK name")
 		return "ERROR"
 	}
 	if charsetStr == "" {
@@ -767,9 +783,12 @@ func (a *App) PakFontReplace(pakSource, charsetStr, inputDir, listFile, outputPa
 	if useList {
 		a.log(fmt.Sprintf("Mode: list file → %s", listFile))
 		args = []string{"pak", "replace", "-s", pakSource, "-i", listFile, "-l", "-o", outputPak, "-c", charsetStr}
-	} else {
+	} else if useDir {
 		a.log(fmt.Sprintf("Mode: directory → %s", inputDir))
 		args = []string{"pak", "replace", "-s", pakSource, "-i", inputDir, "-o", outputPak, "-c", charsetStr}
+	} else {
+		a.log(fmt.Sprintf("Mode: single file → %s as %s", singleFile, singleName))
+		args = []string{"pak", "replace", "-s", pakSource, "-i", singleFile, "--name", singleName, "-o", outputPak, "-c", charsetStr}
 	}
 
 	err := a.runLuckSystem(args...)
@@ -817,7 +836,7 @@ func (a *App) FontExtract(czFile, infoFile, outputPng, outputCharset string) str
 // ═══════════════════════════════════════
 // lucksystem font edit -s cz -S info -f ttf -o outcz -O outinfo [-r] [-a] [-i idx] [-c charset]
 
-func (a *App) FontEdit(czFile, infoFile, ttfFile, outputCz, outputInfo, charsetFile string, redraw, appendMode bool, startIndex int, arabicMetrics bool, metricSetYEnabled bool, metricSetY int, metricYOffset int, metricXOffset int, metricWOffset int) string {
+func (a *App) FontEdit(czFile, infoFile, ttfFile, outputCz, outputInfo, charsetFile string, redraw, appendMode bool, startIndex int, arabicMetrics bool, metricSetYEnabled bool, metricSetY int, metricYOffset int, metricXOffset int, metricWOffset int, arabicConnectorBleed int) string {
 	if czFile == "" || infoFile == "" || ttfFile == "" || outputCz == "" {
 		a.logError("Font CZ, info, TTF, and output CZ are required")
 		return "ERROR"
@@ -856,6 +875,9 @@ func (a *App) FontEdit(czFile, infoFile, ttfFile, outputCz, outputInfo, charsetF
 	}
 	if metricWOffset != 0 {
 		args = append(args, "--metric-w-offset", fmt.Sprintf("%d", metricWOffset))
+	}
+	if arabicConnectorBleed > 0 || arabicMetrics {
+		args = append(args, "--arabic-connector-bleed", fmt.Sprintf("%d", arabicConnectorBleed))
 	}
 
 	err := a.runLuckSystem(args...)
