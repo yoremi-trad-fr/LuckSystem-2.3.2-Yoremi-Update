@@ -1,3 +1,76 @@
+# V3.25 — MUSIC / VOICE PAK extraction + Ogg/MP3 conversion
+
+05/07/2026
+
+## Added: Luca audio PAK extraction
+
+Added dedicated audio workflows for Luck Engine / Luca System MUSIC and VOICE
+archives.
+
+### CLI
+
+```text
+lucksystem audio music-extract -i MUSIC.PAK -o out
+lucksystem audio voice-extract -i VOICE.PAK -o out
+lucksystem audio voice-extract -i SYSVOICE.PAK -o out --mp3
+```
+
+The extractor reads Luca PAK tables directly and streams entries to disk, so
+large `VOICE.PAK` archives are not loaded fully into memory. Extracted native
+audio is written as Ogg Vorbis in an `ogg` subfolder.
+
+Each extraction writes `<PAK>_audio_list.txt` using `id:path` rows. This keeps
+the output compatible with the existing `pak replace --list` workflow after
+editing or converting files back to native Ogg.
+
+### GUI
+
+Added a new `PAK (Audio)` section with:
+
+- `Music Extract`
+- `Voice Extract`
+- `Ogg / MP3 Convert`
+
+Music and Voice extraction can optionally create MP3 copies alongside native
+Ogg output when FFmpeg is available.
+
+## Added: native Ogg <-> MP3 conversion
+
+Added folder conversion in both directions:
+
+```text
+lucksystem audio convert -i ogg_folder -o mp3_folder --to mp3
+lucksystem audio convert -i mp3_folder -o ogg_folder --to native
+```
+
+The GUI exposes the same conversion through `PAK (Audio) -> Ogg / MP3 Convert`.
+This is meant for review/listening workflows and for preparing edited MP3 files
+back into native Ogg before repacking.
+
+## Fixed: silent FFmpeg launches on Windows
+
+FFmpeg conversions are now started with Windows no-window process flags when
+called from the GUI. MP3 conversion no longer opens a temporary `cmd` window.
+
+## Updated: AIO LuckSystem panel
+
+The AIO VA / Key Game Tools LuckSystem panel was still labelled as v3.24. It
+has been synced to LuckSystem v3.25 and now exposes the same `PAK (Audio)`
+MUSIC/VOICE extraction and Ogg/MP3 conversion controls.
+
+### Testing
+
+- Parsed and sampled MUSIC/VOICE PAK structure across AIR, KANON, Harmonia HD,
+  and LOOPERS fixtures.
+- Verified extraction on `HarmoniaHD/voice/SYSVOICE.PAK`.
+- Verified optional MP3 generation through FFmpeg.
+- Verified MP3 -> native Ogg folder conversion.
+- Validation commands:
+  - `go test ./audio ./cmd`: OK.
+  - `go test ./...` in `SourcesGUI-wails`: OK.
+  - Full root `go test ./...` still requires historical local fixtures that
+    are not present in this checkout.
+
 # V3.24 — Arabic font metrics controls + PAK Font Replace single-file mode
 
 04/07/2026

@@ -15,7 +15,7 @@ func main() {
 	app := NewApp()
 
 	err := wails.Run(&options.App{
-		Title:     "LuckSystem 2.3.2 - Yoremi fork v3.24",
+		Title:     "LuckSystem 2.3.2 - Yoremi fork v3.25",
 		Width:     900,
 		Height:    650,
 		MinWidth:  800,

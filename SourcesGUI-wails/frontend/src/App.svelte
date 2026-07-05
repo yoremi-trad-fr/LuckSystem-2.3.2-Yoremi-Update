@@ -15,6 +15,9 @@
     SiglusLucaBridge,
     PakExtract,
     BGMOVIEExtract,
+    MusicPakExtract,
+    VoicePakExtract,
+    AudioConvert,
     PakReplace,
     PakFontExtract,
     PakFontReplace,
@@ -76,6 +79,17 @@
   // --- BGMOVIE / Video fields ---
   let bgMoviePak = '';
   let bgMovieOutput = '';
+
+  // --- PAK Audio fields ---
+  let musicPak = '';
+  let musicOutput = '';
+  let musicToMp3 = false;
+  let voicePak = '';
+  let voiceOutput = '';
+  let voiceToMp3 = false;
+  let audioConvInput = '';
+  let audioConvOutput = '';
+  let audioConvDirection = 'mp3'; // 'mp3' | 'native'
 
   // --- PAK Font fields ---
   let pakFontExtSource = '';
@@ -169,6 +183,10 @@
     { id: 'pak_cg_replace', label: 'CG Replace' },
     { id: '_s2v', label: 'PAK (Video)', section: true },
     { id: 'bgmovie_extract', label: 'BGMOVIE Extract' },
+    { id: '_s2a', label: 'PAK (Audio)', section: true },
+    { id: 'music_extract', label: 'Music Extract' },
+    { id: 'voice_extract', label: 'Voice Extract' },
+    { id: 'audio_convert', label: 'Ogg / MP3 Convert' },
     { id: '_s2b', label: 'PAK (Font)', section: true },
     { id: 'pak_font_extract', label: 'Font Extract' },
     { id: 'pak_font_replace', label: 'Font Replace' },
@@ -299,7 +317,7 @@
     EventsOn('log', (msg) => addLine(msg));
     lsPath = await GetLuckSystemPath();
     if (lsPath) {
-      addLine('LuckSystem 2.3.2 - Yoremi fork v3.24');
+      addLine('LuckSystem 2.3.2 - Yoremi fork v3.25');
       addLine('Executable: ' + lsPath);
       // Scan data/ folder for game presets
       gamePresets = (await ScanGameData()) || [];
@@ -345,6 +363,16 @@
 
   async function browseBgMoviePak() { const f = await SelectPakFile(); if (f) bgMoviePak = f; }
   async function browseBgMovieOutput() { const d = await SelectDirectory('Select BGMOVIE output folder'); if (d) bgMovieOutput = d; }
+
+  async function browseMusicPak() { const f = await SelectPakFile(); if (f) musicPak = f; }
+  async function browseMusicOutput() { const d = await SelectDirectory('Select MUSIC output folder'); if (d) musicOutput = d; }
+  async function browseVoicePak() { const f = await SelectPakFile(); if (f) voicePak = f; }
+  async function browseVoiceOutput() { const d = await SelectDirectory('Select VOICE output folder'); if (d) voiceOutput = d; }
+  async function browseAudioConvInput() {
+    const d = await SelectDirectory(audioConvDirection === 'mp3' ? 'Select native Ogg folder' : 'Select MP3 folder');
+    if (d) audioConvInput = d;
+  }
+  async function browseAudioConvOutput() { const d = await SelectDirectory('Select converted audio output folder'); if (d) audioConvOutput = d; }
 
   async function browsePakFontExtSource() { const f = await SelectPakFile(); if (f) pakFontExtSource = f; }
   async function browsePakFontExtOutput() { const d = await SelectDirectory('Dossier d\'extraction'); if (d) pakFontExtOutput = d; }
@@ -423,6 +451,9 @@
   function startSiglusLucaBridge() { run(() => SiglusLucaBridge(siglusLucaLucaDir, siglusLucaSiglusDir, siglusLucaOutput, siglusLucaTargetCol)); }
   function startPakExtract() { run(() => PakExtract(pakExtSource, pakExtOutput)); }
   function startBgMovieExtract() { run(() => BGMOVIEExtract(bgMoviePak, bgMovieOutput)); }
+  function startMusicExtract() { run(() => MusicPakExtract(musicPak, musicOutput, musicToMp3)); }
+  function startVoiceExtract() { run(() => VoicePakExtract(voicePak, voiceOutput, voiceToMp3)); }
+  function startAudioConvert() { run(() => AudioConvert(audioConvInput, audioConvOutput, audioConvDirection)); }
   function startPakReplace() {
     const listArg = pakRepUseList ? pakRepListFile : '';
     const dirArg  = pakRepUseList ? '' : pakRepInput;
@@ -546,7 +577,7 @@
 
 <div id="app">
   <div class="titlebar">
-    <span>LuckSystem 2.3.2 - Yoremi fork v3.24</span>
+    <span>LuckSystem 2.3.2 - Yoremi fork v3.25</span>
     <span class="titlebar-path" on:click={locateLuckSystem} title="Click to change">
       {#if lsPath}📁 {lsPath}{:else}⚠ lucksystem.exe not found - Click to locate{/if}
     </span>
@@ -641,6 +672,48 @@
         <div class="form-group"><label>BGMOVIE.PAK file:</label><div class="form-row"><input type="text" bind:value={bgMoviePak} readonly /><button class="btn" on:click={browseBgMoviePak}>Select</button></div></div>
         <div class="form-group"><label>Output folder:</label><div class="form-row"><input type="text" bind:value={bgMovieOutput} readonly /><button class="btn" on:click={browseBgMovieOutput}>Select</button></div><div class="form-hint">Creates a folder named after the PAK with raw MVT files and a <code>webm</code> subfolder.</div></div>
         <div class="form-actions">{#if running}<span class="running-indicator"></span> Running...{:else}<button class="btn btn-primary" on:click={startBgMovieExtract} disabled={!bgMoviePak || !bgMovieOutput}>Extract Videos</button>{/if}</div>
+
+      <!-- MUSIC EXTRACT -->
+      {:else if selectedOp === 'music_extract'}
+        <div class="form-title">MUSIC.PAK — Audio Extract</div>
+        <div class="form-group"><label>MUSIC.PAK file:</label><div class="form-row"><input type="text" bind:value={musicPak} readonly /><button class="btn" on:click={browseMusicPak}>Select</button></div></div>
+        <div class="form-group"><label>Output folder:</label><div class="form-row"><input type="text" bind:value={musicOutput} readonly /><button class="btn" on:click={browseMusicOutput}>Select</button></div><div class="form-hint">Native Ogg files go to <code>ogg</code>; the generated list can be reused by PAK Replace.</div></div>
+        <div class="form-group">
+          <label>Conversion:</label>
+          <div class="form-row checkbox-row">
+            <label class="checkbox-label"><input type="checkbox" bind:checked={musicToMp3} /> Also create MP3 copies</label>
+          </div>
+        </div>
+        <div class="form-actions">{#if running}<span class="running-indicator"></span> Running...{:else}<button class="btn btn-primary" on:click={startMusicExtract} disabled={!musicPak || !musicOutput}>Extract Music</button>{/if}</div>
+
+      <!-- VOICE EXTRACT -->
+      {:else if selectedOp === 'voice_extract'}
+        <div class="form-title">VOICE / SYSVOICE.PAK — Audio Extract</div>
+        <div class="form-group"><label>VOICE PAK file:</label><div class="form-row"><input type="text" bind:value={voicePak} readonly /><button class="btn" on:click={browseVoicePak}>Select</button></div></div>
+        <div class="form-group"><label>Output folder:</label><div class="form-row"><input type="text" bind:value={voiceOutput} readonly /><button class="btn" on:click={browseVoiceOutput}>Select</button></div><div class="form-hint">Works with VOICE, VOICE0/1 and SYSVOICE PAKs. Native Ogg files go to <code>ogg</code>.</div></div>
+        <div class="form-group">
+          <label>Conversion:</label>
+          <div class="form-row checkbox-row">
+            <label class="checkbox-label"><input type="checkbox" bind:checked={voiceToMp3} /> Also create MP3 copies</label>
+          </div>
+        </div>
+        <div class="form-actions">{#if running}<span class="running-indicator"></span> Running...{:else}<button class="btn btn-primary" on:click={startVoiceExtract} disabled={!voicePak || !voiceOutput}>Extract Voices</button>{/if}</div>
+
+      <!-- AUDIO CONVERT -->
+      {:else if selectedOp === 'audio_convert'}
+        <div class="form-title">Audio Convert — Ogg / MP3</div>
+        <div class="form-group">
+          <label>Mode:</label>
+          <div class="form-row">
+            <select bind:value={audioConvDirection}>
+              <option value="mp3">Native Ogg → MP3</option>
+              <option value="native">MP3 → Native Ogg</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group"><label>{audioConvDirection === 'mp3' ? 'Native Ogg folder:' : 'MP3 folder:'}</label><div class="form-row"><input type="text" bind:value={audioConvInput} readonly /><button class="btn" on:click={browseAudioConvInput}>Select</button></div></div>
+        <div class="form-group"><label>Output folder:</label><div class="form-row"><input type="text" bind:value={audioConvOutput} readonly /><button class="btn" on:click={browseAudioConvOutput}>Select</button></div></div>
+        <div class="form-actions">{#if running}<span class="running-indicator"></span> Running...{:else}<button class="btn btn-primary" on:click={startAudioConvert} disabled={!audioConvInput || !audioConvOutput}>Convert Audio</button>{/if}</div>
 
       <!-- PAK CG REPLACE -->
       {:else if selectedOp === 'pak_cg_replace'}
@@ -967,7 +1040,7 @@
         <div class="form-title">À propos</div>
         <div class="about-panel">
           <div class="about-logo">LuckSystem</div>
-          <div class="about-subtitle">Fork · Yoremi-v3.24</div>
+          <div class="about-subtitle">Fork · Yoremi-v3.25</div>
           <div class="about-desc">
             Interface graphique pour LuckSystem, l'outil de traduction de visual novels Visual Art's / Key.<br>
             Inclut des correctifs CZ (CZ1, CZ4), script, PAK, et une interface subprocess.
@@ -982,7 +1055,7 @@
               <span class="about-link-url">https://github.com/yoremi-trad-fr/LuckSystem-2.3.2-Yoremi-Update</span>
             </div>
           </div>
-          <div class="about-version">v3.24 GUI · Wails + Svelte</div>
+          <div class="about-version">v3.25 GUI · Wails + Svelte</div>
         </div>
       {/if}
     </div>

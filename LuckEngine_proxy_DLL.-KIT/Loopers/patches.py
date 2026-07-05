@@ -24,7 +24,7 @@ from pathlib import Path
 GAME_EXE = r'C:\Program Files (x86)\Steam\steamapps\common\LOOPERS\LOOPERS.exe'
 RVA_DELTA = 0x1400
 PATCH_GAME_NAME = 'Loopers'
-PATCH_VERSION = '0.1'
+PATCH_VERSION = '0.2'
 
 # Each entry: (raw_offset, src_bytes, target_str, context, note)
 # Ready-to-use state: target_str contains the French replacement.
@@ -116,7 +116,11 @@ PATCHES = [
     (0x43FEA0, b'Hide Window', 'Cacher fenetre', 'Mouse/target', 'budget 15'),
     (0x43FEF8, b'Right Click', 'Clic droit', 'Mouse/binding', 'budget 15'),
     (0x43FF18, b'Left+Right Click', 'Clic gauche+droit', 'Mouse/binding', 'budget 23'),
+    (0x43FF35, b'Disable', 'Arret', 'Mouse/target duplicate list', 'used by wheel/button action choices, budget 10'),
+    (0x43FF55, b'Hide Window', 'Cacher fenetre', 'Mouse/target duplicate list', 'used by wheel/button action choices, budget 18'),
+    (0x43FF8D, b'System Menu', 'Menu systeme', 'Mouse/target duplicate list', 'used by wheel/button action choices, budget 18'),
     (0x43FFC0, b'Mouse Wheel Button', 'Bouton molette', 'Mouse/binding', 'budget 23'),
+    (0x44003D, b'Message Log', 'Historique', 'Mouse/target duplicate list', 'used by wheel/button action choices, budget 18'),
     (0x440065, b'Rewind Once', 'Retour x1', 'Mouse/target', 'inside bracketed [380] label, prefix kept'),
     (0x440078, b'Wheel up', 'Molette haut', 'Mouse/binding', 'LOOPERS uses lowercase up, budget 15'),
     (0x4400E5, b'Forward Once', 'Avance x1', 'Mouse/target', 'inside bracketed [380] label, prefix kept'),
@@ -128,6 +132,12 @@ PATCHES = [
     (0x4402A8, b'Snap pointer', 'Aimant curseur', 'Mouse/Snap', 'LOOPERS uses lowercase pointer, budget 23'),
     (0x4402C0, b'Gestures: Moving the cursor while holding the left button works the same way as Touch controls.', 'Maintenir le bouton gauche et bouger le curseur agit comme les commandes tactiles.', 'Mouse tooltip', 'budget 95'),
     (0x440570, b'Left+Right Click: Hold left button then right click to switch between languages (English/Simplified Chinese/Japanese).', 'Maintenez le bouton gauche puis clic droit pour changer de langue.', 'Mouse tooltip', 'budget 119'),
+    (0x440614, b'Rewind', 'Retour', 'Touch label', 'budget 11'),
+    (0x440620, b'Jump (Forward)', 'Saut (avant)', 'Touch label', 'budget 15'),
+    (0x4406A0, b'Jump (Backward)', 'Saut (arriere)', 'Touch label', 'budget 15'),
+    (0x4406B0, b'Drag in the message window to Skip.\nAuto skip by swiping (stop by tapping).', 'Glisser dans la fenetre: saut.\nBalayer: saut auto (toucher pour arreter).', 'Touch tooltip', 'budget 79'),
+    (0x4408E0, b'Drag in the message window to Rewind.\nAuto rewind by swiping (stop by tapping).', 'Glisser dans la fenetre: retour.\nBalayer: retour auto (toucher pour arreter).', 'Touch tooltip', 'budget 79'),
+    (0x440930, b'Swipe outside the message window jumps to next choice/chapter, or the end of previously read text.', 'Balayer hors de la fenetre saute au choix/chapitre suivant ou a la fin du texte deja lu.', 'Touch tooltip', 'budget 111'),
 
     (0x4410B4, b'Window', 'Fenetre', 'System/Window', 'budget 11'),
     (0x441108, b'Full Screen', 'Plein ecran', 'System/FullScreen', 'budget 15'),

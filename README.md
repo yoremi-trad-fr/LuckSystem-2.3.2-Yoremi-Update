@@ -1,4 +1,4 @@
-# LuckSystem 2.3.2 — Yoremi Fork (v3.24)
+# LuckSystem 2.3.2 — Yoremi Fork (v3.25)
 
 Fork de [LuckSystem](https://github.com/wetor/LuckSystem) avec corrections de bugs, support de nouveaux formats, et interface graphique pour la traduction de visual novels Visual Art's/Key.
 
@@ -25,6 +25,7 @@ A graphical interface is available in this fork:
 - Script Decompile / Compile
 - PAK Extract / Replace (CG and Font workflows separated; Font Replace supports list, folder, and single-file-by-internal-name modes)
 - BGMOVIE.PAK video extraction to WebM
+- MUSIC/VOICE/SYSVOICE PAK audio extraction to native Ogg, with optional MP3 copies and Ogg/MP3 conversion
 - Font Extract / Edit (append, insert, redraw modes, Arabic metrics preset, manual X/Y/advance offsets, manual connector bleed)
 - Vietnamese Font Patch for AIR / Planetarian SG (slot/family selectors, TTF/OTF selection, Y-offset test folders, optional Latin redraw test mode)
 - Image Export / Import (single file + batch folder mode)
@@ -45,7 +46,26 @@ A Linux version is available as separate binaries (GUI + CLI). See the releases 
 
 ## Patches
 
-### Version 3.24 — *(latest)*
+### Version 3.25 — *(latest)*
+
+33. **MUSIC / VOICE PAK audio extraction** — `audio/audio.go`, `cmd/audio*.go`, `SourcesGUI-wails/app.go`, `SourcesGUI-wails/frontend/src/App.svelte`
+    - Added `lucksystem audio music-extract` and `lucksystem audio voice-extract`.
+    - Added GUI entries under `PAK (Audio)`: `Music Extract` and `Voice Extract`.
+    - Extracted audio is written as native Ogg Vorbis under an `ogg` subfolder.
+    - A `<PAK>_audio_list.txt` file is generated with `id:path` rows so edited native files can be fed back through the normal PAK Replace list workflow.
+
+34. **Native Ogg / MP3 conversion** — `audio/audio.go`, `cmd/audioConvert.go`, `SourcesGUI-wails/frontend/src/App.svelte`
+    - Added optional MP3 generation during MUSIC/VOICE extraction when FFmpeg is available.
+    - Added `lucksystem audio convert --to mp3|native` for folder conversion.
+    - Added GUI entry `Ogg / MP3 Convert` for native Ogg -> MP3 and MP3 -> native Ogg preparation.
+    - FFmpeg conversion is launched without a Windows CMD popup from the GUI.
+    - GUI and CLI version labels updated to `v3.25`.
+
+35. **AIO LuckSystem panel sync** — `AIO-VA-Key-Games-Tools`
+    - Updated the AIO LuckSystem panel and release metadata to LuckSystem `v3.25`.
+    - Added the same MUSIC/VOICE/SYSVOICE extraction and Ogg/MP3 conversion controls to the AIO GUI.
+
+### Version 3.24
 
 31. **Arabic font metrics controls for Font Edit** — `font/info.go`, `font/font.go`, `cmd/fontEdit.go`, `SourcesGUI-wails/app.go`, `SourcesGUI-wails/frontend/src/App.svelte`
     - Added an Arabic metrics preset for `font edit` and the GUI Font Edit page.

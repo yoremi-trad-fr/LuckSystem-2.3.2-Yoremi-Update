@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 
+	"lucksystem/audio"
 	"lucksystem/siglusluca"
 
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
@@ -657,6 +658,113 @@ func (a *App) BGMOVIEExtract(pakFile, outputRoot string) string {
 	a.logOK(result)
 	a.log("════════════════════════════════════════")
 	return "OK: " + result
+}
+
+// ═══════════════════════════════════════
+// AUDIO PAK EXTRACT / CONVERT
+// ═══════════════════════════════════════
+// MUSIC/VOICE PAK entries are native Ogg Vorbis streams.
+
+func (a *App) MusicPakExtract(pakFile, outputDir string, convertMP3 bool) string {
+	return a.audioPakExtract("MUSIC", pakFile, outputDir, convertMP3)
+}
+
+func (a *App) VoicePakExtract(pakFile, outputDir string, convertMP3 bool) string {
+	return a.audioPakExtract("VOICE", pakFile, outputDir, convertMP3)
+}
+
+func (a *App) audioPakExtract(kind, pakFile, outputDir string, convertMP3 bool) string {
+	if pakFile == "" || outputDir == "" {
+		a.logError(kind + " PAK and output directory are required")
+		return "ERROR"
+	}
+
+	a.log("════════════════════════════════════════")
+	a.log("  PAK AUDIO " + kind + " EXTRACT")
+	a.log("════════════════════════════════════════")
+	a.log(fmt.Sprintf("PAK:    %s", pakFile))
+	a.log(fmt.Sprintf("Output: %s", outputDir))
+	if convertMP3 {
+		a.log("MP3:    enabled")
+	} else {
+		a.log("MP3:    disabled")
+	}
+	a.log("────────────────────────────────────────")
+
+	summary, err := audio.ExtractPak(audio.ExtractOptions{
+		PakFile:    pakFile,
+		OutputDir:  outputDir,
+		Kind:       strings.ToLower(kind),
+		ConvertMP3: convertMP3,
+	}, func(line string) {
+		a.log(line)
+	})
+	if err != nil {
+		a.logError(err.Error())
+		a.log("════════════════════════════════════════")
+		return "ERROR"
+	}
+
+	a.log(fmt.Sprintf("List:   %s", summary.ListFile))
+	a.log(fmt.Sprintf("Native: %s", summary.NativeDir))
+	if summary.MP3Dir != "" {
+		a.log(fmt.Sprintf("MP3:    %s", summary.MP3Dir))
+	}
+	result := fmt.Sprintf("%d Ogg extracted, %d MP3 converted, %d errors", summary.Files, summary.Converted, summary.Errors)
+	if summary.Errors > 0 {
+		a.logError(result)
+		a.log("════════════════════════════════════════")
+		return "ERROR"
+	}
+	a.logOK(result)
+	a.log("════════════════════════════════════════")
+	return "OK"
+}
+
+func (a *App) AudioConvert(inputPath, outputDir, direction string) string {
+	if inputPath == "" || outputDir == "" {
+		a.logError("Input audio file/folder and output directory are required")
+		return "ERROR"
+	}
+	if direction == "" {
+		direction = "mp3"
+	}
+	label := "Native Ogg -> MP3"
+	if strings.EqualFold(direction, "native") || strings.EqualFold(direction, "ogg") {
+		label = "MP3 -> Native Ogg"
+	}
+
+	a.log("════════════════════════════════════════")
+	a.log("  AUDIO CONVERT")
+	a.log("════════════════════════════════════════")
+	a.log(fmt.Sprintf("Mode:   %s", label))
+	a.log(fmt.Sprintf("Input:  %s", inputPath))
+	a.log(fmt.Sprintf("Output: %s", outputDir))
+	a.log("────────────────────────────────────────")
+
+	summary, err := audio.ConvertPath(audio.ConvertOptions{
+		InputPath: inputPath,
+		OutputDir: outputDir,
+		Direction: direction,
+		Overwrite: true,
+	}, func(line string) {
+		a.log(line)
+	})
+	if err != nil {
+		a.logError(err.Error())
+		a.log("════════════════════════════════════════")
+		return "ERROR"
+	}
+
+	result := fmt.Sprintf("%d converted, %d skipped, %d errors", summary.Converted, summary.Skipped, summary.Errors)
+	if summary.Errors > 0 {
+		a.logError(result)
+		a.log("════════════════════════════════════════")
+		return "ERROR"
+	}
+	a.logOK(result)
+	a.log("════════════════════════════════════════")
+	return "OK"
 }
 
 // ═══════════════════════════════════════

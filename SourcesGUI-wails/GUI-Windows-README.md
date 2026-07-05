@@ -1,4 +1,4 @@
-# LuckSystem GUI (Windows) — Yoremi fork v3.24
+# LuckSystem GUI (Windows) — Yoremi fork v3.25
 
 Graphical interface for [LuckSystem](https://github.com/wetor/LuckSystem), the Visual Art's/Key visual novel translation toolkit.
 

@@ -1,3 +1,91 @@
+# V3.25 — Extraction PAK audio MUSIC/VOICE + conversion Ogg/MP3
+
+## Fichiers modifiés
+
+### CLI
+- `cmd/root.go` — bump de version CLI vers `2.3.2-yoremi.3.25`.
+- `cmd/audio.go` — commande racine `audio` et flags partagés `-i/-o`.
+- `cmd/audioExtract.go` — commandes `music-extract` et `voice-extract`.
+- `cmd/audioConvert.go` — commande `convert --to mp3|native`.
+
+### Bibliothèque
+- `audio/audio.go` — lecture directe des tables PAK Luca, extraction Ogg,
+  génération de liste `id:path`, résolution FFmpeg et conversion Ogg/MP3.
+- `audio/hidewindow_windows.go` — lancement FFmpeg sans fenêtre console sous Windows.
+- `audio/hidewindow_other.go` — no-op portable hors Windows.
+
+### GUI
+- `SourcesGUI-wails/app.go` — méthodes `MusicPakExtract()`,
+  `VoicePakExtract()` et `AudioConvert()`.
+- `SourcesGUI-wails/hidewindow_windows.go` — ajout de `CREATE_NO_WINDOW` aux
+  subprocess GUI existants.
+- `SourcesGUI-wails/frontend/src/App.svelte` — section `PAK (Audio)` avec
+  `Music Extract`, `Voice Extract` et `Ogg / MP3 Convert`; libellés `v3.25`.
+- `SourcesGUI-wails/frontend/wailsjs/go/main/App.js`
+- `SourcesGUI-wails/frontend/wailsjs/go/main/App.d.ts`
+- `SourcesGUI-wails/frontend/package.json` — version frontend `3.25`.
+- `SourcesGUI-wails/frontend/package-lock.json` — version frontend `3.25`.
+- `SourcesGUI-wails/main.go` — titre de fenêtre `v3.25`.
+- `SourcesGUI-wails/GUI-Windows-README.md`
+- `SourcesGUI-wails/GUI-Linux-README.md`
+
+### Documentation
+- `README.md`
+- `Fork-CHANGELOG.md`
+- `Fork-TECHNICAL.md`
+
+### AIO
+- `../AIO-VA-Key-Games-Tools/GUI-Sources/app.go` — intégration directe des
+  méthodes audio LuckSystem v3.25.
+- `../AIO-VA-Key-Games-Tools/GUI-Sources/frontend/src/App.svelte` — panneau
+  `PAK (Audio)` et libellés LuckSystem v3.25.
+- `../AIO-VA-Key-Games-Tools/GUI-Sources/wails.json` — version AIO `1.0.2`.
+
+## Contexte
+
+Les archives fournies pour AIR, KANON, Harmonia HD et LOOPERS montrent que les
+PAK musique et voix Luca utilisent le PAK standard du moteur. Les entrées audio
+elles-mêmes commencent directement par `OggS` : le format natif utile pour
+l'extraction et le repack est donc Ogg Vorbis.
+
+## Correction
+
+L'extracteur audio lit uniquement l'en-tête et la table d'entrées, puis copie
+chaque entrée via un `SectionReader`. Les gros `VOICE.PAK` ne sont donc pas
+chargés intégralement en mémoire.
+
+La sortie est organisée ainsi :
+
+```text
+out/
+  ogg/
+    1.ogg
+    2.ogg
+  mp3/              # optionnel
+    1.mp3
+    2.mp3
+  VOICE_audio_list.txt
+```
+
+Le fichier liste utilise le même format `id:path` que `pak extract --all`, ce
+qui permet de réutiliser le workflow `pak replace --list` après modification.
+
+La conversion s'appuie sur FFmpeg déjà installé sur la machine. Le sens
+`--to mp3` convertit les Ogg natifs en MP3 pour écoute/review; le sens
+`--to native` reconvertit des MP3 en Ogg Vorbis avant repack.
+
+Sous Windows, les appels FFmpeg du module audio passent par `SysProcAttr` avec
+`HideWindow` et `CREATE_NO_WINDOW`, afin d'éviter les fenêtres `cmd` pendant les
+conversions GUI.
+
+## Validation
+
+- Inspection des PAK audio AIR/KANON/HarmoniaHD/LOOPERS : entrées `OggS`.
+- `go test ./audio ./cmd`
+- `go test ./...` dans `SourcesGUI-wails`
+- Extraction + MP3 depuis un petit `SYSVOICE.PAK`.
+- Conversion MP3 -> Ogg sur le dossier de test.
+
 # V3.24 — Réglages de métriques arabes pour Font Edit + PAK Font Replace fichier unique
 
 ## Fichiers modifiés

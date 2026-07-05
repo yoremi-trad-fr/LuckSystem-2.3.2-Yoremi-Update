@@ -10,7 +10,7 @@
 
 ## Result
 
-- `patches.py` validates 97 UI string patches.
+- `patches.py` validates 107 UI string patches.
 - The table is based on the HarmoniaHD proxy table, with LOOPERS-specific
   offsets and a few source string variants.
 - Additional LOOPERS options covered:
@@ -18,6 +18,10 @@
   - `Dialogue Only` -> `Dialogue seul`
   - `Low resolution` -> `Basse res.`
   - `Movie Quality` -> `Qualite video`
+  - Duplicate Mouse action-list entries for `Disable`, `Hide Window`,
+    `System Menu`, and `Message Log`
+  - Touch labels `Rewind`, `Jump (Forward)`, and `Jump (Backward)`
+  - Touch help text for skip, rewind, and jump/swipe actions
 
 ## LOOPERS-specific variants
 
@@ -27,6 +31,12 @@
 - `Wheel Up` / `Wheel Down` are `Wheel up` / `Wheel down`.
 - `Jump and Switch Pages` is `Jump and switch pages`.
 - `Snap Pointer` is `Snap pointer`.
+- The Mouse action list contains a second cluster of `Disable`, `Hide Window`,
+  `System Menu`, and `Message Log` strings used by wheel/button choices.
+- Touch control labels use separate standalone `Rewind`, `Jump (Forward)`, and
+  `Jump (Backward)` strings.
+- Touch tooltips for skip, rewind, and outside-window swipe are separate from
+  the visible labels.
 
 ## Deliberately skipped
 
