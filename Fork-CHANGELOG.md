@@ -21,12 +21,16 @@ offset 36 while LuckSystem had written it at offset 28.
 - `czimage/cz4.go` receives the same protection because CZ4 uses the same
   fixed subheader layout as CZ3.
 - `czimage/util.go` adds shared helpers to preserve and pad extra header bytes.
+- The GUI batch image importer now accepts PNG names such as
+  `ET_YK00_MOJI01_EN.cz3.png` when the matching extracted PAK entry is named
+  `ET_YK00_MOJI01_EN` without a `.cz3` extension.
 - Added CZ3 regression tests covering preservation and table placement.
 - Updated CLI and GUI version labels to `v3.26`.
 
 ### Testing
 
 - `go test ./czimage ./cmd`: OK.
+- `go test ./...` in `SourcesGUI-wails`: OK.
 - Repacked all 36 supplied LBEE PNG replacements from the issue folder.
 - Verified every generated CZ3 keeps `HeaderLength = 36`, preserves the original
   8 extra bytes, and stores `FileCount` at `HeaderLength`.

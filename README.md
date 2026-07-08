@@ -52,6 +52,7 @@ A Linux version is available as separate binaries (GUI + CLI). See the releases 
     - Preserves extra bytes between the fixed CZ3/CZ4 header and `HeaderLength` when importing PNGs back into CZ images.
     - Fixes Little Busters English Edition `OTHCG.PAK` assets such as `ET_YK00_MOJI**_EN` and `NYEF_SS**_EN`, whose original CZ3 files store 8 extra header bytes before the LZW block table.
     - Repacked CZ3 files now keep the block table at `HeaderLength` instead of accidentally shifting it to the end of the fixed 28-byte header.
+    - GUI batch image import now matches PNG names like `ET_YK00_MOJI01_EN.cz3.png` to extensionless PAK entries like `ET_YK00_MOJI01_EN`.
     - Prevents game/PakExplorer crashes caused by malformed CZ3 output after image import.
     - GUI and CLI version labels updated to `v3.26`.
 

@@ -16,6 +16,10 @@
   supplémentaires et le placement de `CzOutputInfo` à `HeaderLength`.
 
 ### GUI
+- `SourcesGUI-wails/app.go` — le batch import image accepte les PNG
+  `*.cz3.png` même si les entrées PAK extraites n'ont pas d'extension `.cz3`.
+- `SourcesGUI-wails/app_image_test.go` — tests du matching exact et du fallback
+  sans extension CZ.
 - `SourcesGUI-wails/main.go` — titre de fenêtre `v3.26`.
 - `SourcesGUI-wails/frontend/src/App.svelte` — libellés GUI `v3.26`.
 - `SourcesGUI-wails/frontend/package.json` — version frontend `3.26`.
@@ -96,9 +100,33 @@ La correction est appliquée à CZ3 et CZ4. Même si le cas reporté concerne CZ
 CZ4 partage le même sous-en-tête fixe et pouvait perdre le même type de données
 si un jeu en stockait entre l'en-tête fixe et la table LZW.
 
+## Batch import GUI
+
+Les PNG fournis pour l'issue sont nommés avec une double extension, par exemple :
+
+```text
+ET_YK00_MOJI01_EN.cz3.png
+```
+
+Mais les entrées extraites depuis `OTHCG.PAK` peuvent être nommées sans
+extension :
+
+```text
+ET_YK00_MOJI01_EN
+```
+
+Avant ce patch, le batch import cherchait uniquement `ET_YK00_MOJI01_EN.cz3`
+et ignorait donc tous les PNG avec le message `no matching CZ`.
+
+La résolution teste maintenant le nom exact, puis une variante sans suffixe
+`.cz0`/`.cz1`/`.cz2`/`.cz3`/`.cz4`. La sortie reprend le nom du CZ source
+trouvé, ce qui permet ensuite à `pak replace --dir` de retrouver le bon nom
+interne dans le PAK.
+
 ## Validation
 
 - `go test ./czimage ./cmd` : OK.
+- `go test ./...` dans `SourcesGUI-wails` : OK.
 - Import des 36 PNG russes fournis dans le dossier local `Help with LBEE images`.
 - Vérification binaire de chaque sortie :
   - `HeaderLength = 36`;

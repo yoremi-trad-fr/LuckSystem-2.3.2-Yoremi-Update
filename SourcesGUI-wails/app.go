@@ -1186,15 +1186,13 @@ func (a *App) ImageBatchImport(sourceDir, inputDir, outputDir string, fill bool)
 			continue
 		}
 
-		// Derive original CZ name: "filename.png" -> "filename"
-		czName := strings.TrimSuffix(name, filepath.Ext(name))
-		sourceCz := filepath.Join(sourceDir, czName)
+		sourceCz, czName, candidates, ok := resolveImageBatchImportSource(sourceDir, name)
 		inputPng := filepath.Join(inputDir, name)
 		outputCz := filepath.Join(outputDir, czName)
 
 		// Check source CZ exists
-		if _, err := os.Stat(sourceCz); os.IsNotExist(err) {
-			a.log(fmt.Sprintf("  [SKIP] %s (no matching CZ: %s)", name, czName))
+		if !ok {
+			a.log(fmt.Sprintf("  [SKIP] %s (no matching CZ: %s)", name, strings.Join(candidates, " or ")))
 			continue
 		}
 
@@ -1214,6 +1212,27 @@ func (a *App) ImageBatchImport(sourceDir, inputDir, outputDir string, fill bool)
 	a.logOK(result)
 	a.log("════════════════════════════════════════")
 	return "OK: " + result
+}
+
+func resolveImageBatchImportSource(sourceDir, pngName string) (sourceCz, outputName string, candidates []string, ok bool) {
+	pngBase := strings.TrimSuffix(pngName, filepath.Ext(pngName))
+	candidates = append(candidates, pngBase)
+
+	switch strings.ToLower(filepath.Ext(pngBase)) {
+	case ".cz0", ".cz1", ".cz2", ".cz3", ".cz4":
+		withoutCzExt := strings.TrimSuffix(pngBase, filepath.Ext(pngBase))
+		if withoutCzExt != "" && withoutCzExt != pngBase {
+			candidates = append(candidates, withoutCzExt)
+		}
+	}
+
+	for _, candidate := range candidates {
+		path := filepath.Join(sourceDir, candidate)
+		if info, err := os.Stat(path); err == nil && !info.IsDir() {
+			return path, candidate, candidates, true
+		}
+	}
+	return "", "", candidates, false
 }
 
 // ═══════════════════════════════════════
