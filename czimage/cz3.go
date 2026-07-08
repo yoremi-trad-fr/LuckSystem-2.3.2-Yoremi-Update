@@ -29,6 +29,10 @@ type Cz3Header struct {
 type Cz3Image struct {
 	CzHeader
 	Cz3Header
+
+	// ExtraHeader preserves bytes between the fixed CZ3 header and HeaderLength.
+	ExtraHeader []byte
+
 	CzData
 }
 
@@ -45,6 +49,7 @@ func (cz *Cz3Image) Load(header CzHeader, data []byte) {
 	if err != nil {
 		panic(err)
 	}
+	cz.ExtraHeader = preserveExtraHeader(cz.Raw, cz.HeaderLength, fixedCzSubHeaderLength)
 	glog.V(6).Infoln("cz3 header ", cz.Cz3Header)
 	cz.OutputInfo = GetOutputInfo(cz.Raw[int(cz.HeaderLength):])
 }
@@ -204,7 +209,17 @@ func (cz *Cz3Image) Write(w io.Writer) error {
 	glog.V(0).Infof("Write: CZ3 %dx%d, Colorbits=%d, %d blocks, RawSize=%d\n",
 		cz.Width, cz.Heigth, cz.CzHeader.Colorbits, cz.OutputInfo.FileCount,
 		cz.OutputInfo.TotalRawSize)
-	err = WriteStruct(w, &cz.CzHeader, &cz.Cz3Header, cz.OutputInfo)
+	err = WriteStruct(w, &cz.CzHeader, &cz.Cz3Header)
+	if err != nil {
+		return err
+	}
+
+	err = writeExtraHeader(w, cz.HeaderLength, fixedCzSubHeaderLength, cz.ExtraHeader)
+	if err != nil {
+		return err
+	}
+
+	err = WriteStruct(w, cz.OutputInfo)
 
 	if err != nil {
 		return err

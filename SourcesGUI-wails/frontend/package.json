@@ -1,7 +1,7 @@
 {
   "name": "frontend",
   "private": true,
-  "version": "3.25",
+  "version": "3.26",
   "type": "module",
   "scripts": {
     "dev": "node ./node_modules/vite/bin/vite.js",

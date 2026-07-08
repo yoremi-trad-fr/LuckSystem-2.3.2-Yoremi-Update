@@ -1,4 +1,4 @@
-# LuckSystem 2.3.2 — Yoremi Fork (v3.25)
+# LuckSystem 2.3.2 — Yoremi Fork (v3.26)
 
 Fork de [LuckSystem](https://github.com/wetor/LuckSystem) avec corrections de bugs, support de nouveaux formats, et interface graphique pour la traduction de visual novels Visual Art's/Key.
 
@@ -46,7 +46,16 @@ A Linux version is available as separate binaries (GUI + CLI). See the releases 
 
 ## Patches
 
-### Version 3.25 — *(latest)*
+### Version 3.26 — *(latest)*
+
+36. **CZ3/CZ4 extended header preservation for LBEE image repack** — `czimage/cz3.go`, `czimage/cz4.go`, `czimage/util.go`, `czimage/cz3_test.go`
+    - Preserves extra bytes between the fixed CZ3/CZ4 header and `HeaderLength` when importing PNGs back into CZ images.
+    - Fixes Little Busters English Edition `OTHCG.PAK` assets such as `ET_YK00_MOJI**_EN` and `NYEF_SS**_EN`, whose original CZ3 files store 8 extra header bytes before the LZW block table.
+    - Repacked CZ3 files now keep the block table at `HeaderLength` instead of accidentally shifting it to the end of the fixed 28-byte header.
+    - Prevents game/PakExplorer crashes caused by malformed CZ3 output after image import.
+    - GUI and CLI version labels updated to `v3.26`.
+
+### Version 3.25
 
 33. **MUSIC / VOICE PAK audio extraction** — `audio/audio.go`, `cmd/audio*.go`, `SourcesGUI-wails/app.go`, `SourcesGUI-wails/frontend/src/App.svelte`
     - Added `lucksystem audio music-extract` and `lucksystem audio voice-extract`.

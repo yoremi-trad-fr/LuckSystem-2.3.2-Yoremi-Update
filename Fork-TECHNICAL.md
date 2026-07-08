@@ -1,3 +1,113 @@
+# V3.26 — Conservation de l'en-tête étendu CZ3/CZ4 pour les images LBEE
+
+## Fichiers modifiés
+
+### CLI
+- `cmd/root.go` — bump de version CLI vers `2.3.2-yoremi.3.26`.
+
+### Bibliothèque image
+- `czimage/util.go` — helpers communs pour conserver et réécrire les octets
+  situés entre le sous-en-tête fixe CZ et `HeaderLength`.
+- `czimage/cz3.go` — conservation de `ExtraHeader` au `Load()` et réécriture
+  avant la table de blocs LZW au `Write()`.
+- `czimage/cz4.go` — même protection que CZ3, car CZ4 réutilise le même
+  sous-en-tête fixe.
+- `czimage/cz3_test.go` — tests de régression pour la conservation des octets
+  supplémentaires et le placement de `CzOutputInfo` à `HeaderLength`.
+
+### GUI
+- `SourcesGUI-wails/main.go` — titre de fenêtre `v3.26`.
+- `SourcesGUI-wails/frontend/src/App.svelte` — libellés GUI `v3.26`.
+- `SourcesGUI-wails/frontend/package.json` — version frontend `3.26`.
+- `SourcesGUI-wails/frontend/package-lock.json` — version frontend `3.26`.
+- `SourcesGUI-wails/GUI-Windows-README.md`
+- `SourcesGUI-wails/GUI-Linux-README.md`
+
+### Documentation
+- `README.md`
+- `Fork-CHANGELOG.md`
+- `Fork-TECHNICAL.md`
+
+## Contexte
+
+L'issue GitHub #2 signale un crash après repack de certaines images de Little
+Busters English Edition dans `OTHCG.PAK`, notamment les fichiers
+`ET_YK00_MOJI**_EN` et `NYEF_SS**_EN`.
+
+Les CZ3 originaux concernés ont :
+
+```text
+HeaderLength = 0x24 / 36 bytes
+taille fixe CzHeader + Cz3Header = 15 + 13 = 28 bytes
+extra header = 8 bytes
+```
+
+Exemple observé :
+
+```text
+BA 00 21 00 00 00 00 00
+```
+
+Ces 8 octets se trouvent entre le sous-en-tête CZ3 fixe et la table de blocs
+LZW (`CzOutputInfo`). Ils semblent contenir des métadonnées propres aux sprites
+LBEE; les deux premiers mots correspondent aux dimensions secondaires divisées
+par deux dans les exemples fournis, puis quatre octets valent zéro.
+
+## Diagnostic
+
+Avant ce patch, `Cz3Image.Write()` écrivait directement :
+
+```go
+WriteStruct(w, &cz.CzHeader, &cz.Cz3Header, cz.OutputInfo)
+```
+
+Donc la table de blocs était écrite juste après les 28 octets fixes. Or
+`HeaderLength` restait à 36. Tout lecteur strict relisait donc `CzOutputInfo`
+à l'offset 36, c'est-à-dire au milieu de la table/donnée réellement écrite.
+
+Résultat : CZ3 valide seulement en apparence, mais décalé. Le jeu et le PAK
+Explorer LBEE pouvaient planter dès que l'image était chargée.
+
+## Correction
+
+Un helper commun extrait les octets raw compris entre la fin du header fixe et
+`HeaderLength` :
+
+```go
+preserveExtraHeader(raw, headerLength, fixedLength)
+```
+
+Puis `Write()` réécrit explicitement :
+
+```text
+CzHeader
+Cz3Header
+ExtraHeader / padding
+CzOutputInfo
+compressed data
+```
+
+Si l'en-tête source ne contient pas d'octets supplémentaires, rien n'est ajouté.
+Si `HeaderLength` réserve un espace plus grand que les octets conservés, la
+sortie est paddée avec des zéros afin de garder la table exactement à
+`HeaderLength`.
+
+La correction est appliquée à CZ3 et CZ4. Même si le cas reporté concerne CZ3,
+CZ4 partage le même sous-en-tête fixe et pouvait perdre le même type de données
+si un jeu en stockait entre l'en-tête fixe et la table LZW.
+
+## Validation
+
+- `go test ./czimage ./cmd` : OK.
+- Import des 36 PNG russes fournis dans le dossier local `Help with LBEE images`.
+- Vérification binaire de chaque sortie :
+  - `HeaderLength = 36`;
+  - les 8 octets supplémentaires sont identiques à l'original;
+  - `FileCount` est lu à l'offset `HeaderLength`, pas à l'offset 28.
+- Réexport PNG de tous les CZ3 générés : OK.
+- `go test ./...` à la racine reste bloqué par des fixtures historiques absentes
+  dans ce checkout (`FONT.PAK`, chemins `C:/Users/wetor/...`, `D:/Game/...`).
+
 # V3.25 — Extraction PAK audio MUSIC/VOICE + conversion Ogg/MP3
 
 ## Fichiers modifiés

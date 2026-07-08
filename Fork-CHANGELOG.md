@@ -1,3 +1,41 @@
+# V3.26 — CZ3/CZ4 extended header preservation for LBEE images
+
+08/07/2026
+
+## Fixed: LBEE CZ3 image repack crash
+
+GitHub issue #2 reported that some Little Busters English Edition `OTHCG.PAK`
+images crashed the game after PNG import/repack. The affected files include
+`ET_YK00_MOJI**_EN` and `NYEF_SS**_EN`.
+
+Those CZ3 files use `HeaderLength = 0x24` while the fixed `CzHeader +
+Cz3Header` portion is only 28 bytes. The remaining 8 bytes sit between the
+fixed header and the LZW block table. Previous CZ3 writing dropped those bytes
+but kept `HeaderLength` unchanged, so readers looked for the block table at
+offset 36 while LuckSystem had written it at offset 28.
+
+### Fix
+
+- `czimage/cz3.go` now preserves raw extra header bytes on load and writes them
+  back before the compressed block table.
+- `czimage/cz4.go` receives the same protection because CZ4 uses the same
+  fixed subheader layout as CZ3.
+- `czimage/util.go` adds shared helpers to preserve and pad extra header bytes.
+- Added CZ3 regression tests covering preservation and table placement.
+- Updated CLI and GUI version labels to `v3.26`.
+
+### Testing
+
+- `go test ./czimage ./cmd`: OK.
+- Repacked all 36 supplied LBEE PNG replacements from the issue folder.
+- Verified every generated CZ3 keeps `HeaderLength = 36`, preserves the original
+  8 extra bytes, and stores `FileCount` at `HeaderLength`.
+- Re-exported every generated CZ3 back to PNG successfully.
+- Full root `go test ./...` still requires historical local fixtures that are
+  not present in this checkout.
+
+---
+
 # V3.25 — MUSIC / VOICE PAK extraction + Ogg/MP3 conversion
 
 05/07/2026
