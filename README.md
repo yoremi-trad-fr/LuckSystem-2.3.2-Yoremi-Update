@@ -14,8 +14,7 @@ ProtoDB / LUCA System — AIR, CLANNAD, Kanon, Little Busters, Summer Pockets, H
 
 ## GUI
 
-A graphical interface is available in this fork:
-**[LuckSystem-2.3.2-Yoremi-Update + GUI](https://github.com/yoremi-trad-fr/LuckSystem-2.3.2-Yoremi-Update)** — Built with Wails (Go + Svelte). Most workflows call `lucksystem.exe` via subprocess; the AIR / Planetarian SG Vietnamese font patcher is embedded directly in the GUI.
+A graphical interface is available in this fork-Built with Wails (Go + Svelte). Most workflows call `lucksystem.exe` via subprocess; the AIR / Planetarian SG Vietnamese font patcher is embedded directly in the GUI.
 
 ### GUI Features
 - **Game presets** / Auto-detect available games from data/ folder (OPCODE + plugin auto-fill)
@@ -70,10 +69,6 @@ A Linux version is available as separate binaries (GUI + CLI). See the releases 
     - Added GUI entry `Ogg / MP3 Convert` for native Ogg -> MP3 and MP3 -> native Ogg preparation.
     - FFmpeg conversion is launched without a Windows CMD popup from the GUI.
     - GUI and CLI version labels updated to `v3.25`.
-
-35. **AIO LuckSystem panel sync** — `AIO-VA-Key-Games-Tools`
-    - Updated the AIO LuckSystem panel and release metadata to LuckSystem `v3.25`.
-    - Added the same MUSIC/VOICE/SYSVOICE extraction and Ogg/MP3 conversion controls to the AIO GUI.
 
 ### Version 3.24
 
