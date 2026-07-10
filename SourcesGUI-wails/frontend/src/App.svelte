@@ -33,6 +33,9 @@
     DialogueImportFile,
     DialogueImportBatch,
     VietnameseFontPatch,
+    SupportsLucaMenuDLL,
+    ScanLucaMenuKit,
+    LucaMenuGenerate,
     SelectScriptTxtFile,
     SelectTsvFile,
     SelectSaveTsvFile,
@@ -48,6 +51,7 @@
   let consoleMenuX = 0;
   let consoleMenuY = 0;
   let lsPath = '';
+  let lucaMenuDllAvailable = false;
 
   // --- Script fields ---
   let pakFile = '';
@@ -142,6 +146,19 @@
   let vietY3 = false;
   let vietRedrawLatin = false;
 
+  // --- Luca Menu DLL ---
+  let lucaInventory = null;
+  let lucaGame = '';
+  let lucaSlot = 'en';
+  let lucaPatchName = '';
+  let lucaPatchVersion = '0.1-gui';
+  let lucaExe = '';
+  let lucaOutputDir = '';
+  let lucaBuildDll = true;
+  let lucaFillMode = 'fr-safe';
+  let lucaSearch = '';
+  let lucaEntries = [];
+
   // --- Image Export ---
   let imgExpBatch = false;
   let imgExpInput = '';
@@ -195,6 +212,8 @@
     { id: 'font_edit', label: 'Font Edit' },
     { id: '_s3b', label: 'VIET FONT', section: true },
     { id: 'viet_font_patch', label: 'AIR / SG Patch' },
+    { id: '_s3c', label: 'DLL HOOK', section: true },
+    { id: 'luca_menu_dll', label: 'Luca Menu DLL' },
     { id: '_s4', label: 'IMAGE', section: true },
     { id: 'image_export', label: 'Image Export' },
     { id: 'image_import', label: 'Image Import' },
@@ -315,9 +334,10 @@
     window.addEventListener('click', closeConsoleMenu);
     window.addEventListener('keydown', handleWindowKeydown);
     EventsOn('log', (msg) => addLine(msg));
+    lucaMenuDllAvailable = await SupportsLucaMenuDLL();
     lsPath = await GetLuckSystemPath();
     if (lsPath) {
-      addLine('LuckSystem 2.3.2 - Yoremi fork v3.26');
+      addLine('LuckSystem 2.3.2 - Yoremi fork v3.27');
       addLine('Executable: ' + lsPath);
       // Scan data/ folder for game presets
       gamePresets = (await ScanGameData()) || [];
@@ -498,6 +518,197 @@
     run(() => VietnameseFontPatch(vietFontRoot, vietCharsetFile, vietTtfFile, vietOutputDir, vietSlot, vietFamily, getVietYOffsets(), vietRedrawLatin));
   }
 
+  // --- Luca Menu DLL helpers ---
+  function lucaProfiles() {
+    return lucaInventory?.profiles || [];
+  }
+
+  function currentLucaProfile() {
+    return lucaProfiles().find(p => p.id === lucaGame) || null;
+  }
+
+  function lucaGameProfiles() {
+    return lucaProfiles().filter(p => !p.id.includes('/'));
+  }
+
+  function lucaFamilyProfiles() {
+    const profile = currentLucaProfile();
+    if (!profile) return [];
+    const root = (profile.id || '').split('/')[0];
+    return lucaProfiles().filter(p => p.id === root || p.id.startsWith(root + '/'));
+  }
+
+  function lucaSlotEntryCount(profile, slot = lucaSlot) {
+    return (profile?.entries || []).filter(e => e.slot === slot).length;
+  }
+
+  function lucaSlotSourceProfile(slot = lucaSlot) {
+    const current = currentLucaProfile();
+    return lucaFamilyProfiles()
+      .filter(p => lucaSlotEntryCount(p, slot) > 0)
+      .sort((a, b) => {
+        const expected = slot === 'jp' ? '/slots-jp' : slot === 'cn' ? '/slots-cn' : '';
+        const aPreferred = expected && a.id.toLowerCase().endsWith(expected) ? 1 : 0;
+        const bPreferred = expected && b.id.toLowerCase().endsWith(expected) ? 1 : 0;
+        if (aPreferred !== bPreferred) return bPreferred - aPreferred;
+        const countDiff = lucaSlotEntryCount(b, slot) - lucaSlotEntryCount(a, slot);
+        if (countDiff) return countDiff;
+        if (a.id === current?.id) return -1;
+        if (b.id === current?.id) return 1;
+        return a.id.length - b.id.length || a.id.localeCompare(b.id);
+      })[0] || null;
+  }
+
+  function lucaAvailableSlotCount(slot) {
+    const source = lucaSlotSourceProfile(slot);
+    return lucaSlotEntryCount(source, slot);
+  }
+
+  function lucaSafeFrenchCount(slot = lucaSlot) {
+    const source = lucaSlotSourceProfile(slot);
+    return (source?.entries || []).filter(e => e.slot === slot && e.safeAuto && e.suggestedFr).length;
+  }
+
+  function slotLabel(slot) {
+    if (slot === 'jp') return 'Japonais';
+    if (slot === 'cn') return 'Chinois';
+    return 'Anglais';
+  }
+
+  function byteLen(value) {
+    return new TextEncoder().encode(value || '').length;
+  }
+
+  function entryTooLong(entry) {
+    return entry.budget >= 0 && byteLen(entry.target) > entry.budget;
+  }
+
+  async function loadLucaInventory() {
+    lucaInventory = await ScanLucaMenuKit();
+    const profiles = lucaProfiles();
+    if (!profiles.length) {
+      addLine('[ERROR] No Luca DLL patch profiles found.');
+      return;
+    }
+    if (!lucaGame || !profiles.find(p => p.id === lucaGame)) {
+      const preferred = profiles.find(p => p.id === 'Kanon') || profiles.find(p => p.id === 'AIR') || profiles[0];
+      lucaGame = preferred.id;
+    }
+    syncLucaProfileDefaults();
+    refreshLucaEntries();
+    addLine('Luca kit: ' + lucaInventory.kitDir);
+    addLine('Luca games: ' + lucaGameProfiles().map(p => p.id).join(', '));
+  }
+
+  function syncLucaProfileDefaults() {
+    const profile = currentLucaProfile();
+    if (!profile) return;
+    lucaPatchName = profile.patchGameName || profile.name || lucaGame;
+    lucaPatchVersion = profile.patchVersion || '0.1-gui';
+  }
+
+  function refreshLucaEntries(mode = '') {
+    const profile = lucaSlotSourceProfile();
+    if (!profile) {
+      lucaEntries = [];
+      return;
+    }
+    lucaEntries = profile.entries
+      .filter(e => e.slot === lucaSlot)
+      .map(e => ({ ...e, target: e.target || '', include: false }));
+    applyLucaFillMode(mode || lucaFillMode);
+  }
+
+  function setLucaGame(value) {
+    lucaGame = value;
+    lucaExe = '';
+    syncLucaProfileDefaults();
+    refreshLucaEntries();
+  }
+
+  function setLucaSlot(value) {
+    lucaSlot = value;
+    refreshLucaEntries();
+  }
+
+  function lucaPresetTarget(entry, mode) {
+    if (mode === 'fr' || mode === 'fr-safe') return entry.suggestedFr || '';
+    if (mode === 'en' || mode === 'en-safe') return entry.suggestedEn || '';
+    if (mode === 'ar') return entry.suggestedAr || '';
+    if (mode === 'jp') return entry.suggestedJp || '';
+    if (mode === 'cn') return entry.suggestedCn || '';
+    return entry.target || '';
+  }
+
+  function applyLucaFillMode(mode = lucaFillMode) {
+    lucaFillMode = mode;
+    const safeMode = mode === 'fr-safe' || mode === 'en-safe';
+    lucaEntries = lucaEntries.map(entry => {
+      const target = lucaPresetTarget(entry, mode);
+      const fits = entry.budget < 0 || byteLen(target) <= entry.budget;
+      const safe = entry.commonCount >= 4 && (mode !== 'fr-safe' || entry.safeAuto);
+      const include = target !== '' && target !== entry.source && fits && (!safeMode || safe);
+      return { ...entry, target, include };
+    });
+  }
+
+  function setLucaFillMode(value) {
+    applyLucaFillMode(value);
+  }
+
+  function clearLucaTargets() {
+    lucaEntries = lucaEntries.map(e => ({ ...e, target: '', include: false }));
+  }
+
+  function lucaVisibleEntries() {
+    const q = lucaSearch.trim().toLowerCase();
+    return lucaEntries.filter(e => {
+      if (!q) return true;
+      return [e.source, e.target, e.context, e.note, e.category, e.textKind]
+        .some(v => (v || '').toLowerCase().includes(q));
+    });
+  }
+
+  function lucaSelectedEntries() {
+    return lucaEntries.filter(e => e.include && e.target);
+  }
+
+  async function browseLucaExe() {
+    const f = await SelectFile('Select Luca game EXE', '*.exe', 'Executable files');
+    if (f) lucaExe = f;
+  }
+
+  async function browseLucaOutput() {
+    const d = await SelectDirectory('Select Luca DLL output folder');
+    if (d) lucaOutputDir = d;
+  }
+
+  function startLucaGenerate() {
+    const entries = lucaSelectedEntries().map(e => ({
+      rawOffset: e.rawOffset,
+      source: e.source,
+      target: e.target,
+      context: e.context,
+      note: e.note,
+      include: e.include,
+      budget: e.budget
+    }));
+    if (!entries.length) {
+      addLine('[ERROR] Aucune chaîne remplie et sélectionnée pour le slot ' + slotLabel(lucaSlot) + '.');
+      return;
+    }
+    run(() => LucaMenuGenerate({
+      profileId: lucaGame,
+      gameExe: lucaExe,
+      outputDir: lucaOutputDir,
+      patchGameName: lucaPatchName,
+      patchVersion: lucaPatchVersion,
+      slot: lucaSlot,
+      buildDll: lucaBuildDll,
+      entries
+    }));
+  }
+
   function startImageExport() {
     if (imgExpBatch) run(() => ImageBatchExport(imgExpInput, imgExpOutput));
     else run(() => ImageExport(imgExpInput, imgExpOutput));
@@ -507,7 +718,11 @@
     else run(() => ImageImport(imgImpSource, imgImpInput, imgImpOutput, imgImpFill));
   }
 
-  function selectOp(op) { if (!op.disabled && !op.section) selectedOp = op.id; }
+  function selectOp(op) {
+    if (op.disabled || op.section) return;
+    selectedOp = op.id;
+    if (selectedOp === 'luca_menu_dll' && !lucaInventory) loadLucaInventory();
+  }
 
   // Reset fields when switching batch mode
   function toggleExpBatch() { imgExpInput = ''; imgExpOutput = ''; }
@@ -577,7 +792,7 @@
 
 <div id="app">
   <div class="titlebar">
-    <span>LuckSystem 2.3.2 - Yoremi fork v3.26</span>
+    <span>LuckSystem 2.3.2 - Yoremi fork v3.27</span>
     <span class="titlebar-path" on:click={locateLuckSystem} title="Click to change">
       {#if lsPath}📁 {lsPath}{:else}⚠ lucksystem.exe not found - Click to locate{/if}
     </span>
@@ -589,12 +804,14 @@
       <div class="sidebar-title">Select option:</div>
       <div class="sidebar-list">
         {#each operations as op}
-          {#if op.section}
-            <div class="sidebar-section">{op.label}</div>
-          {:else}
-            <div class="sidebar-item" class:active={selectedOp === op.id} class:disabled={op.disabled} on:click={() => selectOp(op)}>
-              {op.label}
-            </div>
+          {#if lucaMenuDllAvailable || (op.id !== '_s3c' && op.id !== 'luca_menu_dll')}
+            {#if op.section}
+              <div class="sidebar-section">{op.label}</div>
+            {:else}
+              <div class="sidebar-item" class:active={selectedOp === op.id} class:disabled={op.disabled} on:click={() => selectOp(op)}>
+                {op.label}
+              </div>
+            {/if}
           {/if}
         {/each}
       </div>
@@ -930,6 +1147,122 @@
           {/if}
         </div>
 
+      <!-- LUCA MENU DLL -->
+      {:else if selectedOp === 'luca_menu_dll'}
+        <div class="form-title">Luca Menu DLL</div>
+
+        {#if !lucaInventory}
+          <div class="form-actions" style="justify-content:flex-start">
+            <button class="btn btn-primary" on:click={loadLucaInventory}>Charger l'inventaire Luca</button>
+          </div>
+        {:else if !currentLucaProfile()}
+          <div class="form-hint form-hint-warn">Aucun profil Luca disponible dans le kit.</div>
+        {:else}
+          <div class="form-group">
+            <label>Profil et slot :</label>
+            <div class="form-row">
+              <select value={lucaGame} on:change={(e) => setLucaGame(e.target.value)}>
+                {#each lucaGameProfiles() as profile}
+                  <option value={profile.id}>{profile.name} ({profile.id})</option>
+                {/each}
+              </select>
+              <select value={lucaSlot} on:change={(e) => setLucaSlot(e.target.value)}>
+                <option value="en">Slot anglais</option>
+                <option value="jp">Slot japonais</option>
+                <option value="cn">Slot chinois</option>
+              </select>
+              <button class="btn" on:click={loadLucaInventory}>Rescan</button>
+            </div>
+            <div class="form-hint">
+              EN {lucaAvailableSlotCount('en')} · JP {lucaAvailableSlotCount('jp')} · CN {lucaAvailableSlotCount('cn')} · FR sûr sur ce slot {lucaSafeFrenchCount()}
+            </div>
+            {#if lucaSlotSourceProfile() && lucaSlotSourceProfile().id !== currentLucaProfile().id}
+              <div class="form-hint">Inventaire du slot chargé depuis {lucaSlotSourceProfile().id}.</div>
+            {:else if !lucaSlotSourceProfile()}
+              <div class="form-hint form-hint-warn">Aucune chaîne du slot {slotLabel(lucaSlot)} n'est encore inventoriée pour ce jeu.</div>
+            {/if}
+          </div>
+
+          <div class="form-group">
+            <label>EXE du jeu <span class="required">*</span> :</label>
+            <div class="form-row"><input type="text" bind:value={lucaExe} placeholder={currentLucaProfile().gameExe || 'Sélectionnez le véritable EXE du jeu'} /><button class="btn" on:click={browseLucaExe}>Select</button></div>
+            <div class="form-hint">Sélectionnez l'EXE présent dans le dossier du jeu afin de vérifier les offsets et la taille des chaînes.</div>
+          </div>
+
+          <div class="form-group">
+            <label>Dossier de sortie <span class="required">*</span> :</label>
+            <div class="form-row"><input type="text" bind:value={lucaOutputDir} readonly /><button class="btn" on:click={browseLucaOutput}>Select</button></div>
+            <div class="form-hint">Le dossier recevra patches.py, patches.h, patches.csv, version.c, version.def et version.dll si la compilation réussit.</div>
+          </div>
+
+          <div class="form-group">
+            <label>Identité du patch :</label>
+            <div class="form-row">
+              <input type="text" bind:value={lucaPatchName} placeholder="Nom affiché dans luckproxy.log" />
+              <input type="text" bind:value={lucaPatchVersion} placeholder="Version" style="max-width:140px" />
+              <label class="checkbox-label" style="margin-bottom:0"><input type="checkbox" bind:checked={lucaBuildDll} /> Compiler version.dll</label>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Langue à injecter :</label>
+            <div class="form-row checkbox-row luca-toolbar">
+              <select value={lucaFillMode} on:change={(e) => setLucaFillMode(e.target.value)}>
+                <option value="fr">FR</option>
+                <option value="fr-safe">FR (sûr)</option>
+                <option value="en">ENG</option>
+                <option value="en-safe">ENG (sûr)</option>
+                <option value="ar">Arabe</option>
+                <option value="jp">Japonais</option>
+                <option value="cn">Chinois</option>
+              </select>
+              <button class="btn" on:click={clearLucaTargets}>Vider</button>
+            </div>
+            <div class="form-hint">Les modes sûrs limitent la sélection aux chaînes communes aux quatre jeux et compatibles avec le budget du slot.</div>
+          </div>
+
+          <div class="form-group">
+            <label>Filtre :</label>
+            <div class="form-row">
+              <input type="text" bind:value={lucaSearch} placeholder="source, cible, contexte..." />
+              <span class="luca-count">{lucaSelectedEntries().length} sélectionnée(s) · {lucaVisibleEntries().length} visible(s) · slot {slotLabel(lucaSlot)}</span>
+            </div>
+          </div>
+
+          <div class="luca-table">
+            <div class="luca-row luca-head">
+              <div></div>
+              <div>Contexte</div>
+              <div>Source</div>
+              <div>Cible</div>
+              <div>Budget</div>
+            </div>
+            {#each lucaVisibleEntries() as entry (entry.rawOffset + entry.source)}
+              <div class="luca-row" class:entry-warn={entryTooLong(entry)}>
+                <div class="luca-check"><input type="checkbox" bind:checked={entry.include} /></div>
+                <div>
+                  <div class="luca-context">{entry.context}</div>
+                  <div class="luca-meta">{entry.rawOffset} · {entry.textKind}{entry.commonCount ? ` · ${entry.commonCount}/4` : ''}{entry.risk ? ` · ${entry.risk}` : ''}</div>
+                </div>
+                <div class="luca-source">{entry.source}</div>
+                <div><input type="text" bind:value={entry.target} placeholder={entry.suggestedFr || 'Traduction'} /></div>
+                <div class="luca-budget">{byteLen(entry.target)} / {entry.budget >= 0 ? entry.budget : '?'}</div>
+              </div>
+            {/each}
+          </div>
+
+          <div class="form-actions">
+            {#if running}
+              <span class="running-indicator"></span> Running...
+            {:else}
+              <button class="btn btn-primary" on:click={startLucaGenerate}
+                disabled={!lucaExe || !lucaOutputDir || lucaSelectedEntries().length === 0}>
+                Générer le kit DLL
+              </button>
+            {/if}
+          </div>
+        {/if}
+
       <!-- IMAGE EXPORT -->
       {:else if selectedOp === 'image_export'}
         <div class="form-title">Image Export (CZ → PNG)</div>
@@ -1040,7 +1373,7 @@
         <div class="form-title">À propos</div>
         <div class="about-panel">
           <div class="about-logo">LuckSystem</div>
-          <div class="about-subtitle">Fork · Yoremi-v3.26</div>
+          <div class="about-subtitle">Fork · Yoremi-v3.27</div>
           <div class="about-desc">
             Interface graphique pour LuckSystem, l'outil de traduction de visual novels Visual Art's / Key.<br>
             Inclut des correctifs CZ (CZ1, CZ4), script, PAK, et une interface subprocess.
@@ -1055,7 +1388,7 @@
               <span class="about-link-url">https://github.com/yoremi-trad-fr/LuckSystem-2.3.2-Yoremi-Update</span>
             </div>
           </div>
-          <div class="about-version">v3.26 GUI · Wails + Svelte</div>
+          <div class="about-version">v3.27 GUI · Wails + Svelte</div>
         </div>
       {/if}
     </div>

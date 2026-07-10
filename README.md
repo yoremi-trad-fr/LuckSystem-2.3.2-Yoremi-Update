@@ -1,4 +1,4 @@
-# LuckSystem 2.3.2 — Yoremi Fork (v3.26)
+# LuckSystem 2.3.2 — Yoremi Fork (v3.27)
 
 Fork de [LuckSystem](https://github.com/wetor/LuckSystem) avec corrections de bugs, support de nouveaux formats, et interface graphique pour la traduction de visual novels Visual Art's/Key.
 
@@ -14,7 +14,7 @@ ProtoDB / LUCA System — AIR, CLANNAD, Kanon, Little Busters, Summer Pockets, H
 
 ## GUI
 
-A graphical interface is available in this fork-Built with Wails (Go + Svelte). Most workflows call `lucksystem.exe` via subprocess; the AIR / Planetarian SG Vietnamese font patcher is embedded directly in the GUI.
+A graphical interface is available in this fork, built with Wails (Go + Svelte). Most workflows call `lucksystem.exe` via subprocess; the AIR / Planetarian SG Vietnamese font patcher and the Windows Luca menu DLL generator are embedded directly in the GUI.
 
 ### GUI Features
 - **Game presets** / Auto-detect available games from data/ folder (OPCODE + plugin auto-fill)
@@ -27,25 +27,49 @@ A graphical interface is available in this fork-Built with Wails (Go + Svelte). 
 - MUSIC/VOICE/SYSVOICE PAK audio extraction to native Ogg, with optional MP3 copies and Ogg/MP3 conversion
 - Font Extract / Edit (append, insert, redraw modes, Arabic metrics preset, manual X/Y/advance offsets, manual connector bleed)
 - Vietnamese Font Patch for AIR / Planetarian SG (slot/family selectors, TTF/OTF selection, Y-offset test folders, optional Latin redraw test mode)
+- **Windows only:** Luca Menu DLL hook generator for AIR, Kanon, Harmonia HD, and LOOPERS, with EN/JP/CN source slots, FR/ENG/Arabic/JP/CN target presets, safe common-string modes, byte-budget checks, and automatic `version.dll` compilation
 - Image Export / Import (single file + batch folder mode)
 - Real-time console output
 - **Stop button** to cancel any running operation
 - No CMD popup window during batch operations
 - Auto-detection of `lucksystem.exe`
 
-> Place `LuckSystemGUI.exe` in the same folder as `lucksystem.exe` to use.
+> Place `LuckSystemGUI.exe` in the same folder as `lucksystem.exe`. On Windows,
+> keep the complete `proxy dll` resource folder beside both executables to use
+> `DLL HOOK -> Luca Menu DLL`.
 
 ### Linux
 
-Une version Linux est disponibleen binaires séparés (GUI + CLI). Voir les releases pour le téléchargement.
+Une version Linux est disponible en binaires séparés (GUI + CLI). Voir les releases pour le téléchargement.
 
 A Linux version is available as separate binaries (GUI + CLI). See the releases for download.
+
+The Luca menu `version.dll` hook is not included in the Linux GUI. Version 3.27
+keeps this workflow Windows-only because it relies on Windows DLL proxy loading
+and Win32 memory APIs. Wine support is deferred until there is a user request.
 
 ---
 
 ## Patches
 
-### Version 3.26 — *(latest)*
+### Version 3.27 — *(latest)*
+
+37. **Windows GUI Luca Menu DLL generator** — `SourcesGUI-wails/luca_menu_dll.go`, `SourcesGUI-wails/frontend/src/App.svelte`, `proxy dll/`
+    - Adds `DLL HOOK -> Luca Menu DLL` for runtime translation of hardcoded Luck/Luca Engine menus without modifying the game EXE.
+    - Supports AIR, Kanon, Harmonia Full HD Edition, and LOOPERS with separate English, Japanese, and Simplified Chinese source slots.
+    - Replaces the former ambiguous filling buttons with one target-language list: FR, FR (safe), ENG, ENG (safe), Arabic, Japanese, and Chinese.
+    - The 86-entry shared catalog provides 84 safe French presets and preserves the tested Arabic-B/ASCII fallback behavior.
+    - Generates review files and a ready-to-install `version.dll`; detects MinGW GCC or Visual Studio Build Tools automatically.
+    - Uses the `proxy dll` resource folder beside the Windows executables. The feature is intentionally unavailable in the Linux GUI for now.
+    - Fixes `lucksystem --version`, which now reports `2.3.2-yoremi.3.27` instead of being rejected by the legacy log flag parser.
+
+38. **Reusable Japanese/Chinese slot inventories** — `proxy dll/menu_catalog.json`, `proxy dll/tools/build_slot_profiles.py`
+    - Adds catalog-backed JP/CN inventories for the four supported games.
+    - The regeneration helper scans installed EXEs and rebuilds slot profiles for updated game versions.
+    - AIR Japanese-slot French generation was validated end to end, including source checks, byte budgets, and MSVC compilation of `version.dll`.
+    - GUI and CLI version labels updated to `v3.27`.
+
+### Version 3.26
 
 36. **CZ3/CZ4 extended header preservation for LBEE image repack** — `czimage/cz3.go`, `czimage/cz4.go`, `czimage/util.go`, `czimage/cz3_test.go`
     - Preserves extra bytes between the fixed CZ3/CZ4 header and `HeaderLength` when importing PNGs back into CZ images.

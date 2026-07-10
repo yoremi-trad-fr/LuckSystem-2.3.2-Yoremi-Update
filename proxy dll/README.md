@@ -9,6 +9,11 @@ Tested on: **Kanon** (Steam), **AIR** (Steam), **Harmonia Full HD Edition**
 (Steam), **LOOPERS** (Steam). Should work on any Luck Engine title that ships a
 `VERSION.dll`-importing exe with SteamStub.
 
+> **Platform scope:** this toolkit and the v3.27 GUI generator are Windows-only.
+> The proxy relies on Windows `version.dll` resolution, Win32 memory APIs, and
+> forwarding exports to the system DLL. Native Linux support is intentionally
+> out of scope for v3.27; Wine can be evaluated later if requested.
+
 ---
 
 ## How it works
@@ -28,23 +33,60 @@ Tested on: **Kanon** (Steam), **AIR** (Steam), **Harmonia Full HD Edition**
 ## Repository layout
 
 ```
+menu_catalog.json ← shared EN/FR/Arabic/JP/CN menu concept catalog
 patches.py      ← single source of truth: edit this to add/change strings
 patches.h       ← auto-generated (do not edit)
 patches.csv     ← auto-generated review table
 version.c       ← DLL core (proxy + patch engine), shared across all games
 version.def     ← export forwarding table
 Makefile        ← build recipe
+tools/build_slot_profiles.py ← rebuilds JP/CN inventories from installed EXEs
 ```
 
-One subfolder per game (e.g. `Kanon/`, `AIR/`, `HarmoniaHD/`, `Loopers/`), each with its own
-`patches.py` / `patches.h` / `patches.csv` / pre-built `version.dll`.
-The `version.c`, `version.def`, and `Makefile` at the root are shared.
+One subfolder per game (`Kanon/`, `AIR/`, `HarmoniaHD/`, `Loopers/`) contains
+the English base table plus generated `Slots-JP/` and `Slots-CN/` inventories.
+Kanon also keeps the tested Arabic-B profiles and their ASCII fallbacks. The
+`version.c`, `version.def`, and `Makefile` files at the root are shared.
 
 ---
 
 ## Workflow
 
-### 1. Configure `patches.py`
+### GUI workflow (recommended in LuckSystem v3.27)
+
+Keep this complete `proxy dll` folder next to `LuckSystemGUI.exe` and
+`lucksystem.exe`, then open `DLL HOOK -> Luca Menu DLL`.
+
+1. Select AIR, Kanon, Harmonia HD, or LOOPERS.
+2. Select the real game EXE so source offsets and slot budgets can be checked.
+3. Select the source slot to replace: English, Japanese, or Chinese.
+4. Select the language to inject: FR, FR (safe), ENG, ENG (safe), Arabic,
+   Japanese, or Chinese.
+5. Review/edit the selected rows and generate the kit.
+
+The GUI writes reviewable Python/CSV/header files and compiles `version.dll`.
+It prefers MinGW GCC and otherwise discovers Visual Studio Build Tools through
+`vswhere`, including installations where `cl.exe` is not in `PATH`.
+
+The safe presets are based on the shared 86-concept catalog. They keep common
+four-game strings only and reject target text that exceeds the selected source
+slot's byte budget.
+
+### Regenerating JP/CN profiles
+
+When a game update moves strings, edit the EXE paths if necessary and run:
+
+```powershell
+py -3 ".\proxy dll\tools\build_slot_profiles.py"
+```
+
+The helper verifies the strings in the installed AIR, Kanon, Harmonia HD, and
+LOOPERS executables, refreshes `menu_catalog.json`, and rewrites each game's
+`Slots-JP/patches.py` and `Slots-CN/patches.py`.
+
+### Manual workflow
+
+#### 1. Configure `patches.py`
 
 Open `patches.py` and set the variables at the top:
 
@@ -55,7 +97,7 @@ PATCH_GAME_NAME = 'Kanon'       # appears in the log
 PATCH_VERSION   = '0.1'         # appears in the log
 ```
 
-### 2. Find `RVA_DELTA` for a new game
+#### 2. Find `RVA_DELTA` for a new game
 
 ```python
 python3 -c "
@@ -67,7 +109,7 @@ for s in pe.sections:
 " GameName.exe
 ```
 
-### 3. Add patches
+#### 3. Add patches
 
 Each entry in `PATCHES` is a 5-tuple:
 
@@ -89,7 +131,7 @@ The slot size is auto-detected from the exe (source string + contiguous null
 padding). If your translation is longer than the budget, the script exits with
 an error.
 
-### 4. Generate and build
+#### 4. Generate and build
 
 ```bash
 # From the game subfolder (where patches.py and the exe live):
@@ -120,7 +162,7 @@ call "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\Common7\Too
 cl /nologo /O2 /W3 /LD /I Loopers /Fe:Loopers\version.dll version.c /link /DEF:version.def /SUBSYSTEM:WINDOWS /NOLOGO
 ```
 
-### 5. Install
+#### 5. Install
 
 1. Back up any existing `version.dll` in the game folder.
 2. Copy the newly built `version.dll` into the game folder (next to the `.exe`).

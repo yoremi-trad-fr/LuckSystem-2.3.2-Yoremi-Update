@@ -143,3 +143,61 @@ html, body {
 
 /* Experimental tag */
 .experimental-tag { font-size: 10px; font-weight: 600; color: #e67e22; background: #fef5e7; border: 1px solid #f0c36d; border-radius: 3px; padding: 1px 6px; vertical-align: middle; text-transform: uppercase; letter-spacing: 0.3px; }
+
+/* Luca menu DLL */
+.luca-toolbar { flex-wrap: wrap; gap: 8px; }
+.luca-count { font-size: 11px; color: #666; white-space: nowrap; }
+.luca-table {
+  border: 1px solid var(--border);
+  max-height: 360px;
+  overflow: auto;
+  background: #fff;
+}
+.luca-row {
+  display: grid;
+  grid-template-columns: 30px minmax(170px, 0.9fr) minmax(180px, 1fr) minmax(220px, 1.2fr) 72px;
+  gap: 8px;
+  align-items: center;
+  padding: 5px 8px;
+  border-bottom: 1px solid #eeeeee;
+  font-size: 12px;
+}
+.luca-row:last-child { border-bottom: 0; }
+.luca-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #f8f8f8;
+  font-size: 11px;
+  font-weight: 700;
+  color: #666;
+  text-transform: uppercase;
+}
+.luca-check { display: flex; justify-content: center; }
+.luca-context { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.luca-meta { margin-top: 2px; font-size: 10.5px; color: #888; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.luca-source {
+  font-family: Consolas, "Cascadia Code", monospace;
+  max-height: 48px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #333;
+}
+.luca-row input[type="text"] {
+  width: 100%;
+  height: 26px;
+  padding: 0 7px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  font-size: 12px;
+  font-family: Consolas, "Cascadia Code", monospace;
+}
+.luca-budget {
+  font-family: Consolas, "Cascadia Code", monospace;
+  font-size: 11px;
+  color: #555;
+  text-align: right;
+}
+.entry-warn { background: #fff8e1; }
+.entry-warn .luca-budget { color: #b05a00; font-weight: 700; }

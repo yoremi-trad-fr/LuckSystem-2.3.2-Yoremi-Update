@@ -1,0 +1,1381 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "id": "close",
+      "context": "bottom-right button",
+      "en": "Close",
+      "fr": "Fermer",
+      "ar": "ﻍﺇ",
+      "jp": "閉じる",
+      "cn": "关闭",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x4874A4",
+        "jp": "0x487498",
+        "cn": "0x4874AC"
+      },
+      "note": "slot 8, budget 7"
+    },
+    {
+      "id": "defaults",
+      "context": "bottom-left button",
+      "en": "Defaults",
+      "fr": "Defauts",
+      "ar": "ﻂﺒﺿ",
+      "jp": "初期設定に戻す",
+      "cn": "恢复默认设置",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x488B98",
+        "jp": "0x488B80",
+        "cn": "0x488BA8"
+      },
+      "note": "budget 15 ok"
+    },
+    {
+      "id": "skip",
+      "context": "Basic/Skip",
+      "en": "Skip",
+      "fr": "Saut",
+      "ar": "ﺦﺗ",
+      "jp": "早送り",
+      "cn": "快进",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x499208",
+        "jp": "0x499210",
+        "cn": "0x499220"
+      },
+      "note": "budget 7"
+    },
+    {
+      "id": "previously-read-only",
+      "context": "Basic/Skip value",
+      "en": "Previously Read Only",
+      "fr": "Deja lu seulement",
+      "ar": "Read",
+      "jp": "既読のみ",
+      "cn": "仅限已读内容",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x4991B0",
+        "jp": "0x4991C8",
+        "cn": "0x4991E8"
+      },
+      "note": "budget 23"
+    },
+    {
+      "id": "voice",
+      "context": "Basic/Voice",
+      "en": "Voice",
+      "fr": "Voix",
+      "ar": "ﺖﺻ",
+      "jp": "ボイス",
+      "cn": "语音",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x499320",
+        "jp": "0x49AC90",
+        "cn": "0x49ACB8"
+      },
+      "note": "budget 7"
+    },
+    {
+      "id": "stop-on-new-message",
+      "context": "Basic/Voice value",
+      "en": "Stop on New Message",
+      "fr": "Stop au nouveau msg",
+      "ar": "Stop",
+      "jp": "メッセージ送りで停止する",
+      "cn": "跳过对白时停止配音",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x4992D0",
+        "jp": "0x499278",
+        "cn": "0x4992B0"
+      },
+      "note": "budget 23"
+    },
+    {
+      "id": "no-stops",
+      "context": "Basic/Voice value",
+      "en": "      No Stops      ",
+      "fr": "     Sans arret     ",
+      "ar": "No stop",
+      "jp": "　　 停止しない 　　",
+      "cn": "　　　不停止　　　",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x4992E8",
+        "jp": "0x499300",
+        "cn": "0x499328"
+      },
+      "note": "keep spaces for alignment, budget 23"
+    },
+    {
+      "id": "positioned-at-yes",
+      "context": "Basic/Cursor value",
+      "en": "Positioned at ❝Yes❞",
+      "fr": "Place sur ❝Oui❞",
+      "ar": "Yes",
+      "jp": "「はい」に合わせる",
+      "cn": "位于“是”",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x4993A8",
+        "jp": "0x4993C0",
+        "cn": "0x499400"
+      },
+      "note": "Keep stylish chevrons if fits; budget 23"
+    },
+    {
+      "id": "positioned-at-no",
+      "context": "Basic/Cursor value",
+      "en": "Positioned at ❝No❞",
+      "fr": "Place sur ❝Non❞",
+      "ar": "No",
+      "jp": "「いいえ」に合わせる",
+      "cn": "位于“否”",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x499420",
+        "jp": "0x4993E0",
+        "cn": "0x499410"
+      },
+      "note": "budget 23"
+    },
+    {
+      "id": "controller-rumble-function",
+      "context": "Basic/Rumble",
+      "en": "Controller Rumble Function",
+      "fr": "Vibration manette",
+      "ar": "ﺯﺍﺰﺘﻫﺍ",
+      "jp": "コントローラの振動",
+      "cn": "控制器震动",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x499490",
+        "jp": "0x4990E8",
+        "cn": ""
+      },
+      "note": "17B, budget 27"
+    },
+    {
+      "id": "disable",
+      "context": "Basic/Rumble value",
+      "en": "Disable",
+      "fr": "Arret",
+      "ar": "None",
+      "jp": "なし",
+      "cn": "无效",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x499470",
+        "jp": "0x4987D0",
+        "cn": "0x499468"
+      },
+      "note": "budget 7 (rumble intensity: None/Min/Mid/Max)"
+    },
+    {
+      "id": "language",
+      "context": "Text1/Language",
+      "en": "Language",
+      "fr": "Langue",
+      "ar": "ﺔﻐﻟ",
+      "jp": "言語",
+      "cn": "语言",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49A4D8",
+        "jp": "0x49A4E4",
+        "cn": "0x49A500"
+      },
+      "note": "6B, budget 11"
+    },
+    {
+      "id": "font",
+      "context": "Text1/Font",
+      "en": "Font",
+      "fr": "Police",
+      "ar": "ﻂﺧ",
+      "jp": "フォント",
+      "cn": "字体",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49A598",
+        "jp": "0x49A578",
+        "cn": "0x49A590"
+      },
+      "note": "6B, budget 7"
+    },
+    {
+      "id": "mincho",
+      "context": "Text1/Font value",
+      "en": "Mincho",
+      "fr": "Mincho",
+      "ar": "Font4",
+      "jp": " 明朝 ",
+      "cn": "宋体",
+      "safe": false,
+      "kanonOffsets": {
+        "en": "0x49A56C",
+        "jp": "0x49A548",
+        "cn": "0x49A5C4"
+      },
+      "note": "japanese font family name, keep"
+    },
+    {
+      "id": "modern",
+      "context": "Text1/Font value",
+      "en": "Modern",
+      "fr": "Moderne",
+      "ar": "Font5",
+      "jp": " モダン ",
+      "cn": "现代",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49A588",
+        "jp": "0x49A560",
+        "cn": ""
+      },
+      "note": "7B, budget 7 tight!"
+    },
+    {
+      "id": "solid",
+      "context": "Text1/Window Transp value",
+      "en": "Solid",
+      "fr": "Opaque",
+      "ar": "Opaque",
+      "jp": "不透明",
+      "cn": "不透明",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49A5D4",
+        "jp": "0x49A5B8",
+        "cn": "0x49A5B8"
+      },
+      "note": "6B, budget 11"
+    },
+    {
+      "id": "clear",
+      "context": "Text1/Window Transp value",
+      "en": "Clear",
+      "fr": "Transp",
+      "ar": "Trans",
+      "jp": "透明",
+      "cn": "透明",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49A5FC",
+        "jp": "0x49A5CC",
+        "cn": "0x49A5CC"
+      },
+      "note": "5B, budget 11"
+    },
+    {
+      "id": "window-transparency",
+      "context": "Text1/Window Transp",
+      "en": "Window Transparency",
+      "fr": "Transp. fenetre",
+      "ar": "ﺔﻴﻓﺎﻔﺷ",
+      "jp": "ウィンドウ透明度",
+      "cn": "窗口透明度",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49A618",
+        "jp": "0x49A5E0",
+        "cn": "0x49A608"
+      },
+      "note": "12B, budget 23"
+    },
+    {
+      "id": "previously-read-text",
+      "context": "Text1/Read target",
+      "en": "Previously Read Text",
+      "fr": "Texte deja lu",
+      "ar": "ﻥﻮﻟ",
+      "jp": "既読の色表示",
+      "cn": "已读内容颜色标记",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49A658",
+        "jp": "0x49A698",
+        "cn": "0x49A6B0"
+      },
+      "note": "budget 23"
+    },
+    {
+      "id": "color-of",
+      "context": "Text1/Color label",
+      "en": "Color of",
+      "fr": "Couleur",
+      "ar": "",
+      "jp": "",
+      "cn": "颜色",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49A688",
+        "jp": "",
+        "cn": ""
+      },
+      "note": "7B, budget 15"
+    },
+    {
+      "id": "green",
+      "context": "Text1/Color value",
+      "en": "Green",
+      "fr": "Vert",
+      "ar": "G",
+      "jp": "緑",
+      "cn": "绿",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49A6D0",
+        "jp": "0x49A6AC",
+        "cn": "0x49A6CC"
+      },
+      "note": "4B, budget 7"
+    },
+    {
+      "id": "blue",
+      "context": "Text1/Color value",
+      "en": "Blue",
+      "fr": "Bleu",
+      "ar": "B",
+      "jp": "青",
+      "cn": "蓝",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49A6D8",
+        "jp": "0x49A6E0",
+        "cn": "0x49A6E8"
+      },
+      "note": "4B, budget 7"
+    },
+    {
+      "id": "purple",
+      "context": "Text1/Color value",
+      "en": "Purple",
+      "fr": "Violet",
+      "ar": "P",
+      "jp": "紫",
+      "cn": "紫",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49A6F0",
+        "jp": "0x49A6E4",
+        "cn": "0x49A6E4"
+      },
+      "note": "6B, budget 7"
+    },
+    {
+      "id": "yellow",
+      "context": "Text1/Color value",
+      "en": "Yellow",
+      "fr": "Jaune",
+      "ar": "Y",
+      "jp": "黄",
+      "cn": "黄",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49A4C0",
+        "jp": "0x49A4A0",
+        "cn": "0x49A4A0"
+      },
+      "note": "5B, budget 7"
+    },
+    {
+      "id": "read-text-color",
+      "context": "Text1/Read color",
+      "en": "Read Text Color",
+      "fr": "Coul. texte lu",
+      "ar": "ﻥﻮﻟ",
+      "jp": "既読色",
+      "cn": "已读色",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49A700",
+        "jp": "0x49A710",
+        "cn": ""
+      },
+      "note": "14B, budget 15"
+    },
+    {
+      "id": "text-speed",
+      "context": "Text2/Speed",
+      "en": "Text Speed",
+      "fr": "Vitesse texte",
+      "ar": "ﺔﻋﺮﺳ",
+      "jp": "文字表示速度",
+      "cn": "文字速度",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49AB30",
+        "jp": "0x49AB08",
+        "cn": "0x49AB20"
+      },
+      "note": "13B, budget 15"
+    },
+    {
+      "id": "slow",
+      "context": "Text2/Speed value",
+      "en": "Slow",
+      "fr": "Lent",
+      "ar": "Slow",
+      "jp": "遅い",
+      "cn": "慢",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49AAEC",
+        "jp": "0x49AAD8",
+        "cn": "0x49AAE8"
+      },
+      "note": "4B, budget 7"
+    },
+    {
+      "id": "fast",
+      "context": "Text2/Speed value",
+      "en": "Fast",
+      "fr": "Rapide",
+      "ar": "Fast",
+      "jp": "速い",
+      "cn": "快",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49AAF4",
+        "jp": "0x49AAFC",
+        "cn": "0x49AB1C"
+      },
+      "note": "6B, budget 7"
+    },
+    {
+      "id": "0-sec-char",
+      "context": "Text2/Speed value",
+      "en": "0 sec/char",
+      "fr": "0 s/car.",
+      "ar": "0s/char",
+      "jp": "0秒/文字",
+      "cn": "0秒/字",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49AB40",
+        "jp": "0x49AB50",
+        "cn": "0x49AB70"
+      },
+      "note": "7B, budget 15"
+    },
+    {
+      "id": "0-1-sec-char",
+      "context": "Text2/Speed value",
+      "en": "0.1 sec/char",
+      "fr": "0.1 s/car.",
+      "ar": "0.2s/ch",
+      "jp": "0.2秒/文字",
+      "cn": "0.2秒/字",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49AB90",
+        "jp": "0x49AB60",
+        "cn": "0x49AB80"
+      },
+      "note": "9B, budget 15"
+    },
+    {
+      "id": "wait-time-per-character",
+      "context": "Text2/Wait",
+      "en": "Wait Time Per Character",
+      "fr": "Attente par caractere",
+      "ar": "ﺭﺎﻈﺘﻧﺍ",
+      "jp": "文字数待機時間",
+      "cn": "按字数翻页",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49ABB0",
+        "jp": "0x49AA38",
+        "cn": "0x49ABA0"
+      },
+      "note": "budget 23"
+    },
+    {
+      "id": "0-sec",
+      "context": "Text2/Wait value",
+      "en": "0 sec",
+      "fr": "0 s",
+      "ar": "0s",
+      "jp": "0秒",
+      "cn": "0秒",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49ABC8",
+        "jp": "0x49ABD0",
+        "cn": "0x49ABD0"
+      },
+      "note": "3B, budget 7"
+    },
+    {
+      "id": "1-sec",
+      "context": "Text2/Wait value",
+      "en": "1 sec",
+      "fr": "1 s",
+      "ar": "1s",
+      "jp": "1秒",
+      "cn": "1秒",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49ABD8",
+        "jp": "0x49ABE0",
+        "cn": "0x49ABE0"
+      },
+      "note": "3B, budget 7"
+    },
+    {
+      "id": "2-sec",
+      "context": "Text2/Wait value",
+      "en": "2 sec",
+      "fr": "2 s",
+      "ar": "2s",
+      "jp": "2秒",
+      "cn": "2秒",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49ABE8",
+        "jp": "0x49ABF0",
+        "cn": "0x49ABF0"
+      },
+      "note": "3B, budget 7"
+    },
+    {
+      "id": "3-sec",
+      "context": "Text2/Wait value",
+      "en": "3 sec",
+      "fr": "3 s",
+      "ar": "3s",
+      "jp": "3秒",
+      "cn": "3秒",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49ABF8",
+        "jp": "0x49AC00",
+        "cn": "0x49AC00"
+      },
+      "note": "3B, budget 7"
+    },
+    {
+      "id": "base-wait-time",
+      "context": "Text2/Base",
+      "en": "Base Wait Time",
+      "fr": "Attente base",
+      "ar": "ﺔﻠﻬﻣ",
+      "jp": "固定待機時間",
+      "cn": "固定等待时间",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49AC08",
+        "jp": "0x49AC18",
+        "cn": "0x49AC40"
+      },
+      "note": "15B, budget 15 exact"
+    },
+    {
+      "id": "master-volume",
+      "context": "Sound/Master",
+      "en": "Master Volume",
+      "fr": "Volume global",
+      "ar": "ﻡﺎﻋ",
+      "jp": "マスター音量",
+      "cn": "整体音量",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49AC68",
+        "jp": "0x49AC78",
+        "cn": "0x49ACA0"
+      },
+      "note": "budget 15"
+    },
+    {
+      "id": "system-sounds",
+      "context": "Sound/System",
+      "en": "System Sounds",
+      "fr": "Sons systeme",
+      "ar": "ﻡﺎﻈﻧ",
+      "jp": "システム音",
+      "cn": "系统音",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49AD08",
+        "jp": "0x49ACD8",
+        "cn": "0x49ACF8"
+      },
+      "note": "budget 15"
+    },
+    {
+      "id": "while-pressed",
+      "context": "Keyboard/mode",
+      "en": "While Pressed",
+      "fr": "Maintenu",
+      "ar": "Hold",
+      "jp": "押している間",
+      "cn": "长按中持续",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49ADF0",
+        "jp": "0x49ADC0",
+        "cn": "0x49ADE0"
+      },
+      "note": "8B, budget 15"
+    },
+    {
+      "id": "start-stop",
+      "context": "Keyboard/mode",
+      "en": "Start/Stop",
+      "fr": "Marche/Arret",
+      "ar": "Toggle",
+      "jp": "開始／解除",
+      "cn": "开始／结束",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49AE00",
+        "jp": "0x49AE10",
+        "cn": "0x49AE38"
+      },
+      "note": "budget 15"
+    },
+    {
+      "id": "c-skip",
+      "context": "Keyboard/key label",
+      "en": "C (Skip)",
+      "fr": "C (Saut)",
+      "ar": "Skip",
+      "jp": "Cキー (早送り)",
+      "cn": "C键 (快进)",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49AE58",
+        "jp": "0x49AE20",
+        "cn": "0x49AE48"
+      },
+      "note": "10B, budget 15"
+    },
+    {
+      "id": "z-rewind",
+      "context": "Keyboard/key label",
+      "en": "Z (Rewind)",
+      "fr": "Z (Retour)",
+      "ar": "Rewind",
+      "jp": "Zキー (早戻し)",
+      "cn": "Z键 (快退)",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49AE68",
+        "jp": "0x49AE78",
+        "cn": "0x49AEA0"
+      },
+      "note": "10B, budget 15"
+    },
+    {
+      "id": "disable-keyboard-value",
+      "context": "Keyboard/value",
+      "en": "  Disable  ",
+      "fr": "  Inactif  ",
+      "ar": "Off",
+      "jp": "　無効　",
+      "cn": "  无效  ",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49AEC0",
+        "jp": "0x49AE90",
+        "cn": "0x49AEB0"
+      },
+      "note": "retain spaces, budget 15"
+    },
+    {
+      "id": "quick-save",
+      "context": "Keyboard/key label",
+      "en": "Quick Save",
+      "fr": "Sauv. rap.",
+      "ar": "Q.Save",
+      "jp": "クイックセーブ",
+      "cn": "快速保存",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49AED0",
+        "jp": "0x49AEE0",
+        "cn": "0x49AF00"
+      },
+      "note": "12B, budget 15"
+    },
+    {
+      "id": "quick-load",
+      "context": "Keyboard/key label",
+      "en": "Quick Load",
+      "fr": "Charg. rapide",
+      "ar": "Q.Load",
+      "jp": "クイックロード",
+      "cn": "快速读取",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49AF20",
+        "jp": "0x49AF30",
+        "cn": "0x49AF60"
+      },
+      "note": "12B, budget 15"
+    },
+    {
+      "id": "switch-language",
+      "context": "Keyboard/key label",
+      "en": "Switch Language",
+      "fr": "Changer langue",
+      "ar": "Lang",
+      "jp": "言語切り替え",
+      "cn": "切换语言",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49AF80",
+        "jp": "0x49AF48",
+        "cn": "0x49AF70"
+      },
+      "note": "14B, budget 15"
+    },
+    {
+      "id": "up-arrow",
+      "context": "Keyboard/key label",
+      "en": "Up Arrow",
+      "fr": "Fleche haut",
+      "ar": "Up",
+      "jp": "方向キー上",
+      "cn": "上方向键",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49AFE0",
+        "jp": "0x49AFB0",
+        "cn": "0x49AFD0"
+      },
+      "note": "budget 15"
+    },
+    {
+      "id": "system-menu",
+      "context": "Mouse/target",
+      "en": "System Menu",
+      "fr": "Menu systeme",
+      "ar": "System",
+      "jp": "システムメニュー",
+      "cn": "系统菜单",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49B080",
+        "jp": "0x49B048",
+        "cn": "0x49B070"
+      },
+      "note": "budget 15"
+    },
+    {
+      "id": "hide-window",
+      "context": "Mouse/target",
+      "en": "Hide Window",
+      "fr": "Cacher fenetre",
+      "ar": "Hide",
+      "jp": "ウィンドウ非表示",
+      "cn": "隐藏窗口",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49B090",
+        "jp": "0x49B0A0",
+        "cn": "0x49B0D0"
+      },
+      "note": "budget 15 exact"
+    },
+    {
+      "id": "right-click",
+      "context": "Mouse/binding",
+      "en": "Right Click",
+      "fr": "Clic droit",
+      "ar": "Right",
+      "jp": "右ボタン",
+      "cn": "右键",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49B0E8",
+        "jp": "0x49B0C0",
+        "cn": "0x49B0E0"
+      },
+      "note": "10B, budget 15"
+    },
+    {
+      "id": "left-right-click",
+      "context": "Mouse/binding",
+      "en": "Left+Right Click",
+      "fr": "Clic gauche+droit",
+      "ar": "L+R",
+      "jp": "左ボタン＋右ボタン",
+      "cn": "左键＋右键",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49B108",
+        "jp": "0x49AFF0",
+        "cn": "0x49B0F8"
+      },
+      "note": "18B, budget 23"
+    },
+    {
+      "id": "mouse-wheel-button",
+      "context": "Mouse/binding",
+      "en": "Mouse Wheel Button",
+      "fr": "Bouton molette",
+      "ar": "Wheel",
+      "jp": "ホイールボタン",
+      "cn": "鼠标滚轮",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49B120",
+        "jp": "0x49B138",
+        "cn": "0x49B160"
+      },
+      "note": "14B, budget 23"
+    },
+    {
+      "id": "rewind-once",
+      "context": "Mouse/target",
+      "en": "Rewind Once",
+      "fr": "Retour x1",
+      "ar": "Back",
+      "jp": "１つ戻し",
+      "cn": "后退一项",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49B180",
+        "jp": "0x49B150",
+        "cn": "0x49B170"
+      },
+      "note": "13B, budget 15"
+    },
+    {
+      "id": "forward-once",
+      "context": "Mouse/target",
+      "en": "Forward Once",
+      "fr": "Avance x1",
+      "ar": "Forward",
+      "jp": "１つ送り",
+      "cn": "前进一项",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49B1F0",
+        "jp": "0x49B1B8",
+        "cn": "0x49B1E0"
+      },
+      "note": "14B, budget 15"
+    },
+    {
+      "id": "return-proceed-button",
+      "context": "Mouse/target",
+      "en": "Return/Proceed Button",
+      "fr": "Bouton retour/avance",
+      "ar": "Return",
+      "jp": "戻る／進むボタン",
+      "cn": "返回/前进键",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49B298",
+        "jp": "0x49B2B0",
+        "cn": "0x49B2D8"
+      },
+      "note": "16B, budget 23"
+    },
+    {
+      "id": "enable",
+      "context": "Mouse/Gestures value",
+      "en": "Enable",
+      "fr": "Actif",
+      "ar": "On",
+      "jp": "あり",
+      "cn": "有效",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49B2F4",
+        "jp": "0x49B2CC",
+        "cn": "0x49B2EC"
+      },
+      "note": "budget 11"
+    },
+    {
+      "id": "gestures",
+      "context": "Mouse/Gestures",
+      "en": "Gestures",
+      "fr": "Gestes",
+      "ar": "ﺲﻤﻟ",
+      "jp": "ジェスチャー操作",
+      "cn": "手势操作",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49B310",
+        "jp": "0x49B010",
+        "cn": "0x49B300"
+      },
+      "note": "6B, budget 15"
+    },
+    {
+      "id": "game-ver",
+      "context": "System/info",
+      "en": "Game Ver. ",
+      "fr": "Ver. jeu ",
+      "ar": "",
+      "jp": "Game Ver. ",
+      "cn": "Game Ver. ",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49B748",
+        "jp": "0x49B748",
+        "cn": "0x49B748"
+      },
+      "note": "12B, budget 15"
+    },
+    {
+      "id": "window",
+      "context": "System/Window",
+      "en": "Window",
+      "fr": "Fenetre",
+      "ar": "Window",
+      "jp": "ウィンドウ",
+      "cn": "窗口模式",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49B7B0",
+        "jp": "0x49B788",
+        "cn": "0x49B7A0"
+      },
+      "note": "7B, budget 7 exact"
+    },
+    {
+      "id": "full-screen",
+      "context": "System/FullScreen",
+      "en": "Full Screen",
+      "fr": "Plein ecran",
+      "ar": "Full",
+      "jp": "フルスクリーン",
+      "cn": "全屏模式",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49B7B8",
+        "jp": "0x49B7C8",
+        "cn": "0x49B7F0"
+      },
+      "note": "budget 15"
+    },
+    {
+      "id": "screen-mode",
+      "context": "System/ScreenMode",
+      "en": "Screen Mode",
+      "fr": "Mode ecran",
+      "ar": "ﻊﺿﻭ",
+      "jp": "画面モード",
+      "cn": "显示模式",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49B7E0",
+        "jp": "0x49B738",
+        "cn": "0x49B808"
+      },
+      "note": "budget 15"
+    },
+    {
+      "id": "auto",
+      "context": "System/value",
+      "en": "Auto",
+      "fr": "Auto",
+      "ar": "Auto",
+      "jp": "自動",
+      "cn": "自动",
+      "safe": false,
+      "kanonOffsets": {
+        "en": "0x49B820",
+        "jp": "0x49B800",
+        "cn": "0x49B818"
+      },
+      "note": "same"
+    },
+    {
+      "id": "window-size",
+      "context": "System/WindowSize",
+      "en": "Window Size",
+      "fr": "Taille fen.",
+      "ar": "ﻢﺠﺣ",
+      "jp": "ウィンドウサイズ",
+      "cn": "窗口大小",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49B870",
+        "jp": "0x49B718",
+        "cn": "0x49B860"
+      },
+      "note": "budget 15 exact"
+    },
+    {
+      "id": "wait-time-per-character-in-auto-mode-this-sets-t",
+      "context": "Texte2 tooltip",
+      "en": "Wait Time Per Character: In Auto Mode, this sets the wait time until the next message is displayed based on the number of characters in text.",
+      "fr": "En mode auto, definit le delai avant le message suivant selon le nombre de caracteres du texte.",
+      "ar": "Wait per character: in auto mode, sets the wait before the next message based on text length.",
+      "jp": "【文字数待機時間】オートモードの時、全メッセージが表示されてから、次のメッセージに進むまでの待ち時間を、メッセージの文字数に合わせて設定できます。",
+      "cn": "自动模式中，按文字数设置显示下一条消息前的等待时间。",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49A8D0",
+        "jp": "0x49A720",
+        "cn": ""
+      },
+      "note": "budget 143"
+    },
+    {
+      "id": "base-wait-time-you-can-set-a-base-wait-time-to-a",
+      "context": "Texte2 tooltip",
+      "en": "Base Wait Time: You can set a Base Wait Time to add to\n❝Wait Time Per Character❞.",
+      "fr": "Ajoute un delai fixe a l'attente par caractere.",
+      "ar": "Base wait time: adds a fixed wait to wait per character.",
+      "jp": "【固定待機時間】「文字数待機時間」に追加する固定的な待ち時間を設定できます。",
+      "cn": "可设置叠加在按字数翻页时间上的固定等待时间。",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49A960",
+        "jp": "0x49A9C0",
+        "cn": ""
+      },
+      "note": "budget 95, keep stylized quotes"
+    },
+    {
+      "id": "controller-rumble-function-plug-in-a-controller-",
+      "context": "Basic tooltip",
+      "en": "Controller Rumble Function: Plug in a controller to use the controller Rumble function.",
+      "fr": "Branchez une manette pour utiliser la vibration.",
+      "ar": "Controller rumble: connect a controller to use vibration.",
+      "jp": "【コントローラの振動】コントローラを接続すると、コントローラの振動機能が使用できます。",
+      "cn": "连接控制器后可使用震动功能。",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x499960",
+        "jp": "0x499800",
+        "cn": ""
+      },
+      "note": "budget 87"
+    },
+    {
+      "id": "gestures-moving-the-cursor-while-holding-the-lef",
+      "context": "Mouse tooltip",
+      "en": "Gestures: Moving the cursor while holding the left button works the same way as Touch controls.",
+      "fr": "Maintenir le bouton gauche et bouger le curseur agit comme les commandes tactiles.",
+      "ar": "Gestures: move the mouse while holding left click to use touch-style controls.",
+      "jp": "【ジェスチャー操作】左ボタンを押しながら、ゲーム画面上でマウスポインターを動かすと「タッチ」と同じ操作ができます。",
+      "cn": "按住左键移动鼠标可进行触摸操作。",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49B3F0",
+        "jp": "0x49B450",
+        "cn": ""
+      },
+      "note": "budget 95"
+    },
+    {
+      "id": "left-right-click-hold-left-button-then-right-cli",
+      "context": "Mouse tooltip",
+      "en": "Left+Right Click: Hold left button then right click to switch between languages (English/Simplified Chinese/Japanese).",
+      "fr": "Maintenez le bouton gauche puis clic droit pour changer de langue.",
+      "ar": "Left+Right Click: hold left click, then right click to switch text language.",
+      "jp": "【左ボタン＋右ボタン】左ボタンを押しながら右ボタンを押すと、テキストの表示言語が切り替わります（日本語／英語／簡体中文）。",
+      "cn": "按住左键后点击右键可切换语言。",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49B6A0",
+        "jp": "0x49B500",
+        "cn": ""
+      },
+      "note": "budget 119"
+    },
+    {
+      "id": "do-you-wish-to-load-this-save",
+      "context": "Save/Load prompt",
+      "en": "Do you wish to load this save?",
+      "fr": "Charger cette sauvegarde ?",
+      "ar": "Load this save?",
+      "jp": "ロードしますか？",
+      "cn": "是否读取？",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x487EB0",
+        "jp": "0x487E90",
+        "cn": "0x487ED0"
+      },
+      "note": "budget 31"
+    },
+    {
+      "id": "are-you-sure-you-wish-to-overwrite-data",
+      "context": "Save/Load prompt",
+      "en": "Are you sure you wish to overwrite data?",
+      "fr": "Ecraser cette sauvegarde ?",
+      "ar": "Overwrite?",
+      "jp": "上書きしますか？",
+      "cn": "是否覆盖？",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x4880C8",
+        "jp": "0x4880A8",
+        "cn": "0x4880F8"
+      },
+      "note": "budget 47"
+    },
+    {
+      "id": "do-you-wish-to-save",
+      "context": "Save prompt",
+      "en": "Do you wish to save?",
+      "fr": "Sauvegarder ?",
+      "ar": "Save data?",
+      "jp": "セーブしますか？",
+      "cn": "是否保存？",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x488080",
+        "jp": "0x488060",
+        "cn": "0x488098"
+      },
+      "note": "budget 23, bonus"
+    },
+    {
+      "id": "are-you-sure-you-wish-to-delete-this-save-data",
+      "context": "Save delete prompt",
+      "en": "Are you sure you wish to delete this save data?",
+      "fr": "Supprimer cette sauvegarde ?",
+      "ar": "Delete data?",
+      "jp": "削除しますか？",
+      "cn": "是否删除？",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x4882F0",
+        "jp": "0x4882D8",
+        "cn": "0x488320"
+      },
+      "note": "budget 47"
+    },
+    {
+      "id": "this-cannot-be-deleted",
+      "context": "Save delete error",
+      "en": "This cannot be deleted.",
+      "fr": "Suppression impossible.",
+      "ar": "Cannot delete.",
+      "jp": "削除できません。",
+      "cn": "无法删除。",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x488350",
+        "jp": "0x488330",
+        "cn": "0x488368"
+      },
+      "note": "budget 23"
+    },
+    {
+      "id": "delete",
+      "context": "Save menu button",
+      "en": "Delete",
+      "fr": "Suppr.",
+      "ar": "ﻑﺬﺣ",
+      "jp": " 削除 ",
+      "cn": " 删除 ",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x488B2C",
+        "jp": "0x488B20",
+        "cn": "0x488B38"
+      },
+      "note": "budget 11"
+    },
+    {
+      "id": "latest",
+      "context": "Save menu button",
+      "en": "Latest",
+      "fr": "Dernier",
+      "ar": "ﺮﺧﺁ",
+      "jp": "最新へ",
+      "cn": "跳至最近一次的存档",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x488B54",
+        "jp": "0x488B48",
+        "cn": "0x488B60"
+      },
+      "note": "budget 11"
+    },
+    {
+      "id": "text-preview",
+      "context": "Text preview label",
+      "en": "Text preview.",
+      "fr": "Apercu texte.",
+      "ar": ".ﺺﻨﻟﺍ ﺽﺮﻋ",
+      "jp": "テキストプレビュー。",
+      "cn": "文字预览。",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x488EE8",
+        "jp": "0x488EC8",
+        "cn": "0x488EF8"
+      },
+      "note": "budget 15"
+    },
+    {
+      "id": "settings-such-as-text-speed-are-reflected",
+      "context": "Text preview tooltip",
+      "en": "Settings such as text speed are reflected.",
+      "fr": "Les reglages de texte sont appliques.",
+      "ar": "Text settings are previewed.",
+      "jp": "文字表示速度などの設定が反映されます。",
+      "cn": "此文反映了文字速度等的设置结果。",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x489008",
+        "jp": "0x488FC8",
+        "cn": "0x489038"
+      },
+      "note": "budget 47"
+    },
+    {
+      "id": "english",
+      "context": "Language switcher",
+      "en": "English",
+      "fr": "FR",
+      "ar": "AR",
+      "jp": "日本語",
+      "cn": "简体中文",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x487458",
+        "jp": "0x487448",
+        "cn": "0x487460"
+      },
+      "note": "budget 7 hard cap (neighbor is 简体中文). Fill in your ISO language code."
+    },
+    {
+      "id": "return-to-the-title-screen",
+      "context": "Title return prompt",
+      "en": "Return to the title screen?",
+      "fr": "Retour a l'ecran titre ?",
+      "ar": "Return to title?",
+      "jp": "タイトル画面に戻りますか？",
+      "cn": "是否返回标题画面？",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x4883F8",
+        "jp": "0x4883D0",
+        "cn": "0x488418"
+      },
+      "note": "budget 31"
+    },
+    {
+      "id": "return-to-the-menu",
+      "context": "Menu return prompt",
+      "en": "Return to the menu?",
+      "fr": "Retour au menu ?",
+      "ar": "Return to menu?",
+      "jp": "メニューに戻りますか？",
+      "cn": "是否返回菜单？",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x4883A0",
+        "jp": "0x488378",
+        "cn": "0x4883B8"
+      },
+      "note": "budget 23, bonus"
+    },
+    {
+      "id": "a1there-is-unsaved-data-a1are-you-sure-you-wish-",
+      "context": "Quit prompt (unsaved)",
+      "en": "$A1There is unsaved data.\n$A1Are you sure you wish to quit the game?",
+      "fr": "$A1Donnees non sauvegardees.\n$A1Quitter le jeu ?",
+      "ar": "$A1Unsaved data exists.\n$A1Quit the game?",
+      "jp": "$A1セーブしていないデータがあります。\n$A1ゲームを終了しますか？",
+      "cn": "$A1有数据尚未保存。\n$A1是否结束游戏？",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x495B30",
+        "jp": "0x495B80",
+        "cn": "0x495C08"
+      },
+      "note": "budget 79, keep $A1 tags"
+    },
+    {
+      "id": "yes",
+      "context": "Global dialog button",
+      "en": "Yes",
+      "fr": "Oui",
+      "ar": "ﻥ",
+      "jp": "はい",
+      "cn": "是",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x487478",
+        "jp": "0x487470",
+        "cn": "0x48747C"
+      },
+      "note": "budget 3, exact fit. Used by ALL Yes/No prompts"
+    },
+    {
+      "id": "no",
+      "context": "Global dialog button",
+      "en": "No",
+      "fr": "Non",
+      "ar": "ﺎﻟ",
+      "jp": "いいえ",
+      "cn": "否",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x48748C",
+        "jp": "0x487480",
+        "cn": "0x487490"
+      },
+      "note": "budget 3, exact fit. Used by ALL Yes/No prompts"
+    },
+    {
+      "id": "save-completed",
+      "context": "Save confirmation",
+      "en": "Save completed.",
+      "fr": "Sauvegarde OK",
+      "ar": "Save complete.",
+      "jp": "セーブが完了しました。",
+      "cn": "已保存。",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x4882B8",
+        "jp": "0x488290",
+        "cn": "0x4882C8"
+      },
+      "note": "budget 15"
+    },
+    {
+      "id": "are-you-sure-you-wish-to-quit-the-game",
+      "context": "Quit prompt (saved)",
+      "en": "Are you sure you wish to quit the game?",
+      "fr": "Quitter le jeu ?",
+      "ar": "Quit the game?",
+      "jp": "ゲームを終了しますか？",
+      "cn": "是否结束游戏？",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x495C58",
+        "jp": "0x495BE0",
+        "cn": "0x495C40"
+      },
+      "note": "budget 39 — the short variant, used when no unsaved data"
+    },
+    {
+      "id": "changing-the-setting-to-auto-will-open-the-windo",
+      "context": "System tab tooltip",
+      "en": "Changing the setting to ❝Auto❞ will open the window at a scale based on the Windows ❝Display❞ setting.\nChanging ❝%%❞ will scale the display, with the default resolution being %d×%d pixels.\n (Scale cannot be increased beyond the maximum resolution of your display.)",
+      "fr": "Le mode ❝Auto❞ ouvre la fenetre selon le reglage Windows ❝Affichage❞.\nModifier ❝%%❞ redimensionne l'affichage, resolution par defaut : %d×%d pixels.\n(Le zoom ne peut pas depasser la resolution maximale de l'ecran.)",
+      "ar": "Auto uses the Windows display scale.\nPercent values resize from the default %d x %d pixels. Scaling cannot exceed your display resolution.",
+      "jp": "「自動」にすると、Windowsの「ディスプレイ」設定に基づいた表示スケールでウィンドウを開きます。\n「％」指定は、標準サイズ（%d×%dピクセル）に対しての拡大・縮小表示を行います。（ディスプレイの解像度を超えた拡大はできません）",
+      "cn": "自动模式会依据 Windows 显示设置缩放窗口。百分比以 %d×%d 为标准，且不会超过屏幕分辨率。",
+      "safe": true,
+      "kanonOffsets": {
+        "en": "0x49B880",
+        "jp": "0x49B9A0",
+        "cn": ""
+      },
+      "note": "budget 287, keep %%/%d×%d intact"
+    }
+  ]
+}

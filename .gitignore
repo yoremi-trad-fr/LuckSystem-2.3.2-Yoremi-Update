@@ -13,6 +13,8 @@ SourcesGUI-wails/frontend/dist/
 SourcesGUI-wails/.gocache/
 SourcesGUI-wails/.gocache-test/
 SourcesGUI-wails/frontend/node_modules/
+__pycache__/
+*.py[cod]
 
 # Local test/export artifacts
 out_test/

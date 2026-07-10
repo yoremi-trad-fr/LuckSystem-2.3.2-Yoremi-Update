@@ -1,4 +1,4 @@
-# LuckSystem GUI (Windows) — Yoremi fork v3.26
+# LuckSystem GUI (Windows) — Yoremi fork v3.27
 
 Graphical interface for [LuckSystem](https://github.com/wetor/LuckSystem), the Visual Art's/Key visual novel translation toolkit.
 
@@ -8,7 +8,7 @@ Interface graphique pour [LuckSystem](https://github.com/wetor/LuckSystem), l'ou
 
 ## Architecture
 
-The GUI is a **standalone wrapper** — it does NOT embed LuckSystem source code. It calls `lucksystem.exe` via subprocess, exactly like you would from a terminal.
+The GUI is primarily a **standalone wrapper**. Most operations call `lucksystem.exe` via subprocess, exactly like they would from a terminal. A few focused workflows are embedded in the GUI, including the Vietnamese font patcher and the Luca menu DLL generator.
 
 ```
 LuckSystemGUI.exe  ←→  lucksystem.exe (subprocess)
@@ -21,7 +21,25 @@ This design follows [wetor's recommendation](https://github.com/wetor/LuckSystem
 
 1. Download `lucksystem.exe` from [LuckSystem releases](https://github.com/wetor/LuckSystem/releases) (or build from the [Yoremi fork](https://github.com/yoremi-trad-fr/LuckSystem-2.3.2-Yoremi-Update))
 2. Place `lucksystem.exe` next to `LuckSystemGUI.exe`
-3. Run `LuckSystemGUI.exe`
+3. Keep the complete `proxy dll` folder next to both executables
+4. Run `LuckSystemGUI.exe`
+
+Expected Windows release layout:
+
+```text
+GUI/
+├── LuckSystemGUI.exe
+├── lucksystem.exe
+├── data/
+└── proxy dll/
+    ├── menu_catalog.json
+    ├── version.c
+    ├── version.def
+    ├── AIR/
+    ├── HarmoniaHD/
+    ├── Kanon/
+    └── Loopers/
+```
 
 The GUI auto-detects `lucksystem.exe` in the same directory, current working directory, or system PATH. You can also manually locate it by clicking the path indicator in the title bar.
 
@@ -41,6 +59,30 @@ The GUI auto-detects `lucksystem.exe` in the same directory, current working dir
 | **Image Import** | Convert PNG back to CZ format (single or batch) |
 | **Dialogue Extract** | Extract translatable dialogue from decompiled scripts to TSV (single file or batch) |
 | **Dialogue Import** | Reimport translated dialogue from TSV back into scripts (single file or batch) |
+| **Luca Menu DLL** | Generate a Windows `version.dll` hook for translated hardcoded Luca menu strings |
+
+### Luca Menu DLL (Windows only)
+
+Open `DLL HOOK -> Luca Menu DLL`, select the game EXE and output folder, then
+choose two independent values:
+
+- **Source slot:** English, Japanese, or Simplified Chinese. This is the menu
+  language currently stored in the EXE and replaced by the hook.
+- **Language to inject:** FR, FR (safe), ENG, ENG (safe), Arabic, Japanese, or
+  Chinese.
+
+The safe presets only select catalogued strings shared by AIR, Kanon, Harmonia
+HD, and LOOPERS that fit the byte budget of the chosen source slot. Individual
+rows remain editable and can be enabled or disabled before generation.
+
+The output folder receives `patches.py`, `patches.h`, `patches.csv`, the shared
+proxy sources, and `version.dll` when compilation succeeds. Python 3 is needed
+for patch validation. The GUI automatically uses MinGW GCC or discovers Visual
+Studio Build Tools through `vswhere`; `cl.exe` does not need to be in `PATH`.
+
+Install the generated `version.dll` next to the selected game EXE. The hook
+patches strings in memory after SteamStub finishes and does not modify the EXE
+on disk.
 
 ### BGMOVIE Extract
 

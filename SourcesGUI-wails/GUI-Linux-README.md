@@ -1,4 +1,4 @@
-# LuckSystem GUI (Linux) — Yoremi fork v3.26
+# LuckSystem GUI (Linux) — Yoremi fork v3.27
 
 Graphical interface for [LuckSystem](https://github.com/wetor/LuckSystem), the Visual Art's/Key visual novel translation toolkit.
 
@@ -14,6 +14,12 @@ LuckSystemGUI      ←→  lucksystem (subprocess)
 ```
 
 This design follows [wetor's recommendation](https://github.com/wetor/LuckSystem) to keep the GUI separated from the core tool for cross-platform compatibility and maintainability.
+
+> **v3.27 platform note:** `DLL HOOK -> Luca Menu DLL` is available only in
+> the Windows GUI. It generates a Windows `version.dll` proxy and relies on
+> Win32 DLL loading, memory protection, and export forwarding. It is not
+> packaged or supported by the native Linux GUI at this time. A Wine-specific
+> workflow is deferred until users request it.
 
 ## Setup
 
@@ -110,6 +116,7 @@ Since v3.20 the bundled npm scripts call Vite through `node ./node_modules/vite/
 ## Notes
 
 - No `.exe` extension on Linux
+- No Luca menu `version.dll` generator in the native Linux GUI
 - If the app does not launch, check execution permissions
 - Wayland users may need XWayland depending on desktop environment
 

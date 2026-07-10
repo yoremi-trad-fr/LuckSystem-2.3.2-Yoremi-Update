@@ -30,6 +30,8 @@ export function ImageExport(arg1:string,arg2:string):Promise<string>;
 
 export function ImageImport(arg1:string,arg2:string,arg3:string,arg4:boolean):Promise<string>;
 
+export function LucaMenuGenerate(arg1:main.LucaMenuGenerateRequest):Promise<string>;
+
 export function MusicPakExtract(arg1:string,arg2:string,arg3:boolean):Promise<string>;
 
 export function PakExtract(arg1:string,arg2:string):Promise<string>;
@@ -41,6 +43,8 @@ export function PakFontReplace(arg1:string,arg2:string,arg3:string,arg4:string,a
 export function PakReplace(arg1:string,arg2:string,arg3:string,arg4:string):Promise<string>;
 
 export function ScanGameData():Promise<Array<main.GamePreset>>;
+
+export function ScanLucaMenuKit():Promise<main.LucaMenuInventory>;
 
 export function ScriptCompile(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:string,arg7:string):Promise<string>;
 
@@ -69,6 +73,8 @@ export function SetLuckSystemPath():Promise<string>;
 export function SiglusLucaBridge(arg1:string,arg2:string,arg3:string,arg4:number):Promise<string>;
 
 export function StopProcess():Promise<void>;
+
+export function SupportsLucaMenuDLL():Promise<boolean>;
 
 export function VietnameseFontPatch(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:string,arg7:Array<number>,arg8:boolean):Promise<string>;
 

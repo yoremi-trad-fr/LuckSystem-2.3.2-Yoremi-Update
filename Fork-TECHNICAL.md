@@ -1,3 +1,97 @@
+# V3.27 — Générateur GUI Windows du hook menu Luca (`version.dll`)
+
+## Portée
+
+La v3.27 ajoute un workflow Windows complet pour remplacer en mémoire les
+chaînes codées en dur des menus Luck/Luca Engine. Le jeu charge un proxy
+`version.dll`, qui transfère les exports vers la DLL système puis applique les
+patches après le déchiffrement SteamStub.
+
+Cette fonction reste volontairement absente de la GUI Linux native. Le cœur du
+hook dépend de la résolution Windows de `version.dll`, de `VirtualProtect`, de
+`FlushInstructionCache` et des exports de la DLL système. Aucun packaging Wine
+n'est annoncé en 3.27.
+
+## Fichiers principaux
+
+### Version et GUI
+
+- `cmd/root.go` — version CLI `2.3.2-yoremi.3.27`; configuration des flags
+  glog déplacée vers `PersistentPreRun` afin que Cobra puisse traiter
+  correctement `--version`, `--log` et `--log_level`.
+- `SourcesGUI-wails/main.go` — titre Wails `v3.27`.
+- `SourcesGUI-wails/frontend/package.json` et `package-lock.json` — version
+  frontend `3.27`.
+- `SourcesGUI-wails/frontend/src/App.svelte` — écran `DLL HOOK -> Luca Menu
+  DLL`, choix du jeu, du slot source, de la langue cible et édition des lignes.
+- `SourcesGUI-wails/frontend/src/style.css` — table compacte, budgets et états
+  de risque.
+
+### Backend
+
+- `SourcesGUI-wails/luca_menu_dll.go` — inventaire des profils, chargement du
+  catalogue, validation des offsets/budgets, génération de `patches.py`,
+  `patches.h`, `patches.csv` et compilation de `version.dll`.
+- `SourcesGUI-wails/luca_menu_dll_test.go` — tests du catalogue et des profils
+  EN/JP/CN des quatre jeux, plus test d'intégration AIR optionnel.
+
+La compilation cherche d'abord MinGW GCC. Si GCC est absent, le backend utilise
+`vswhere` pour localiser Visual Studio Build Tools, crée un script de build
+temporaire qui initialise `VsDevCmd.bat`, puis lance MSVC. `cl.exe` n'a donc pas
+besoin d'être exposé dans `PATH`.
+
+### Ressources `proxy dll`
+
+- `menu_catalog.json` — 86 concepts communs avec cibles EN, FR, Arabic-B, JP
+  et CN; 84 entrées sont marquées sûres pour le preset français.
+- `AIR/Slots-JP`, `AIR/Slots-CN`, `Kanon/Slots-JP`, `Kanon/Slots-CN`,
+  `HarmoniaHD/Slots-JP`, `HarmoniaHD/Slots-CN`, `Loopers/Slots-JP` et
+  `Loopers/Slots-CN` — tables d'offsets par slot source.
+- `tools/build_slot_profiles.py` — régénération mécanique du catalogue et des
+  tables JP/CN à partir des quatre EXE installés.
+- `version.c`, `version.def`, `Makefile` — cœur partagé du proxy.
+
+Le dossier `proxy dll` doit être distribué à côté de `LuckSystemGUI.exe` et de
+`lucksystem.exe`, comme `data`. Le backend accepte encore
+`LuckEngine_proxy_DLL.-KIT` comme ancien nom de secours.
+
+## Modèle GUI
+
+Le slot et la langue cible sont indépendants :
+
+```text
+slot source : English / Japanese / Simplified Chinese
+langue cible : FR / FR (sûr) / ENG / ENG (sûr) / Arabe / Japonais / Chinois
+```
+
+Les modes sûrs limitent la sélection aux concepts communs aux quatre jeux et
+aux cibles qui tiennent dans le budget UTF-8 du slot source. Les autres modes
+restent éditables ligne par ligne et refusent également les dépassements lors
+de la génération.
+
+Couverture des inventaires générés :
+
+| Jeu | Slot JP | Slot CN |
+|---|---:|---:|
+| AIR | 85 | 76 |
+| Kanon | 85 | 76 |
+| Harmonia HD | 84 | 76 |
+| LOOPERS | 81 | 75 |
+
+## Validation
+
+- Parsing des quatre EXE Steam installés et vérification des sources des tables
+  EN/JP/CN.
+- Test AIR : injection `FR (sûr)` sur le slot japonais, 59 chaînes retenues,
+  validation des offsets et budgets, génération des fichiers intermédiaires,
+  puis compilation réelle de `version.dll` avec Visual Studio Build Tools.
+- `go test ./...` dans `SourcesGUI-wails` : OK.
+- `LUCA_DLL_INTEGRATION=1 go test -run
+  TestAIRJapaneseFrenchDLLIntegration -v` : OK.
+- `wails build` Windows/amd64 : OK.
+
+---
+
 # V3.26 — Conservation de l'en-tête étendu CZ3/CZ4 pour les images LBEE
 
 ## Fichiers modifiés

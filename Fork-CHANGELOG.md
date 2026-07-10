@@ -1,3 +1,87 @@
+# V3.27 — Windows GUI Luca menu hook and version.dll generator
+
+10/07/2026
+
+## Added: ready-to-use Luca menu DLL workflow
+
+The Windows GUI now includes `DLL HOOK -> Luca Menu DLL`, a complete workflow
+for translating hardcoded Luck/Luca Engine menu strings without modifying the
+game executable on disk.
+
+- Inventories menu strings from the resources stored in `proxy dll` next to
+  `LuckSystemGUI.exe`.
+- Supports AIR, Kanon, Harmonia Full HD Edition, and LOOPERS.
+- Separates the source slot being replaced (`English`, `Japanese`, or
+  `Simplified Chinese`) from the language being injected.
+- Adds one target-language list with `FR`, `FR (safe)`, `ENG`, `ENG (safe)`,
+  `Arabic`, `Japanese`, and `Chinese` presets.
+- Keeps manual editing, per-string selection, byte budgets, context/type
+  inventory, filtering, and over-budget warnings.
+- Safe presets select strings shared by the four games and only keep targets
+  that fit the selected source slot.
+- Includes Arabic-B presentation-form targets and the validated ASCII
+  fallbacks used by menu areas that cannot render Arabic reliably.
+
+The shared catalog currently contains 86 common menu concepts, including 84
+safe French presets. Generated source-slot inventories cover:
+
+| Game | Japanese slot | Chinese slot |
+|---|---:|---:|
+| AIR | 85 | 76 |
+| Kanon | 85 | 76 |
+| Harmonia Full HD Edition | 84 | 76 |
+| LOOPERS | 81 | 75 |
+
+`proxy dll/tools/build_slot_profiles.py` can regenerate the catalog-backed JP
+and CN inventories from installed game executables when offsets move in a new
+game build.
+
+## Fixed: DLL compilation with Visual Studio Build Tools
+
+The generator still prefers MinGW GCC when it is available, but it now also
+discovers Visual Studio Build Tools through `vswhere` and initializes the MSVC
+environment automatically. `cl.exe` no longer needs to be present in `PATH`.
+Temporary MSVC build files are removed after a successful build.
+
+The generated output contains the reviewable `patches.py`, `patches.h`, and
+`patches.csv` files plus a ready-to-install `version.dll` when compilation
+succeeds.
+
+## Fixed: CLI version and logging flag parsing
+
+The legacy standard-library log flag parser ran before Cobra and rejected
+`lucksystem --version` as an unknown flag. Logging is now configured from a
+Cobra persistent pre-run hook, after command flags have been parsed. The CLI
+correctly prints `2.3.2-yoremi.3.27`, and custom log settings are applied at
+the right time.
+
+## Packaging and platform scope
+
+- Renamed the DLL resource kit to `proxy dll` and made the GUI locate it next
+  to the Windows executables, like the existing `data` folder.
+- The old `LuckEngine_proxy_DLL.-KIT` folder name remains a compatibility
+  fallback during the transition.
+- The Luca menu hook is exposed only by the Windows GUI in v3.27. It relies on
+  Windows `version.dll` proxy loading, Win32 memory protection APIs, and the
+  system `version.dll` export forwarding table.
+- The feature is intentionally not advertised or enabled on Linux. A Wine
+  workflow can be investigated later if users request it.
+- Updated CLI and GUI version labels to `v3.27`.
+
+### Testing
+
+- Parsed and catalogued the installed AIR, Kanon, Harmonia HD, and LOOPERS
+  executables for EN/JP/CN menu slots.
+- Generated an AIR `FR (safe)` patch targeting the Japanese source slot,
+  validated all selected source offsets and byte budgets, and compiled a real
+  `version.dll` with Visual Studio Build Tools.
+- `go test ./...` in `SourcesGUI-wails`: OK.
+- Optional `TestAIRJapaneseFrenchDLLIntegration`: OK with
+  `LUCA_DLL_INTEGRATION=1`.
+- Production `wails build`: OK.
+
+---
+
 # V3.26 — CZ3/CZ4 extended header preservation for LBEE images
 
 08/07/2026

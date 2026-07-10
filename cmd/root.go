@@ -16,11 +16,14 @@ import (
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:     "LuckSystem",
-	Version: "2.3.2-yoremi.3.26",
+	Version: "2.3.2-yoremi.3.27",
 	Short:   "LucaSystem引擎工具集",
 	Long: `LucaSystem引擎工具集
 https://github.com/wetor/LuckSystem
 wetor(wetorx@qq.com)`,
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		configureLogging()
+	},
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	// Run: func(cmd *cobra.Command, args []string) { },
@@ -29,18 +32,20 @@ wetor(wetorx@qq.com)`,
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
-
-	if Log {
-		flag.Set("alsologtostderr", "true")
-		flag.Set("log_dir", LogDir)
-		flag.Set("v", strconv.Itoa(LogLevel))
-		flag.Parse()
-	}
 	err := rootCmd.Execute()
 	if err != nil {
 		os.Exit(1)
 	}
 
+}
+
+func configureLogging() {
+	if !Log {
+		return
+	}
+	_ = flag.Set("alsologtostderr", "true")
+	_ = flag.Set("log_dir", LogDir)
+	_ = flag.Set("v", strconv.Itoa(LogLevel))
 }
 
 var (
