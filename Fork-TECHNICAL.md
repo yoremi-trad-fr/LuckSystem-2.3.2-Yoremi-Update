@@ -1,3 +1,81 @@
+# V3.28 — Alias de taille Font PAK et round-trip CZ2 compatible préchargement
+
+## Portée
+
+La v3.28 ajoute une copie de taille de fonte compatible avec la structure de
+la cible et termine la correction de l'ancien workflow CZ2. L'objectif est de
+permettre à une taille demandée par le moteur de réutiliser des glyphes validés
+d'une autre taille sans rendre le PAK invalide au prochain démarrage.
+
+Le cas de validation est Kanon arabe : le dialogue utilise la taille 30, tandis
+que les choix et certaines fenêtres demandent la taille 32. Une copie brute de
+`明朝30` vers `明朝32` fonctionne lors d'un changement de fonte à chaud, mais
+échoue pendant le préchargement initial des textures.
+
+## Fichiers principaux
+
+- `font/alias.go` — adaptation des entrées info et image, remaillage des
+  cellules et conservation de la longueur cible.
+- `font/alias_test.go` — tests des métriques cibles, des pixels, des marges et
+  de la longueur binaire.
+- `cmd/pakFontAlias.go` — commande CLI `pak font-alias`.
+- `czimage/cz2.go` — inversion palette PNG -> index CZ2 et conservation de la
+  longueur originale au `Write()`.
+- `czimage/cz2_test.go` — tests palette et padding de longueur.
+- `SourcesGUI-wails/app.go` et `frontend/src/App.svelte` — mode GUI
+  `Alias de taille compatible`.
+- `cmd/root.go`, titre Wails et package frontend — version `3.28`.
+
+## Algorithme d'alias
+
+Pour `info30 -> info32`, la table Unicode, les métriques et le nombre de
+caractères proviennent de la source. `FontSize` et `BlockSize` restent ceux de
+la cible (`32` et `33`).
+
+Pour `明朝30 -> 明朝32`, l'atlas source est découpé en 100 cellules par ligne.
+Chaque cellule 31 px est copiée sans mise à l'échelle dans une cellule 33 px.
+La largeur de texture vient du CZ2 cible et la hauteur est recalculée selon le
+nombre réel de lignes. Les marges ajoutées restent transparentes.
+
+Après recompression, les données sont complétées par des zéros ignorés jusqu'à
+la longueur originale de l'entrée cible si elles sont plus courtes. Cette
+longueur stable est nécessaire au `PreLoad2` groupé de Kanon; le chargement à
+chaud était plus permissif.
+
+## Correction générale du round-trip CZ2
+
+À l'export, un octet stocké est résolu via `ColorPanel`. L'ancien import
+réutilisait directement l'alpha visible comme index, ce qui appliquait la
+palette une seconde fois. L'import construit maintenant une table inverse :
+correspondance couleur exacte, table rapide pour les niveaux d'alpha noirs,
+puis recherche de la couleur de palette la plus proche en secours.
+
+`Cz2Image.Load()` mémorise également la longueur de l'entrée source et
+`Cz2Image.Write()` la restaure par padding si la recompression est plus courte.
+Cette protection s'applique à tous les imports CZ2, pas seulement à l'alias.
+La largeur `3136` observée sur `明朝30` est déjà présente dans l'en-tête CZ2
+original de Kanon; elle n'est pas une colonne ajoutée par l'export.
+
+## Validation
+
+- Alias réel `info30 -> info32` et `明朝30 -> 明朝32` : `info32` final avec
+  `FontSize=32`, `BlockSize=33`, `CharNum=7318`; CZ2 `3328x2442`.
+- Comparaison des 7 400 cellules : zéro pixel différent, marges ajoutées
+  entièrement transparentes.
+- Reproduction de l'échec : entrée `明朝32` raccourcie, arrêt après
+  `PreLoad2 FONT_MINCHO.PAK/明朝30～明朝38`.
+- Correction : longueur `明朝32` conservée à `3 071 619` octets, démarrage
+  avec Mincho déjà sélectionnée, préchargement complet et tâches système
+  atteintes.
+- Test général demandé dans l'ancienne issue : export de `明朝30`, PNG plein
+  modifié, réimport CZ2 et remplacement PAK. La sortie conserve exactement la
+  longueur `2 809 153`, passe le préchargement et démarre le jeu.
+- Tests ciblés `czimage`, `font`, `cmd`, `script` et `siglusluca` : OK.
+- `go test ./...` dans `SourcesGUI-wails` et `wails build` Windows/amd64 : OK.
+- Retour utilisateur final : problème de relance résolu.
+
+---
+
 # V3.27 — Générateur GUI Windows du hook menu Luca (`version.dll`)
 
 ## Portée

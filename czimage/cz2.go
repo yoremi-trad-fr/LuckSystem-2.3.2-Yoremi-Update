@@ -21,13 +21,15 @@ type Cz2Header struct {
 type Cz2Image struct {
 	CzHeader
 	Cz2Header
-	ColorPanel []color.NRGBA // []BGRA
+	ColorPanel     []color.NRGBA // []BGRA
+	OriginalLength int           // preserve the PAK entry length expected by grouped font preload
 	CzData
 }
 
 func (cz *Cz2Image) Load(header CzHeader, data []byte) {
 	cz.CzHeader = header
 	cz.Raw = data
+	cz.OriginalLength = len(data)
 
 	offset := int(cz.HeaderLength)
 	if cz.Colorbits == 4 || cz.Colorbits == 8 {
@@ -105,19 +107,12 @@ func (cz *Cz2Image) Import(r io.Reader, fillSize bool) error {
 	if err != nil {
 		panic(err)
 	}
-	// Yoremi Patch 3: safe type conversion instead of direct assertion
+	// Convert any decoded PNG representation to NRGBA before palette lookup.
 	var pic *image.NRGBA
-	switch src := cz.PngImage.(type) {
-	case *image.NRGBA:
+	if src, ok := cz.PngImage.(*image.NRGBA); ok {
 		pic = src
-	default:
-		dst := image.NewNRGBA(src.Bounds())
-		for y := src.Bounds().Min.Y; y < src.Bounds().Max.Y; y++ {
-			for x := src.Bounds().Min.X; x < src.Bounds().Max.X; x++ {
-				dst.Set(x, y, src.At(x, y))
-			}
-		}
-		pic = dst
+	} else {
+		pic = ImageToNRGBA(cz.PngImage)
 	}
 	width := int(cz.Width)
 	height := int(cz.Heigth)
@@ -138,10 +133,31 @@ func (cz *Cz2Image) Import(r io.Reader, fillSize bool) error {
 		height = newH
 	}
 	data := make([]byte, width*height)
+	exactPalette := make(map[color.NRGBA]uint8, len(cz.ColorPanel))
+	for index, candidate := range cz.ColorPanel {
+		if _, exists := exactPalette[candidate]; !exists {
+			exactPalette[candidate] = uint8(index)
+		}
+	}
+	var alphaPalette [256]uint8
+	for alpha := 0; alpha < len(alphaPalette); alpha++ {
+		alphaPalette[alpha] = cz.findClosestPaletteEntry(color.NRGBA{A: uint8(alpha)})
+	}
 	i := 0
 	for y := 0; y < height; y++ {
 		for x := 0; x < width; x++ {
-			data[i] = pic.At(x, y).(color.NRGBA).A
+			// Export resolves the stored byte through ColorPanel. Import must
+			// reverse that palette lookup; treating the displayed alpha as the
+			// raw palette index applies the palette a second time and changes
+			// the font bitmap on every round-trip.
+			pixel := pic.NRGBAAt(x, y)
+			if index, ok := exactPalette[pixel]; ok {
+				data[i] = index
+			} else if pixel.R == 0 && pixel.G == 0 && pixel.B == 0 {
+				data[i] = alphaPalette[pixel.A]
+			} else {
+				data[i] = cz.findClosestPaletteEntry(pixel)
+			}
 			i++
 		}
 	}
@@ -172,6 +188,26 @@ func (cz *Cz2Image) Import(r io.Reader, fillSize bool) error {
 	return nil
 }
 
+func (cz *Cz2Image) findClosestPaletteEntry(c color.NRGBA) uint8 {
+	bestIndex := uint8(0)
+	bestDistance := int(^uint(0) >> 1)
+	for index, candidate := range cz.ColorPanel {
+		dr := int(c.R) - int(candidate.R)
+		dg := int(c.G) - int(candidate.G)
+		db := int(c.B) - int(candidate.B)
+		da := int(c.A) - int(candidate.A)
+		distance := dr*dr + dg*dg + db*db + da*da
+		if distance == 0 {
+			return uint8(index)
+		}
+		if distance < bestDistance {
+			bestDistance = distance
+			bestIndex = uint8(index)
+		}
+	}
+	return bestIndex
+}
+
 // SetDimensions updates the CzHeader width/height.
 // Yoremi Patch 3: called by font.Write before Import when ReplaceChars
 // has changed the image size (append/insert modes).
@@ -189,6 +225,14 @@ func (cz *Cz2Image) Write(w io.Writer) error {
 		return err
 	}
 	_, err = w.Write(cz.Raw)
+	if err != nil {
+		return err
+	}
+
+	writtenLength := 15 + 3 + len(cz.ColorPanel)*4 + 4 + len(cz.OutputInfo.BlockInfo)*8 + len(cz.Raw)
+	if cz.OriginalLength > writtenLength {
+		_, err = w.Write(make([]byte, cz.OriginalLength-writtenLength))
+	}
 
 	return err
 

@@ -1,3 +1,46 @@
+# V3.28 — Target-compatible Font PAK alias and CZ2 startup-safe round-trip
+
+10/07/2026
+
+## Added: target-compatible PAK Font size alias
+
+- Added the CLI command `pak font-alias` and the GUI mode
+  `PAK (Font) -> Font Replace -> Alias de taille compatible`.
+- The alias keeps the source glyph map, metrics, and bitmap pixels while
+  retaining the target font size, cell geometry, texture width, and internal
+  PAK entry length.
+- Validated on Kanon Arabic with `info30 -> info32` and
+  `明朝30 -> 明朝32`. Normal dialogue, 32-pixel UI text, and choice rendering
+  remain functional while size 32 reuses the validated size 30 Arabic glyphs.
+- Existing list, directory, and single-file-by-internal-name replacement modes
+  are unchanged.
+
+## Fixed: historical CZ2 font PNG round-trip and startup preload
+
+- CZ2 PNG import now reverses the exported color/alpha palette to the stored
+  palette index. The previous implementation used visible alpha directly as
+  an index and applied the palette a second time.
+- CZ2 writing now preserves the original entry length when recompression is
+  shorter by appending ignored zero padding after the encoded stream.
+- This fixes Kanon's `Failed to initialize font texture` error: runtime font
+  switching accepted shorter entries, but grouped startup preload rejected
+  them when Mincho was already selected.
+- The width reported by exported Kanon CZ2 fonts is preserved from the original
+  CZ2 header; it is not an extra column introduced by export.
+
+## Version and validation
+
+- Updated CLI and GUI labels to `v3.28`; `lucksystem --version` now reports
+  `2.3.2-yoremi.3.28`.
+- Added focused tests for target info geometry, font-cell regridding, target
+  entry-length preservation, CZ2 palette reversal, and CZ2 write padding.
+- Verified both workflows against the installed Kanon game:
+  - size alias generation followed by direct launch with Mincho selected;
+  - generic `image export -> modified PNG -> image import -> PAK replace` with
+    a full-size CZ2 font.
+- Both tests pass the complete font preload and reach the game system tasks.
+  The external Arabic test also confirmed that the relaunch problem is solved.
+
 # V3.27 — Windows GUI Luca menu hook and version.dll generator
 
 10/07/2026

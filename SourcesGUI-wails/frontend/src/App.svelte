@@ -105,8 +105,10 @@
   let pakFontRepInput = '';
   let pakFontRepSingleFile = '';
   let pakFontRepSingleName = '';
+  let pakFontRepAliasFrom = 'info30';
+  let pakFontRepAliasTo = 'info32';
   let pakFontRepOutput = '';
-  let pakFontRepMode = 'list'; // 'list' | 'dir' | 'single'
+  let pakFontRepMode = 'list'; // 'list' | 'dir' | 'single' | 'alias'
 
   // --- Font Extract ---
   let fontExtCz = '';
@@ -337,7 +339,7 @@
     lucaMenuDllAvailable = await SupportsLucaMenuDLL();
     lsPath = await GetLuckSystemPath();
     if (lsPath) {
-      addLine('LuckSystem 2.3.2 - Yoremi fork v3.27');
+      addLine('LuckSystem 2.3.2 - Yoremi fork v3.28');
       addLine('Executable: ' + lsPath);
       // Scan data/ folder for game presets
       gamePresets = (await ScanGameData()) || [];
@@ -485,7 +487,9 @@
     const dirArg  = pakFontRepMode === 'dir' ? pakFontRepInput : '';
     const fileArg = pakFontRepMode === 'single' ? pakFontRepSingleFile : '';
     const nameArg = pakFontRepMode === 'single' ? pakFontRepSingleName : '';
-    run(() => PakFontReplace(pakFontRepSource, pakFontRepCharset, dirArg, listArg, fileArg, nameArg, pakFontRepOutput));
+    const aliasFromArg = pakFontRepMode === 'alias' ? pakFontRepAliasFrom : '';
+    const aliasToArg = pakFontRepMode === 'alias' ? pakFontRepAliasTo : '';
+    run(() => PakFontReplace(pakFontRepSource, pakFontRepCharset, dirArg, listArg, fileArg, nameArg, aliasFromArg, aliasToArg, pakFontRepOutput));
   }
   function startFontExtract() { run(() => FontExtract(fontExtCz, fontExtInfo, fontExtPng, fontExtCharset)); }
   function setFontEditArabicPreset(checked) {
@@ -792,7 +796,7 @@
 
 <div id="app">
   <div class="titlebar">
-    <span>LuckSystem 2.3.2 - Yoremi fork v3.27</span>
+    <span>LuckSystem 2.3.2 - Yoremi fork v3.28</span>
     <span class="titlebar-path" on:click={locateLuckSystem} title="Click to change">
       {#if lsPath}📁 {lsPath}{:else}⚠ lucksystem.exe not found - Click to locate{/if}
     </span>
@@ -981,6 +985,7 @@
             <label class="checkbox-label"><input type="radio" bind:group={pakFontRepMode} value="list" /> Fichier liste (<code>*_list.txt</code>)</label>
             <label class="checkbox-label"><input type="radio" bind:group={pakFontRepMode} value="dir" /> Dossier de fichiers</label>
             <label class="checkbox-label"><input type="radio" bind:group={pakFontRepMode} value="single" /> Fichier unique par nom</label>
+            <label class="checkbox-label"><input type="radio" bind:group={pakFontRepMode} value="alias" /> Alias de taille compatible</label>
           </div>
           {#if pakFontRepMode === 'list'}
             <div class="form-row"><input type="text" bind:value={pakFontRepListFile} placeholder="FONT__INFO_list.txt" readonly /><button class="btn" on:click={browsePakFontRepListFile}>Select</button></div>
@@ -988,10 +993,20 @@
           {:else if pakFontRepMode === 'dir'}
             <div class="form-row"><input type="text" bind:value={pakFontRepInput} readonly /><button class="btn" on:click={browsePakFontRepInput}>Select</button></div>
             <div class="form-hint">Remplace uniquement les fichiers du dossier dont le nom existe dans le PAK.</div>
-          {:else}
+          {:else if pakFontRepMode === 'single'}
             <div class="form-row"><input type="text" bind:value={pakFontRepSingleFile} readonly placeholder="ex : C:\dossier\info30" /><button class="btn" on:click={browsePakFontRepSingleFile}>Select</button></div>
             <div class="form-row" style="margin-top:6px"><input type="text" bind:value={pakFontRepSingleName} placeholder="Nom interne exact : info30 ou 明朝30" /></div>
             <div class="form-hint">Recommandé pour Kanon : faites deux remplacements séparés, <code>info30</code> dans <code>FONT__INFO.PAK</code>, puis <code>明朝30</code> dans <code>FONT_MINCHO.PAK</code>.</div>
+          {:else}
+            <div class="form-row">
+              <span style="min-width:110px;font-size:12px">Copier depuis :</span>
+              <input type="text" bind:value={pakFontRepAliasFrom} placeholder="info30 ou 明朝30" />
+            </div>
+            <div class="form-row" style="margin-top:6px">
+              <span style="min-width:110px;font-size:12px">Vers :</span>
+              <input type="text" bind:value={pakFontRepAliasTo} placeholder="info32 ou 明朝32" />
+            </div>
+            <div class="form-hint">Adapte les données de la taille source à la structure de la taille cible. Test Kanon arabe : <code>info30 → info32</code>, puis dans l'autre PAK <code>明朝30 → 明朝32</code>. Le CZ2 conserve la largeur, les cellules et la longueur d'entrée attendues pour la taille 32. Cela affecte toute l'entrée 32, pas uniquement SELECT.</div>
           {/if}
         </div>
         <div class="form-group"><label>Output PAK :</label><div class="form-row"><input type="text" bind:value={pakFontRepOutput} readonly /><button class="btn" on:click={browsePakFontRepOutput}>Select</button></div></div>
@@ -1000,7 +1015,7 @@
             <span class="running-indicator"></span> Running...
           {:else}
             <button class="btn btn-primary" on:click={startPakFontReplace}
-              disabled={!pakFontRepSource || !pakFontRepOutput || (pakFontRepMode === 'list' ? !pakFontRepListFile : pakFontRepMode === 'dir' ? !pakFontRepInput : (!pakFontRepSingleFile || !pakFontRepSingleName))}>
+              disabled={!pakFontRepSource || !pakFontRepOutput || (pakFontRepMode === 'list' ? !pakFontRepListFile : pakFontRepMode === 'dir' ? !pakFontRepInput : pakFontRepMode === 'single' ? (!pakFontRepSingleFile || !pakFontRepSingleName) : (!pakFontRepAliasFrom || !pakFontRepAliasTo))}>
               Start Replace
             </button>
           {/if}
@@ -1373,7 +1388,7 @@
         <div class="form-title">À propos</div>
         <div class="about-panel">
           <div class="about-logo">LuckSystem</div>
-          <div class="about-subtitle">Fork · Yoremi-v3.27</div>
+          <div class="about-subtitle">Fork · Yoremi-v3.28</div>
           <div class="about-desc">
             Interface graphique pour LuckSystem, l'outil de traduction de visual novels Visual Art's / Key.<br>
             Inclut des correctifs CZ (CZ1, CZ4), script, PAK, et une interface subprocess.
@@ -1388,7 +1403,7 @@
               <span class="about-link-url">https://github.com/yoremi-trad-fr/LuckSystem-2.3.2-Yoremi-Update</span>
             </div>
           </div>
-          <div class="about-version">v3.27 GUI · Wails + Svelte</div>
+          <div class="about-version">v3.28 GUI · Wails + Svelte</div>
         </div>
       {/if}
     </div>

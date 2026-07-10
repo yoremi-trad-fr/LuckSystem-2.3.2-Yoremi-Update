@@ -1,4 +1,4 @@
-# LuckSystem GUI (Linux) — Yoremi fork v3.27
+# LuckSystem GUI (Linux) — Yoremi fork v3.28
 
 Graphical interface for [LuckSystem](https://github.com/wetor/LuckSystem), the Visual Art's/Key visual novel translation toolkit.
 
@@ -15,7 +15,7 @@ LuckSystemGUI      ←→  lucksystem (subprocess)
 
 This design follows [wetor's recommendation](https://github.com/wetor/LuckSystem) to keep the GUI separated from the core tool for cross-platform compatibility and maintainability.
 
-> **v3.27 platform note:** `DLL HOOK -> Luca Menu DLL` is available only in
+> **v3.28 platform note:** `DLL HOOK -> Luca Menu DLL` is available only in
 > the Windows GUI. It generates a Windows `version.dll` proxy and relies on
 > Win32 DLL loading, memory protection, and export forwarding. It is not
 > packaged or supported by the native Linux GUI at this time. A Wine-specific
@@ -48,7 +48,7 @@ The GUI auto-detects `lucksystem` in the same directory, current working directo
 | **Script Compile** | Repack translated scripts into a new SCRIPT.PAK |
 | **Siglus -> Luca** | Import translated Siglus script text into Luca scripts and export Luca-only/review TSV files |
 | **PAK Extract** | Extract all files from any .PAK archive |
-| **PAK Replace** | Replace files inside a .PAK archive; Font Replace supports list, folder, and single-file-by-internal-name modes |
+| **PAK Replace** | Replace files inside a .PAK archive; Font Replace supports list, folder, single-file-by-internal-name, and target-compatible font-size alias modes |
 | **BGMOVIE Extract** | Extract Luca Engine BGMOVIE.PAK videos to WebM |
 | **Font Extract** | Export CZ font atlas to PNG + charset list |
 | **Font Edit** | Redraw/append characters using a TTF font, with Arabic metrics preset, manual X/Y/advance offsets, and manual connector bleed |
@@ -56,6 +56,14 @@ The GUI auto-detects `lucksystem` in the same directory, current working directo
 | **Image Import** | Convert PNG back to CZ format (single or batch) |
 | **Dialogue Extract** | Extract translatable dialogue from decompiled scripts to TSV (single file or batch) |
 | **Dialogue Import** | Reimport translated dialogue from TSV back into scripts (single file or batch) |
+
+### Font size alias and CZ2 round-trip
+
+Open `PAK (Font) -> Font Replace` and select `Alias de taille compatible` to
+reuse one internal font size through another target size. The operation keeps
+the target cell geometry, texture width, and PAK entry length. Version 3.28
+also preserves CZ2 entry length during normal PNG image import, preventing
+startup font-texture errors after a shorter recompression.
 
 ### BGMOVIE Extract
 

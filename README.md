@@ -1,4 +1,4 @@
-# LuckSystem 2.3.2 — Yoremi Fork (v3.27)
+# LuckSystem 2.3.2 — Yoremi Fork (v3.28)
 
 Fork de [LuckSystem](https://github.com/wetor/LuckSystem) avec corrections de bugs, support de nouveaux formats, et interface graphique pour la traduction de visual novels Visual Art's/Key.
 
@@ -22,7 +22,7 @@ A graphical interface is available in this fork, built with Wails (Go + Svelte).
 - Dialogue Import / Reimport translated dialogue from TSV back into scripts (single file or batch)
 - GUI + CLI Siglus -> Luca bridge / Import translated Siglus script text into Luca decompiled scripts while exporting Luca-only candidates to TSV
 - Script Decompile / Compile
-- PAK Extract / Replace (CG and Font workflows separated; Font Replace supports list, folder, and single-file-by-internal-name modes)
+- PAK Extract / Replace (CG and Font workflows separated; Font Replace supports list, folder, single-file-by-internal-name, and target-compatible font-size alias modes)
 - BGMOVIE.PAK video extraction to WebM
 - MUSIC/VOICE/SYSVOICE PAK audio extraction to native Ogg, with optional MP3 copies and Ogg/MP3 conversion
 - Font Extract / Edit (append, insert, redraw modes, Arabic metrics preset, manual X/Y/advance offsets, manual connector bleed)
@@ -44,7 +44,7 @@ Une version Linux est disponible en binaires séparés (GUI + CLI). Voir les rel
 
 A Linux version is available as separate binaries (GUI + CLI). See the releases for download.
 
-The Luca menu `version.dll` hook is not included in the Linux GUI. Version 3.27
+The Luca menu `version.dll` hook is not included in the Linux GUI. Version 3.28
 keeps this workflow Windows-only because it relies on Windows DLL proxy loading
 and Win32 memory APIs. Wine support is deferred until there is a user request.
 
@@ -52,7 +52,19 @@ and Win32 memory APIs. Wine support is deferred until there is a user request.
 
 ## Patches
 
-### Version 3.27 — *(latest)*
+### Version 3.28 — *(latest)*
+
+39. **Target-compatible PAK Font size alias** — `font/alias.go`, `cmd/pakFontAlias.go`, `SourcesGUI-wails/app.go`, `SourcesGUI-wails/frontend/src/App.svelte`
+    - Adds `pak font-alias` and an optional GUI mode that adapts one internal font-size entry to another instead of copying incompatible bytes directly.
+    - Validated for Kanon Arabic `info30 -> info32` and `明朝30 -> 明朝32`: source glyph mappings and pixels are retained, while `info32` keeps its size-32 fields and the CZ2 atlas keeps the target cell layout, width, and PAK entry length required by startup preloading.
+    - Existing list, folder, and single-file Font Replace modes are unchanged.
+
+40. **CZ2 font round-trip and startup preload fix** — `czimage/cz2.go`, `czimage/cz2_test.go`
+    - Reverses the exported CZ2 color/alpha palette back to its stored index during PNG import, preventing the palette from being applied twice.
+    - Preserves the original binary entry length when recompressed CZ2 data is shorter, fixing Kanon's `Failed to initialize font texture` error during grouped startup preload.
+    - The historical `image export -> PNG edit -> image import -> PAK replace` workflow was retested with a modified full-size Kanon CZ2 font: dimensions, entry length, and block layout remain loadable, and the game starts with Mincho already selected.
+
+### Version 3.27
 
 37. **Windows GUI Luca Menu DLL generator** — `SourcesGUI-wails/luca_menu_dll.go`, `SourcesGUI-wails/frontend/src/App.svelte`, `proxy dll/`
     - Adds `DLL HOOK -> Luca Menu DLL` for runtime translation of hardcoded Luck/Luca Engine menus without modifying the game EXE.

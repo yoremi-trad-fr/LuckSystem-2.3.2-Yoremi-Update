@@ -1,4 +1,4 @@
-# LuckSystem GUI (Windows) — Yoremi fork v3.27
+# LuckSystem GUI (Windows) — Yoremi fork v3.28
 
 Graphical interface for [LuckSystem](https://github.com/wetor/LuckSystem), the Visual Art's/Key visual novel translation toolkit.
 
@@ -51,7 +51,7 @@ The GUI auto-detects `lucksystem.exe` in the same directory, current working dir
 | **Script Compile** | Repack translated scripts into a new SCRIPT.PAK |
 | **Siglus -> Luca** | Import translated Siglus script text into Luca scripts and export Luca-only/review TSV files |
 | **PAK Extract** | Extract all files from any .PAK archive |
-| **PAK Replace** | Replace files inside a .PAK archive; Font Replace supports list, folder, and single-file-by-internal-name modes |
+| **PAK Replace** | Replace files inside a .PAK archive; Font Replace supports list, folder, single-file-by-internal-name, and target-compatible font-size alias modes |
 | **BGMOVIE Extract** | Extract Luca Engine BGMOVIE.PAK videos to WebM |
 | **Font Extract** | Export CZ font atlas to PNG + charset list |
 | **Font Edit** | Redraw/append characters using a TTF font, with Arabic metrics preset, manual X/Y/advance offsets, and manual connector bleed |
@@ -60,6 +60,14 @@ The GUI auto-detects `lucksystem.exe` in the same directory, current working dir
 | **Dialogue Extract** | Extract translatable dialogue from decompiled scripts to TSV (single file or batch) |
 | **Dialogue Import** | Reimport translated dialogue from TSV back into scripts (single file or batch) |
 | **Luca Menu DLL** | Generate a Windows `version.dll` hook for translated hardcoded Luca menu strings |
+
+### Font size alias and CZ2 round-trip
+
+Open `PAK (Font) -> Font Replace` and select `Alias de taille compatible` to
+reuse one internal font size through another target size. The operation keeps
+the target cell geometry, texture width, and PAK entry length. Version 3.28
+also preserves CZ2 entry length during normal PNG image import, preventing
+startup font-texture errors after a shorter recompression.
 
 ### Luca Menu DLL (Windows only)
 

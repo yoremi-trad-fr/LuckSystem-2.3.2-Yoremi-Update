@@ -50,5 +50,4 @@ func init() {
 	pakCmd.PersistentFlags().StringVarP(&PakInput, "input", "i", "", "输入文件或文件夹")
 	pakCmd.PersistentFlags().StringVarP(&PakOutput, "output", "o", "", "输出文件或文件夹")
 
-	pakCmd.MarkFlagsRequiredTogether("output", "input")
 }

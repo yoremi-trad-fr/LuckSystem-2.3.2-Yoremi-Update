@@ -1,6 +1,5 @@
 /*
 Copyright © 2022 NAME HERE <EMAIL ADDRESS>
-
 */
 package cmd
 
@@ -20,8 +19,8 @@ var pakReplaceCmd = &cobra.Command{
 	Short: "替换Pak子文件",
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("pakReplace called")
-		if len(PakSource) == 0 {
-			fmt.Println("Error: required flag(s) \"source\" not set")
+		if PakSource == "" || PakInput == "" || PakOutput == "" {
+			fmt.Println("Error: source PAK, input path, and output PAK are required")
 			return
 		}
 		p := pak.LoadPak(PakSource, charset.Charset(Charset))

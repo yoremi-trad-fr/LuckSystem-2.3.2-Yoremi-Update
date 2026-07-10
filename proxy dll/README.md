@@ -9,10 +9,10 @@ Tested on: **Kanon** (Steam), **AIR** (Steam), **Harmonia Full HD Edition**
 (Steam), **LOOPERS** (Steam). Should work on any Luck Engine title that ships a
 `VERSION.dll`-importing exe with SteamStub.
 
-> **Platform scope:** this toolkit and the v3.27 GUI generator are Windows-only.
+> **Platform scope:** this toolkit and the v3.28 GUI generator are Windows-only.
 > The proxy relies on Windows `version.dll` resolution, Win32 memory APIs, and
 > forwarding exports to the system DLL. Native Linux support is intentionally
-> out of scope for v3.27; Wine can be evaluated later if requested.
+> out of scope for v3.28; Wine can be evaluated later if requested.
 
 ---
 
@@ -52,7 +52,7 @@ Kanon also keeps the tested Arabic-B profiles and their ASCII fallbacks. The
 
 ## Workflow
 
-### GUI workflow (recommended in LuckSystem v3.27)
+### GUI workflow (recommended in LuckSystem v3.28)
 
 Keep this complete `proxy dll` folder next to `LuckSystemGUI.exe` and
 `lucksystem.exe`, then open `DLL HOOK -> Luca Menu DLL`.

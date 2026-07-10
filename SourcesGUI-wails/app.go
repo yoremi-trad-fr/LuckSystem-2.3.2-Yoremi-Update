@@ -852,8 +852,9 @@ func (a *App) PakFontExtract(pakFile, charsetStr, outputDir string) string {
 // Mode liste          : lucksystem pak replace -s PAK -i listfile --list -o output.PAK -c charset
 // Mode dossier        : lucksystem pak replace -s PAK -i inputdir  -o output.PAK -c charset
 // Mode fichier par nom: lucksystem pak replace -s PAK -i file --name internalName -o output.PAK -c charset
+// Mode alias interne  : target-compatible font alias (keeps target info/CZ2 geometry)
 
-func (a *App) PakFontReplace(pakSource, charsetStr, inputDir, listFile, singleFile, singleName, outputPak string) string {
+func (a *App) PakFontReplace(pakSource, charsetStr, inputDir, listFile, singleFile, singleName, aliasFrom, aliasTo, outputPak string) string {
 	if pakSource == "" || outputPak == "" {
 		a.logError("Original PAK and output PAK are required")
 		return "ERROR"
@@ -861,6 +862,7 @@ func (a *App) PakFontReplace(pakSource, charsetStr, inputDir, listFile, singleFi
 	useList := listFile != ""
 	useDir := inputDir != ""
 	useSingle := singleFile != "" || singleName != ""
+	useAlias := aliasFrom != "" || aliasTo != ""
 	modeCount := 0
 	if useList {
 		modeCount++
@@ -871,12 +873,23 @@ func (a *App) PakFontReplace(pakSource, charsetStr, inputDir, listFile, singleFi
 	if useSingle {
 		modeCount++
 	}
+	if useAlias {
+		modeCount++
+	}
 	if modeCount != 1 {
-		a.logError("Provide exactly one input mode: list, folder, or single file by name")
+		a.logError("Provide exactly one input mode: list, folder, single file by name, or internal alias")
 		return "ERROR"
 	}
 	if useSingle && (singleFile == "" || singleName == "") {
 		a.logError("Single-file mode requires both a file and an internal PAK name")
+		return "ERROR"
+	}
+	if useAlias && (aliasFrom == "" || aliasTo == "") {
+		a.logError("Alias mode requires both source and target internal names")
+		return "ERROR"
+	}
+	if useAlias && strings.EqualFold(filepath.Clean(pakSource), filepath.Clean(outputPak)) {
+		a.logError("Output PAK must be different from the original PAK")
 		return "ERROR"
 	}
 	if charsetStr == "" {
@@ -894,9 +907,12 @@ func (a *App) PakFontReplace(pakSource, charsetStr, inputDir, listFile, singleFi
 	} else if useDir {
 		a.log(fmt.Sprintf("Mode: directory → %s", inputDir))
 		args = []string{"pak", "replace", "-s", pakSource, "-i", inputDir, "-o", outputPak, "-c", charsetStr}
-	} else {
+	} else if useSingle {
 		a.log(fmt.Sprintf("Mode: single file → %s as %s", singleFile, singleName))
 		args = []string{"pak", "replace", "-s", pakSource, "-i", singleFile, "--name", singleName, "-o", outputPak, "-c", charsetStr}
+	} else {
+		a.log(fmt.Sprintf("Mode: target-compatible font alias → %s adapted to %s", aliasFrom, aliasTo))
+		args = []string{"pak", "font-alias", "-s", pakSource, "--from-name", aliasFrom, "--to-name", aliasTo, "-o", outputPak, "-c", charsetStr}
 	}
 
 	err := a.runLuckSystem(args...)

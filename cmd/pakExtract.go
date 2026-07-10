@@ -1,6 +1,5 @@
 /*
 Copyright © 2022 NAME HERE <EMAIL ADDRESS>
-
 */
 package cmd
 
@@ -21,6 +20,10 @@ var pakExtractCmd = &cobra.Command{
 无具体文件头，确定是LucaSystem引擎的游戏，文件名为大写的***.PAK`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("pakExtract called")
+		if PakInput == "" || PakOutput == "" {
+			fmt.Println("Error: input PAK and output path are required")
+			return
+		}
 		p := pak.LoadPak(PakInput, charset.Charset(Charset))
 		out, err := os.Create(PakOutput)
 		if err != nil {

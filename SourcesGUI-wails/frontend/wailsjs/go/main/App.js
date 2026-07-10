@@ -74,8 +74,8 @@ export function PakFontExtract(arg1, arg2, arg3) {
   return window['go']['main']['App']['PakFontExtract'](arg1, arg2, arg3);
 }
 
-export function PakFontReplace(arg1, arg2, arg3, arg4, arg5, arg6, arg7) {
-  return window['go']['main']['App']['PakFontReplace'](arg1, arg2, arg3, arg4, arg5, arg6, arg7);
+export function PakFontReplace(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9) {
+  return window['go']['main']['App']['PakFontReplace'](arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
 }
 
 export function PakReplace(arg1, arg2, arg3, arg4) {
