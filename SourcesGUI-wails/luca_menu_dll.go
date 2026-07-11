@@ -52,6 +52,7 @@ type LucaMenuEntry struct {
 	SuggestedFr string   `json:"suggestedFr"`
 	SuggestedEn string   `json:"suggestedEn"`
 	SuggestedAr string   `json:"suggestedAr"`
+	SuggestedRu string   `json:"suggestedRu"`
 	SuggestedJp string   `json:"suggestedJp"`
 	SuggestedCn string   `json:"suggestedCn"`
 	CatalogID   string   `json:"catalogId"`
@@ -97,6 +98,8 @@ type LucaMenuGenerateRequest struct {
 	PatchVersion  string              `json:"patchVersion"`
 	Slot          string              `json:"slot"`
 	BuildDLL      bool                `json:"buildDll"`
+	ProxyDLL      string              `json:"proxyDll"`
+	Preset        string              `json:"preset"`
 	Entries       []LucaMenuPatchEdit `json:"entries"`
 }
 
@@ -254,14 +257,38 @@ func (a *App) LucaMenuGenerate(req LucaMenuGenerateRequest) string {
 		patchVersion = "0.1-gui"
 	}
 
-	script := buildGeneratedLucaPatchesPy(*profile, req, selected, patchName, patchVersion)
-	patchPath := filepath.Join(req.OutputDir, "patches.py")
-	if err := os.WriteFile(patchPath, []byte(script), 0644); err != nil {
-		a.logError(fmt.Sprintf("Luca DLL: cannot write patches.py: %v", err))
-		return "ERROR"
-	}
+	fullRussianPreset := strings.EqualFold(strings.TrimSpace(req.Preset), "ru") &&
+		strings.EqualFold(strings.Split(filepath.ToSlash(profile.ID), "/")[0], "LBEE")
 	proxyDLL := normalizeLucaProxyDLL(profile.ProxyDLL)
-	architecture := normalizeLucaArchitecture(profile.Architecture)
+	if strings.TrimSpace(req.ProxyDLL) != "" {
+		proxyDLL = normalizeLucaProxyDLL(req.ProxyDLL)
+	}
+	architecture := "x64"
+	if proxyDLL == "winmm" {
+		architecture = "x86"
+	}
+	if fullRussianPreset {
+		proxyDLL = "winmm"
+		architecture = "x86"
+	}
+	profile.ProxyDLL = proxyDLL
+	profile.Architecture = architecture
+
+	if fullRussianPreset {
+		for _, name := range []string{"mixed_patches.py", "russian_preset.py"} {
+			if err := copyFile(filepath.Join(profile.Folder, name), filepath.Join(req.OutputDir, name)); err != nil {
+				a.logError(fmt.Sprintf("Luca DLL: cannot copy LBEE Russian preset file %s: %v", name, err))
+				return "ERROR"
+			}
+		}
+	} else {
+		script := buildGeneratedLucaPatchesPy(*profile, req, selected, patchName, patchVersion)
+		patchPath := filepath.Join(req.OutputDir, "patches.py")
+		if err := os.WriteFile(patchPath, []byte(script), 0644); err != nil {
+			a.logError(fmt.Sprintf("Luca DLL: cannot write patches.py: %v", err))
+			return "ERROR"
+		}
+	}
 	for _, name := range []string{"version.c", proxyDLL + ".def", "Makefile"} {
 		if err := copyFile(filepath.Join(inv.KitDir, name), filepath.Join(req.OutputDir, name)); err != nil {
 			a.logError(fmt.Sprintf("Luca DLL: cannot copy %s from proxy dll folder: %v", name, err))
@@ -275,7 +302,11 @@ func (a *App) LucaMenuGenerate(req LucaMenuGenerateRequest) string {
 	a.log(fmt.Sprintf("Profile: %s", profile.Name))
 	a.log(fmt.Sprintf("Slot:    %s", req.Slot))
 	a.log(fmt.Sprintf("Proxy:   %s.dll (%s)", proxyDLL, architecture))
-	a.log(fmt.Sprintf("Entries: %d", len(selected)))
+	if fullRussianPreset {
+		a.log("Preset:  complete LBEE Russian community table")
+	} else {
+		a.log(fmt.Sprintf("Entries: %d", len(selected)))
+	}
 	a.log(fmt.Sprintf("Output:  %s", req.OutputDir))
 
 	python, args, err := findPythonCommand()
@@ -283,21 +314,26 @@ func (a *App) LucaMenuGenerate(req LucaMenuGenerateRequest) string {
 		a.logError(err.Error())
 		return "ERROR"
 	}
-	args = append(args, "patches.py")
+	if fullRussianPreset {
+		args = append(args, "mixed_patches.py", "--exe", req.GameExe,
+			"--patch-file", "russian_preset.py", "--output-dir", req.OutputDir)
+	} else {
+		args = append(args, "patches.py")
+	}
 	if err := a.runLucaCommand(req.OutputDir, python, args...); err != nil {
-		a.logError(fmt.Sprintf("Luca DLL: patches.py failed: %v", err))
+		a.logError(fmt.Sprintf("Luca DLL: patch generator failed: %v", err))
 		return "ERROR"
 	}
 
 	if req.BuildDLL {
 		if err := a.buildLucaDLL(req.OutputDir, proxyDLL, architecture); err != nil {
 			a.logError(err.Error())
-			a.log(fmt.Sprintf("Generated patches.py, patches.h and patches.csv are ready; install a Windows C compiler to build %s.dll.", proxyDLL))
+			a.log(fmt.Sprintf("Generated patch sources, patches.h and patches.csv are ready; install a Windows C compiler to build %s.dll.", proxyDLL))
 			return "ERROR"
 		}
 		a.logOK(fmt.Sprintf("%s.dll generated: %s", proxyDLL, filepath.Join(req.OutputDir, proxyDLL+".dll")))
 	} else {
-		a.logOK("patches.py, patches.h and patches.csv generated")
+		a.logOK("Patch sources, patches.h and patches.csv generated")
 	}
 	a.log("════════════════════════════════════════")
 	return "OK"
@@ -391,9 +427,7 @@ func parseLucaPatchScript(kitDir, patchPath string) (LucaMenuProfile, error) {
 			}
 		}
 	}
-	profile.RvaMode = normalizeLucaRvaMode(profile.RvaMode)
-	profile.ProxyDLL = normalizeLucaProxyDLL(profile.ProxyDLL)
-	profile.Architecture = normalizeLucaArchitecture(profile.Architecture)
+	normalizeLucaBuildProfile(&profile)
 	profile.Name = profile.PatchGameName
 	if profile.Name == "" {
 		profile.Name = strings.ReplaceAll(rel, "/", " / ")
@@ -418,6 +452,9 @@ func parseLucaPatchScript(kitDir, patchPath string) (LucaMenuProfile, error) {
 			TargetBytes: lucaEncodedLen(t.Target, t.Encoding),
 			Budget:      parseBudget(t.Note),
 			Include:     false,
+		}
+		if strings.EqualFold(strings.Split(profile.ID, "/")[0], "LBEE") {
+			entry.SuggestedRu = t.Target
 		}
 		entry.Risk = detectLucaRisk(entry)
 		profile.Entries = append(profile.Entries, entry)
@@ -1364,6 +1401,24 @@ func normalizeLucaRvaMode(mode string) string {
 		return "pe"
 	}
 	return "delta"
+}
+
+func normalizeLucaBuildProfile(profile *LucaMenuProfile) {
+	if profile == nil {
+		return
+	}
+	profile.RvaMode = normalizeLucaRvaMode(profile.RvaMode)
+	profile.ProxyDLL = normalizeLucaProxyDLL(profile.ProxyDLL)
+	profile.Architecture = normalizeLucaArchitecture(profile.Architecture)
+
+	// LBEE can only load the 32-bit WinMM proxy. Keep this invariant even when
+	// an older or externally repacked patches.py omitted the build metadata.
+	rootID := strings.Split(filepath.ToSlash(profile.ID), "/")[0]
+	if strings.EqualFold(rootID, "LBEE") || strings.EqualFold(filepath.Base(profile.GameExe), "LITBUS_WIN32.exe") {
+		profile.RvaMode = "pe"
+		profile.ProxyDLL = "winmm"
+		profile.Architecture = "x86"
+	}
 }
 
 func detectLucaSlot(source, note string) string {

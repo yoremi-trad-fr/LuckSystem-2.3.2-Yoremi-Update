@@ -157,6 +157,7 @@
   let lucaExe = '';
   let lucaOutputDir = '';
   let lucaBuildDll = true;
+  let lucaProxyChoice = 'version';
   let lucaFillMode = 'fr-safe';
   let lucaSearch = '';
   let lucaEntries = [];
@@ -531,6 +532,10 @@
     return lucaProfiles().find(p => p.id === lucaGame) || null;
   }
 
+  function lucaProxyName() {
+    return lucaProxyChoice;
+  }
+
   function lucaGameProfiles() {
     return lucaProfiles().filter(p => !p.id.includes('/'));
   }
@@ -613,6 +618,20 @@
     if (!profile) return;
     lucaPatchName = profile.patchGameName || profile.name || lucaGame;
     lucaPatchVersion = profile.patchVersion || '0.1-gui';
+    const identity = [profile.id, profile.name, profile.patchGameName, profile.gameExe, lucaGame]
+      .filter(Boolean).join(' ').toUpperCase();
+    lucaProxyChoice = identity.includes('LBEE') || identity.includes('LITTLE BUSTERS') || identity.includes('LITBUS_WIN32')
+      ? 'winmm'
+      : (profile.proxyDll === 'winmm' ? 'winmm' : 'version');
+  }
+
+  function selectLucaProxy(choice, checked) {
+    if (checked) {
+      lucaProxyChoice = choice;
+      lucaBuildDll = true;
+    } else if (lucaProxyChoice === choice) {
+      lucaBuildDll = false;
+    }
   }
 
   function refreshLucaEntries(mode = '') {
@@ -630,6 +649,7 @@
   function setLucaGame(value) {
     lucaGame = value;
     lucaExe = '';
+    lucaBuildDll = true;
     syncLucaProfileDefaults();
     refreshLucaEntries();
   }
@@ -643,6 +663,7 @@
     if (mode === 'fr' || mode === 'fr-safe') return entry.suggestedFr || '';
     if (mode === 'en' || mode === 'en-safe') return entry.suggestedEn || '';
     if (mode === 'ar') return entry.suggestedAr || '';
+    if (mode === 'ru') return entry.suggestedRu || '';
     if (mode === 'jp') return entry.suggestedJp || '';
     if (mode === 'cn') return entry.suggestedCn || '';
     return entry.target || '';
@@ -661,6 +682,10 @@
   }
 
   function setLucaFillMode(value) {
+    if (value === 'ru') {
+      lucaProxyChoice = 'winmm';
+      lucaBuildDll = true;
+    }
     applyLucaFillMode(value);
   }
 
@@ -714,6 +739,8 @@
       patchVersion: lucaPatchVersion,
       slot: lucaSlot,
       buildDll: lucaBuildDll,
+      proxyDll: lucaProxyChoice,
+      preset: lucaFillMode,
       entries
     }));
   }
@@ -1181,7 +1208,7 @@
           <div class="form-group">
             <label>Profil et slot :</label>
             <div class="form-row">
-              <select value={lucaGame} on:change={(e) => setLucaGame(e.target.value)}>
+              <select bind:value={lucaGame} on:change={() => setLucaGame(lucaGame)}>
                 {#each lucaGameProfiles() as profile}
                   <option value={profile.id}>{profile.name} ({profile.id})</option>
                 {/each}
@@ -1212,7 +1239,7 @@
           <div class="form-group">
             <label>Dossier de sortie <span class="required">*</span> :</label>
             <div class="form-row"><input type="text" bind:value={lucaOutputDir} readonly /><button class="btn" on:click={browseLucaOutput}>Select</button></div>
-            <div class="form-hint">Le dossier recevra patches.py, patches.h, patches.csv, version.c, {currentLucaProfile().proxyDll || 'version'}.def et {currentLucaProfile().proxyDll || 'version'}.dll si la compilation réussit.</div>
+            <div class="form-hint">Le dossier recevra {lucaFillMode === 'ru' ? 'mixed_patches.py, russian_preset.py' : 'patches.py'}, patches.h, patches.csv, version.c, {lucaProxyName()}.def et {lucaProxyName()}.dll si la compilation réussit.</div>
           </div>
 
           <div class="form-group">
@@ -1220,8 +1247,25 @@
             <div class="form-row">
               <input type="text" bind:value={lucaPatchName} placeholder="Nom affiché dans luckproxy.log" />
               <input type="text" bind:value={lucaPatchVersion} placeholder="Version" style="max-width:140px" />
-              <label class="checkbox-label" style="margin-bottom:0"><input type="checkbox" bind:checked={lucaBuildDll} /> Compiler {currentLucaProfile().proxyDll || 'version'}.dll ({currentLucaProfile().architecture || 'x64'})</label>
             </div>
+          </div>
+
+          <div class="form-group luca-proxy-group">
+            <label>DLL proxy à compiler :</label>
+            <div class="form-row checkbox-row luca-proxy-row">
+              <label class:luca-proxy-selected={lucaBuildDll && lucaProxyChoice === 'version'} class="checkbox-label luca-proxy-option">
+                <input type="checkbox" checked={lucaBuildDll && lucaProxyChoice === 'version'} on:change={(e) => selectLucaProxy('version', e.target.checked)} />
+                <span><strong>version.dll</strong><small>Proxy Luca standard · x64</small></span>
+              </label>
+              <label class:luca-proxy-selected={lucaBuildDll && lucaProxyChoice === 'winmm'} class="checkbox-label luca-proxy-option">
+                <input type="checkbox" checked={lucaBuildDll && lucaProxyChoice === 'winmm'} on:change={(e) => selectLucaProxy('winmm', e.target.checked)} />
+                <span><strong>winmm.dll</strong><small>Little Busters! · PE32/x86</small></span>
+              </label>
+            </div>
+            <div class="form-hint">Choix exclusif : cocher une DLL décoche automatiquement l'autre. Décochez la sélection active pour générer le kit sans compiler.</div>
+            {#if lucaProxyChoice === 'winmm'}
+              <div class="form-hint form-hint-warn"><strong>LBEE sélectionné :</strong> la GUI compilera <code>winmm.dll</code> en 32 bits. Installez uniquement cette DLL à côté de <code>LITBUS_WIN32.exe</code> ; n'utilisez pas <code>version.dll</code>.</div>
+            {/if}
           </div>
 
           <div class="form-group">
@@ -1233,6 +1277,7 @@
                 <option value="en">ENG</option>
                 <option value="en-safe">ENG (sûr)</option>
                 <option value="ar">Arabe</option>
+                <option value="ru">Russe (LBEE)</option>
                 <option value="jp">Japonais</option>
                 <option value="cn">Chinois</option>
               </select>

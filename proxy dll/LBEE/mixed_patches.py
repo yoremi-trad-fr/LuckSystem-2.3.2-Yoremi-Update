@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Generate a mixed UTF-8/UTF-16LE patch table for an external LBEE table.
 
-Run this script from the directory containing LITBUS_WIN32.exe and patches2.py.
-The supplied patches2.py format is accepted unchanged:
+Run this script from the directory containing LITBUS_WIN32.exe and
+russian_preset.py. The supplied Russian table format is accepted unchanged:
 
     (raw_offset, source_bytes, translated_text, context, note)
 
@@ -15,17 +15,18 @@ from __future__ import annotations
 
 import csv
 import ast
+import argparse
 import struct
 import sys
 from pathlib import Path
 
 
 GAME_EXE = Path("LITBUS_WIN32.exe")
-PATCH_FILE = Path("patches2.py")
+PATCH_FILE = Path("russian_preset.py")
 PATCH_GAME_NAME = "Little Busters! English Edition"
 PATCH_VERSION = "1.2-winmm-x86"
 
-# Dolamroth's current Russian strings are test data and have not all been
+# The current Russian strings are community test data and have not all been
 # shortened manually yet. Keep this enabled for a runnable proof-of-concept;
 # every automatic crop is listed in patches.csv and in the console report.
 CROP_OVERSIZE = True
@@ -265,9 +266,9 @@ def build_rows(data: bytes, sections, patches):
     return rows
 
 
-def write_header(rows):
-    with Path("patches.h").open("w", encoding="utf-8", newline="\n") as output:
-        output.write("/* Auto-generated from patches2.py. Do not edit. */\n")
+def write_header(rows, path=Path("patches.h")):
+    with path.open("w", encoding="utf-8", newline="\n") as output:
+        output.write("/* Auto-generated from russian_preset.py. Do not edit. */\n")
         output.write("#ifndef LUCKPROXY_PATCHES_H\n#define LUCKPROXY_PATCHES_H\n\n")
         output.write(f'#define PATCH_GAME_NAME "{c_string(PATCH_GAME_NAME)}"\n')
         output.write(f'#define PATCH_VERSION   "{c_string(PATCH_VERSION)}"\n\n')
@@ -293,7 +294,7 @@ def write_header(rows):
         output.write("#endif\n")
 
 
-def write_csv(rows):
+def write_csv(rows, path=Path("patches.csv")):
     fields = [
         "index",
         "raw_offset",
@@ -311,7 +312,7 @@ def write_csv(rows):
         "context",
         "note",
     ]
-    with Path("patches.csv").open("w", encoding="utf-8-sig", newline="") as output:
+    with path.open("w", encoding="utf-8-sig", newline="") as output:
         writer = csv.DictWriter(output, fieldnames=fields, extrasaction="ignore")
         writer.writeheader()
         for row in rows:
@@ -321,10 +322,19 @@ def write_csv(rows):
             writer.writerow(serial)
 
 
-def main() -> int:
+def parse_args(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--exe", type=Path, default=GAME_EXE)
+    parser.add_argument("--patch-file", type=Path, default=PATCH_FILE)
+    parser.add_argument("--output-dir", type=Path, default=Path("."))
+    return parser.parse_args(argv)
+
+
+def main(argv=None) -> int:
+    args = parse_args(argv)
     try:
-        data = GAME_EXE.read_bytes()
-        patches = load_patches(PATCH_FILE)
+        data = args.exe.read_bytes()
+        patches = load_patches(args.patch_file)
         sections = pe_sections(data)
         original_count = len(patches)
         replaced_offsets = 0
@@ -338,8 +348,9 @@ def main() -> int:
         print(f"ERROR: {error}", file=sys.stderr)
         return 1
 
-    write_header(rows)
-    write_csv(rows)
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    write_header(rows, args.output_dir / "patches.h")
+    write_csv(rows, args.output_dir / "patches.csv")
     utf16 = sum(row["encoding"] == "utf-16-le" for row in rows)
     cropped = sum(row["cropped"] for row in rows)
     sections_used = ", ".join(sorted({row["section"] for row in rows}))

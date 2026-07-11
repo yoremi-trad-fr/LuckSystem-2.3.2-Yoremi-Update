@@ -13,7 +13,7 @@
   DirectX initialization error.
 - Added mixed UTF-8/UTF-16LE generation with correct two-byte wide-string
   terminators, encoding-aware byte budgets, and PE section-aware RVA mapping.
-- Added an external-table helper for Dolamroth's 1,033-entry Russian test table.
+- Added an external-table helper for the 1,033-entry community Russian test table.
 - Corrected the source table's first-match behavior: standalone duplicates are
   expanded across UTF-8 and UTF-16LE pools, correcting 36 non-standalone
   offsets and avoiding false matches such as `Close` inside `CloseThreadpool`.
@@ -31,6 +31,15 @@
   EXE before emitting the patch table.
 - Build profiles now select the proxy name and architecture: existing games
   keep x64 `version.dll`, while LBEE automatically uses x86 `winmm.dll`.
+- The GUI now displays explicit, mutually exclusive `version.dll (x64)` and
+  `winmm.dll (x86)` choices. Selecting one immediately clears the other and the
+  chosen proxy is passed to the backend instead of being inferred only from the
+  profile metadata; LBEE still defaults to WinMM and shows its install warning.
+- Added **Russe (LBEE)** to **Langue à injecter**. It preloads the validated
+  Russian menu strings and invokes the complete bundled `russian_preset.py`
+  table, generating all 1,034 effective WinMM patches without manual entry.
+- Renamed the community source table from `patches2.py` to the descriptive
+  `russian_preset.py` and removed personal attribution from the documentation.
 - Visual Studio discovery initializes the matching x86 or x64 developer
   environment; MinGW selection likewise uses `i686-w64-mingw32-gcc` for LBEE.
 
@@ -38,7 +47,7 @@
 
 - Generated and compiled an LBEE French safe preset through the same backend
   used by the GUI; the resulting DLL is PE32/x86.
-- Generated Dolamroth's full 1,033-entry mixed table, launched the matching
+- Generated the full 1,033-entry community Russian table, launched the matching
   executable, loaded the real system WinMM DLL, and applied all patches.
 - Existing x64 `version.dll` compilation and the GUI Go test suite remain valid.
 - Updated CLI and GUI labels to `v3.29`; `lucksystem --version` reports

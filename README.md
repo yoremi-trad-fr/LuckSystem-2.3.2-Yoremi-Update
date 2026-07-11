@@ -28,6 +28,7 @@ A graphical interface is available in this fork, built with Wails (Go + Svelte).
 - Font Extract / Edit (append, insert, redraw modes, Arabic metrics preset, manual X/Y/advance offsets, manual connector bleed)
 - Vietnamese Font Patch for AIR / Planetarian SG (slot/family selectors, TTF/OTF selection, Y-offset test folders, optional Latin redraw test mode)
 - **Windows only:** Luca Menu DLL hook generator for AIR, Kanon, Harmonia HD, LOOPERS, and Little Busters English Edition, with mixed UTF-8/UTF-16LE budget checks and automatic x64 `version.dll` or x86 `winmm.dll` compilation
+- **LBEE Russian preset:** the GUI can preload the validated Russian menu text and build the bundled 1,034-patch `russian_preset.py` WinMM hook without manual entry
 - Image Export / Import (single file + batch folder mode)
 - Real-time console output
 - **Stop button** to cancel any running operation

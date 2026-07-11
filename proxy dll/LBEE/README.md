@@ -19,11 +19,16 @@ Select **Little Busters! English Edition** in `DLL HOOK -> Luca Menu DLL`, then
 select the exact `LITBUS_WIN32.exe` used to build the inventory. The GUI handles
 UTF-8 and UTF-16LE budgets separately, computes RVAs from the PE section table,
 selects the x86 compiler toolchain, and outputs `winmm.dll` automatically.
+Choose **Russe (LBEE)** under **Langue à injecter** to load the validated menu
+translations and build the complete bundled community preset automatically.
+The GUI runs `mixed_patches.py` against `russian_preset.py`, producing 1,034
+effective patches; no Russian strings need to be entered manually.
 
-## Generate Dolamroth's test table
+## Generate the complete Russian preset
 
-Put `patches2.py` and the matching `LITBUS_WIN32.exe` in one directory, open a
-terminal in that directory, then run:
+The repository includes `russian_preset.py` (the former external `patches2.py`
+table under a descriptive name). To run it manually, put it and the matching
+`LITBUS_WIN32.exe` in one directory, open a terminal there, then run:
 
 ```powershell
 python "<LuckSystem repo>\proxy dll\LBEE\mixed_patches.py"
@@ -38,7 +43,7 @@ expanded to every standalone UTF-8/UTF-16LE occurrence in the executable's
 string-data sections. This avoids patching substrings such as `Close` inside
 `CloseThreadpool` while missing the visible menu label. It corrects 36
 non-standalone first-match offsets and removes 10 no-op source=target rows;
-Dolamroth's current table produces 1,034 effective patches.
+The current community table produces 1,034 effective patches.
 
 `CROP_OVERSIZE` is enabled for the supplied proof-of-concept translations.
 Rows shortened automatically are marked `cropped=True` in the CSV and should

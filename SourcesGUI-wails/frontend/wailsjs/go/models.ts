@@ -57,6 +57,7 @@ export namespace main {
 	    suggestedFr: string;
 	    suggestedEn: string;
 	    suggestedAr: string;
+	    suggestedRu: string;
 	    suggestedJp: string;
 	    suggestedCn: string;
 	    catalogId: string;
@@ -87,6 +88,7 @@ export namespace main {
 	        this.suggestedFr = source["suggestedFr"];
 	        this.suggestedEn = source["suggestedEn"];
 	        this.suggestedAr = source["suggestedAr"];
+	        this.suggestedRu = source["suggestedRu"];
 	        this.suggestedJp = source["suggestedJp"];
 	        this.suggestedCn = source["suggestedCn"];
 	        this.catalogId = source["catalogId"];
@@ -140,6 +142,8 @@ export namespace main {
 	    patchVersion: string;
 	    slot: string;
 	    buildDll: boolean;
+	    proxyDll: string;
+	    preset: string;
 	    entries: LucaMenuPatchEdit[];
 	
 	    static createFrom(source: any = {}) {
@@ -155,6 +159,8 @@ export namespace main {
 	        this.patchVersion = source["patchVersion"];
 	        this.slot = source["slot"];
 	        this.buildDll = source["buildDll"];
+	        this.proxyDll = source["proxyDll"];
+	        this.preset = source["preset"];
 	        this.entries = this.convertValues(source["entries"], LucaMenuPatchEdit);
 	    }
 	

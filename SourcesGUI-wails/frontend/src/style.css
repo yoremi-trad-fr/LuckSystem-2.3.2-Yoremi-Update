@@ -146,6 +146,13 @@ html, body {
 
 /* Luca menu DLL */
 .luca-toolbar { flex-wrap: wrap; gap: 8px; }
+.luca-proxy-group { padding: 9px 10px; border: 1px solid #d6dce5; border-radius: 4px; background: #f8fafc; }
+.luca-proxy-row { align-items: stretch; flex-wrap: wrap; gap: 8px; }
+.luca-proxy-option { min-width: 190px; padding: 8px 10px; border: 1px solid #c8ced8; border-radius: 4px; background: #fff; color: #6b7280; }
+.luca-proxy-option span { display: flex; flex-direction: column; gap: 2px; }
+.luca-proxy-option strong { font-size: 13px; }
+.luca-proxy-option small { font-size: 10px; font-weight: normal; }
+.luca-proxy-option.luca-proxy-selected { border-color: #2878d0; background: #eaf4ff; color: #155a9f; box-shadow: inset 0 0 0 1px #2878d0; }
 .luca-count { font-size: 11px; color: #666; white-space: nowrap; }
 .luca-table {
   border: 1px solid var(--border);

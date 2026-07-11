@@ -2,6 +2,7 @@ package main
 
 import (
 	"debug/pe"
+	"encoding/csv"
 	"fmt"
 	"os"
 	"os/exec"
@@ -67,17 +68,20 @@ func TestParseLBEEMixedEncodingProfile(t *testing.T) {
 	if len(profile.Entries) < 40 {
 		t.Fatalf("LBEE entries = %d, want at least 40", len(profile.Entries))
 	}
-	wide := 0
+	russian := 0
 	for _, entry := range profile.Entries {
-		if entry.Encoding == "utf-16-le" {
-			wide++
-			if entry.SourceBytes != len([]rune(entry.Source))*2 {
-				t.Fatalf("LBEE UTF-16 byte length for %q = %d", entry.Source, entry.SourceBytes)
+		if entry.SuggestedRu != "" {
+			russian++
+			if entry.Budget >= 0 && lucaEncodedLen(entry.SuggestedRu, entry.Encoding) > entry.Budget {
+				t.Fatalf("LBEE Russian preset exceeds budget for %q", entry.Source)
 			}
 		}
 	}
-	if wide < 7 {
-		t.Fatalf("LBEE UTF-16 entries = %d, want at least 7", wide)
+	if russian != len(profile.Entries) {
+		t.Fatalf("LBEE Russian preset entries = %d, want %d", russian, len(profile.Entries))
+	}
+	if profile.Entries[0].RawOffset != "0x39457C" || profile.Entries[0].SuggestedRu != "Наз" {
+		t.Fatalf("LBEE corrected Close preset = %#v", profile.Entries[0])
 	}
 	definition, err := os.ReadFile(filepath.Join(kit, "winmm.def"))
 	if err != nil {
@@ -85,6 +89,35 @@ func TestParseLBEEMixedEncodingProfile(t *testing.T) {
 	}
 	if !strings.Contains(string(definition), "timeGetDevCaps") {
 		t.Fatal("winmm.def must forward timeGetDevCaps for dynamically loaded graphics drivers")
+	}
+}
+
+func TestLBEECompleteRussianPresetIsBundled(t *testing.T) {
+	kit := testLucaKitDir(t)
+	data, err := os.ReadFile(filepath.Join(kit, "LBEE", "russian_preset.py"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(data)
+	if rows := strings.Count(text, "\n    (0x"); rows != 1033 {
+		t.Fatalf("complete Russian preset rows = %d, want 1033", rows)
+	}
+	if !strings.Contains(text, "Кёскэ") {
+		t.Fatal("complete Russian preset does not contain its UTF-8 translations")
+	}
+}
+
+func TestNormalizeLBEELegacyProfileForcesWinMMX86(t *testing.T) {
+	profile := LucaMenuProfile{
+		ID:           "LBEE",
+		GameExe:      "LITBUS_WIN32.exe",
+		ProxyDLL:     "version",
+		Architecture: "x64",
+		RvaMode:      "delta",
+	}
+	normalizeLucaBuildProfile(&profile)
+	if profile.ProxyDLL != "winmm" || profile.Architecture != "x86" || profile.RvaMode != "pe" {
+		t.Fatalf("LBEE legacy fallback = proxy %q arch %q RVA %q", profile.ProxyDLL, profile.Architecture, profile.RvaMode)
 	}
 }
 
@@ -310,13 +343,13 @@ func TestLBEEMixedWinMMDLLIntegration(t *testing.T) {
 
 	edits := make([]LucaMenuPatchEdit, 0, len(profile.Entries))
 	for _, entry := range profile.Entries {
-		if !entry.SafeAuto || entry.SuggestedFr == "" {
+		if entry.SuggestedRu == "" {
 			continue
 		}
 		edits = append(edits, LucaMenuPatchEdit{
 			RawOffset: entry.RawOffset,
 			Source:    entry.Source,
-			Target:    entry.SuggestedFr,
+			Target:    entry.SuggestedRu,
 			Context:   entry.Context,
 			Note:      entry.Note,
 			Encoding:  entry.Encoding,
@@ -324,27 +357,13 @@ func TestLBEEMixedWinMMDLLIntegration(t *testing.T) {
 			Budget:    entry.Budget,
 		})
 	}
-	if len(edits) < 25 {
-		t.Fatalf("safe LBEE EN -> FR edits = %d, want at least 25", len(edits))
+	if len(edits) != len(profile.Entries) {
+		t.Fatalf("LBEE Russian GUI preset edits = %d, want %d", len(edits), len(profile.Entries))
 	}
 
 	outputDir := t.TempDir()
-	req := LucaMenuGenerateRequest{
-		ProfileID:     "LBEE",
-		GameExe:       gameExe,
-		OutputDir:     outputDir,
-		PatchGameName: "LBEE FR GUI integration",
-		PatchVersion:  "test",
-		Slot:          "en",
-		BuildDLL:      true,
-		Entries:       edits,
-	}
-	script := buildGeneratedLucaPatchesPy(profile, req, edits, req.PatchGameName, req.PatchVersion)
-	if err := os.WriteFile(filepath.Join(outputDir, "patches.py"), []byte(script), 0644); err != nil {
-		t.Fatal(err)
-	}
-	for _, name := range []string{"version.c", "winmm.def"} {
-		if err := copyFile(filepath.Join(kit, name), filepath.Join(outputDir, name)); err != nil {
+	for _, rel := range []string{"version.c", "winmm.def", filepath.Join("LBEE", "mixed_patches.py"), filepath.Join("LBEE", "russian_preset.py")} {
+		if err := copyFile(filepath.Join(kit, rel), filepath.Join(outputDir, filepath.Base(rel))); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -352,10 +371,22 @@ func TestLBEEMixedWinMMDLLIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cmd := exec.Command(python, append(args, "patches.py")...)
+	cmd := exec.Command(python, append(args, "mixed_patches.py", "--exe", gameExe, "--patch-file", "russian_preset.py", "--output-dir", outputDir)...)
 	cmd.Dir = outputDir
 	if output, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("LBEE patches.py failed: %v\n%s", err, output)
+		t.Fatalf("LBEE complete Russian preset failed: %v\n%s", err, output)
+	}
+	csvFile, err := os.Open(filepath.Join(outputDir, "patches.csv"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	records, err := csv.NewReader(csvFile).ReadAll()
+	_ = csvFile.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := len(records) - 1; got != 1034 {
+		t.Fatalf("effective Russian patches = %d, want 1034", got)
 	}
 
 	devCmd := findVisualStudioDevCmd()
