@@ -1,4 +1,4 @@
-# LuckSystem GUI (Linux) — Yoremi fork v3.29
+# LuckSystem GUI (Linux) — Yoremi fork v3.30
 
 Graphical interface for [LuckSystem](https://github.com/wetor/LuckSystem), the Visual Art's/Key visual novel translation toolkit.
 
@@ -15,7 +15,7 @@ LuckSystemGUI      ←→  lucksystem (subprocess)
 
 This design follows [wetor's recommendation](https://github.com/wetor/LuckSystem) to keep the GUI separated from the core tool for cross-platform compatibility and maintainability.
 
-> **v3.29 platform note:** `DLL HOOK -> Luca Menu DLL` is available only in
+> **v3.30 platform note:** `DLL HOOK -> Luca Menu DLL` is available only in
 > the Windows GUI. It generates a Windows `version.dll` or `winmm.dll` proxy and relies on
 > Win32 DLL loading, memory protection, and export forwarding. It is not
 > packaged or supported by the native Linux GUI at this time. A Wine-specific

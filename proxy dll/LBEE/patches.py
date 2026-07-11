@@ -7,7 +7,7 @@ RVA_MODE = 'pe'
 PROXY_DLL = 'winmm'
 ARCHITECTURE = 'x86'
 PATCH_GAME_NAME = 'Little Busters! English Edition'
-PATCH_VERSION = '3.29-lbee'
+PATCH_VERSION = '3.30-lbee'
 
 # Each entry: (raw_offset, source_text, target, context, note, encoding)
 PATCHES = [

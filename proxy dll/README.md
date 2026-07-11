@@ -11,10 +11,10 @@ Tested on: **Kanon** (Steam), **AIR** (Steam), **Harmonia Full HD Edition**
 `version.dll` mode should work on other Luck Engine titles that import
 `VERSION.dll` and use the same supported architecture.
 
-> **Platform scope:** this toolkit and the v3.29 GUI generator are Windows-only.
+> **Platform scope:** this toolkit and the v3.30 GUI generator are Windows-only.
 > The proxy relies on Windows DLL resolution, Win32 memory APIs, and forwarding
 > exports to the system DLL. Native Linux support is intentionally
-> out of scope for v3.29; Wine can be evaluated later if requested.
+> out of scope for v3.30; Wine can be evaluated later if requested.
 
 ---
 
@@ -61,7 +61,7 @@ manual mixed-encoding workflow is kept in its own folder.
 
 ## Workflow
 
-### GUI workflow (recommended in LuckSystem v3.29)
+### GUI workflow (recommended in LuckSystem v3.30)
 
 Keep this complete `proxy dll` folder next to `LuckSystemGUI.exe` and
 `lucksystem.exe`, then open `DLL HOOK -> Luca Menu DLL`.

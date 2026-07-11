@@ -107,6 +107,37 @@ func TestLBEECompleteRussianPresetIsBundled(t *testing.T) {
 	}
 }
 
+func TestValidateLucaCustomPatchFile(t *testing.T) {
+	dir := t.TempDir()
+	valid := filepath.Join(dir, "my_patches.py")
+	if err := os.WriteFile(valid, []byte("PATCHES: list[tuple[int, bytes]] = []\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := validateLucaCustomPatchFile(valid)
+	if err != nil {
+		t.Fatalf("valid custom PATCHES file rejected: %v", err)
+	}
+	if !filepath.IsAbs(got) || !strings.EqualFold(got, valid) {
+		t.Fatalf("validated path = %q, want %q", got, valid)
+	}
+
+	missingAssignment := filepath.Join(dir, "not_patches.py")
+	if err := os.WriteFile(missingAssignment, []byte("VALUES = []\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := validateLucaCustomPatchFile(missingAssignment); err == nil || !strings.Contains(err.Error(), "does not define PATCHES") {
+		t.Fatalf("missing PATCHES assignment error = %v", err)
+	}
+
+	wrongExtension := filepath.Join(dir, "patches.txt")
+	if err := os.WriteFile(wrongExtension, []byte("PATCHES = []\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := validateLucaCustomPatchFile(wrongExtension); err == nil || !strings.Contains(err.Error(), ".py") {
+		t.Fatalf("wrong extension error = %v", err)
+	}
+}
+
 func TestNormalizeLBEELegacyProfileForcesWinMMX86(t *testing.T) {
 	profile := LucaMenuProfile{
 		ID:           "LBEE",
@@ -362,16 +393,19 @@ func TestLBEEMixedWinMMDLLIntegration(t *testing.T) {
 	}
 
 	outputDir := t.TempDir()
-	for _, rel := range []string{"version.c", "winmm.def", filepath.Join("LBEE", "mixed_patches.py"), filepath.Join("LBEE", "russian_preset.py")} {
+	for _, rel := range []string{"version.c", "winmm.def", filepath.Join("LBEE", "mixed_patches.py")} {
 		if err := copyFile(filepath.Join(kit, rel), filepath.Join(outputDir, filepath.Base(rel))); err != nil {
 			t.Fatal(err)
 		}
+	}
+	if err := copyFile(filepath.Join(kit, "LBEE", "russian_preset.py"), filepath.Join(outputDir, "custom_patches.py")); err != nil {
+		t.Fatal(err)
 	}
 	python, args, err := findPythonCommand()
 	if err != nil {
 		t.Fatal(err)
 	}
-	cmd := exec.Command(python, append(args, "mixed_patches.py", "--exe", gameExe, "--patch-file", "russian_preset.py", "--output-dir", outputDir)...)
+	cmd := exec.Command(python, append(args, "mixed_patches.py", "--exe", gameExe, "--patch-file", "custom_patches.py", "--output-dir", outputDir)...)
 	cmd.Dir = outputDir
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("LBEE complete Russian preset failed: %v\n%s", err, output)

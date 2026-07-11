@@ -100,6 +100,7 @@ type LucaMenuGenerateRequest struct {
 	BuildDLL      bool                `json:"buildDll"`
 	ProxyDLL      string              `json:"proxyDll"`
 	Preset        string              `json:"preset"`
+	CustomPatch   string              `json:"customPatch"`
 	Entries       []LucaMenuPatchEdit `json:"entries"`
 }
 
@@ -196,7 +197,8 @@ func (a *App) LucaMenuGenerate(req LucaMenuGenerateRequest) string {
 		return "ERROR"
 	}
 	req.GameExe = gameExe
-	if len(req.Entries) == 0 {
+	customPatch := strings.TrimSpace(req.CustomPatch)
+	if len(req.Entries) == 0 && customPatch == "" {
 		a.logError("Luca DLL: no patch entry selected.")
 		return "ERROR"
 	}
@@ -212,6 +214,19 @@ func (a *App) LucaMenuGenerate(req LucaMenuGenerateRequest) string {
 	if profile == nil {
 		a.logError("Luca DLL: selected profile was not found in the kit.")
 		return "ERROR"
+	}
+	isLBEE := strings.EqualFold(strings.Split(filepath.ToSlash(profile.ID), "/")[0], "LBEE")
+	if customPatch != "" {
+		if !isLBEE {
+			a.logError("Luca DLL: custom PATCHES files are currently supported only for LBEE.")
+			return "ERROR"
+		}
+		var err error
+		customPatch, err = validateLucaCustomPatchFile(customPatch)
+		if err != nil {
+			a.logError("Luca DLL: " + err.Error())
+			return "ERROR"
+		}
 	}
 
 	selected := make([]LucaMenuPatchEdit, 0, len(req.Entries))
@@ -232,7 +247,7 @@ func (a *App) LucaMenuGenerate(req LucaMenuGenerateRequest) string {
 		}
 		selected = append(selected, e)
 	}
-	if len(selected) == 0 {
+	if len(selected) == 0 && customPatch == "" {
 		a.logError("Luca DLL: selected entries are empty.")
 		return "ERROR"
 	}
@@ -257,8 +272,7 @@ func (a *App) LucaMenuGenerate(req LucaMenuGenerateRequest) string {
 		patchVersion = "0.1-gui"
 	}
 
-	fullRussianPreset := strings.EqualFold(strings.TrimSpace(req.Preset), "ru") &&
-		strings.EqualFold(strings.Split(filepath.ToSlash(profile.ID), "/")[0], "LBEE")
+	fullRussianPreset := isLBEE && (strings.EqualFold(strings.TrimSpace(req.Preset), "ru") || customPatch != "")
 	proxyDLL := normalizeLucaProxyDLL(profile.ProxyDLL)
 	if strings.TrimSpace(req.ProxyDLL) != "" {
 		proxyDLL = normalizeLucaProxyDLL(req.ProxyDLL)
@@ -276,8 +290,24 @@ func (a *App) LucaMenuGenerate(req LucaMenuGenerateRequest) string {
 
 	if fullRussianPreset {
 		for _, name := range []string{"mixed_patches.py", "russian_preset.py"} {
+			if name == "russian_preset.py" && customPatch != "" {
+				continue
+			}
 			if err := copyFile(filepath.Join(profile.Folder, name), filepath.Join(req.OutputDir, name)); err != nil {
 				a.logError(fmt.Sprintf("Luca DLL: cannot copy LBEE Russian preset file %s: %v", name, err))
+				return "ERROR"
+			}
+		}
+		if customPatch != "" {
+			customPatchOutput := filepath.Join(req.OutputDir, "custom_patches.py")
+			customPatchOutput, _ = filepath.Abs(customPatchOutput)
+			if !strings.EqualFold(filepath.Clean(customPatch), filepath.Clean(customPatchOutput)) {
+				if err := copyFile(customPatch, customPatchOutput); err != nil {
+					a.logError(fmt.Sprintf("Luca DLL: cannot copy custom PATCHES file: %v", err))
+					return "ERROR"
+				}
+			} else if _, err := os.Stat(customPatchOutput); err != nil {
+				a.logError(fmt.Sprintf("Luca DLL: cannot copy custom PATCHES file: %v", err))
 				return "ERROR"
 			}
 		}
@@ -303,7 +333,11 @@ func (a *App) LucaMenuGenerate(req LucaMenuGenerateRequest) string {
 	a.log(fmt.Sprintf("Slot:    %s", req.Slot))
 	a.log(fmt.Sprintf("Proxy:   %s.dll (%s)", proxyDLL, architecture))
 	if fullRussianPreset {
-		a.log("Preset:  complete LBEE Russian community table")
+		if customPatch != "" {
+			a.log(fmt.Sprintf("Preset:  custom PATCHES file (%s)", filepath.Base(customPatch)))
+		} else {
+			a.log("Preset:  complete LBEE Russian community table")
+		}
 	} else {
 		a.log(fmt.Sprintf("Entries: %d", len(selected)))
 	}
@@ -315,8 +349,12 @@ func (a *App) LucaMenuGenerate(req LucaMenuGenerateRequest) string {
 		return "ERROR"
 	}
 	if fullRussianPreset {
+		patchFile := "russian_preset.py"
+		if customPatch != "" {
+			patchFile = "custom_patches.py"
+		}
 		args = append(args, "mixed_patches.py", "--exe", req.GameExe,
-			"--patch-file", "russian_preset.py", "--output-dir", req.OutputDir)
+			"--patch-file", patchFile, "--output-dir", req.OutputDir)
 	} else {
 		args = append(args, "patches.py")
 	}
@@ -1385,6 +1423,30 @@ func normalizeLucaProxyDLL(name string) string {
 		return "winmm"
 	}
 	return "version"
+}
+
+var lucaPatchesAssignmentRE = regexp.MustCompile(`(?m)^\s*PATCHES(?:\s*:[^=\r\n]+)?\s*=`)
+
+func validateLucaCustomPatchFile(path string) (string, error) {
+	absolute, err := filepath.Abs(strings.TrimSpace(path))
+	if err != nil {
+		return "", fmt.Errorf("invalid custom PATCHES path: %w", err)
+	}
+	info, err := os.Stat(absolute)
+	if err != nil || info.IsDir() {
+		return "", fmt.Errorf("custom PATCHES file not found: %s", absolute)
+	}
+	if !strings.EqualFold(filepath.Ext(absolute), ".py") {
+		return "", fmt.Errorf("custom PATCHES file must be a Python .py file")
+	}
+	data, err := os.ReadFile(absolute)
+	if err != nil {
+		return "", fmt.Errorf("cannot read custom PATCHES file: %w", err)
+	}
+	if !lucaPatchesAssignmentRE.Match(data) {
+		return "", fmt.Errorf("custom Python file does not define PATCHES")
+	}
+	return absolute, nil
 }
 
 func normalizeLucaArchitecture(architecture string) string {

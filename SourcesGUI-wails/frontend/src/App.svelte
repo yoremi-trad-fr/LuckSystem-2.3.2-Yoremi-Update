@@ -52,6 +52,16 @@
   let consoleMenuY = 0;
   let lsPath = '';
   let lucaMenuDllAvailable = false;
+  let uiLanguage = 'fr';
+
+  function t(fr, en, language = uiLanguage) {
+    return language === 'en' ? en : fr;
+  }
+
+  function setUiLanguage(language) {
+    uiLanguage = language === 'en' ? 'en' : 'fr';
+    try { localStorage.setItem('lucksystem-ui-language', uiLanguage); } catch (_) {}
+  }
 
   // --- Script fields ---
   let pakFile = '';
@@ -158,6 +168,7 @@
   let lucaOutputDir = '';
   let lucaBuildDll = true;
   let lucaProxyChoice = 'version';
+  let lucaCustomPatch = '';
   let lucaFillMode = 'fr-safe';
   let lucaSearch = '';
   let lucaEntries = [];
@@ -195,36 +206,36 @@
   // ===== Operations list =====
   const operations = [
     { id: '_s1', label: 'SCRIPT', section: true },
-    { id: 'decompile', label: 'Script Decompile' },
-    { id: 'compile', label: 'Script Compile' },
+    { id: 'decompile', label: 'Script Decompile', labelFr: 'Décompiler les scripts' },
+    { id: 'compile', label: 'Script Compile', labelFr: 'Compiler les scripts' },
     { id: 'siglus_luca', label: 'Siglus -> Luca' },
     { id: '_s2', label: 'PAK (CG)', section: true },
-    { id: 'pak_cg_extract', label: 'CG Extract' },
-    { id: 'pak_cg_replace', label: 'CG Replace' },
-    { id: '_s2v', label: 'PAK (Video)', section: true },
-    { id: 'bgmovie_extract', label: 'BGMOVIE Extract' },
+    { id: 'pak_cg_extract', label: 'CG Extract', labelFr: 'Extraire les CG' },
+    { id: 'pak_cg_replace', label: 'CG Replace', labelFr: 'Remplacer les CG' },
+    { id: '_s2v', label: 'PAK (Video)', labelFr: 'PAK (Vidéo)', section: true },
+    { id: 'bgmovie_extract', label: 'BGMOVIE Extract', labelFr: 'Extraire BGMOVIE' },
     { id: '_s2a', label: 'PAK (Audio)', section: true },
-    { id: 'music_extract', label: 'Music Extract' },
-    { id: 'voice_extract', label: 'Voice Extract' },
-    { id: 'audio_convert', label: 'Ogg / MP3 Convert' },
-    { id: '_s2b', label: 'PAK (Font)', section: true },
-    { id: 'pak_font_extract', label: 'Font Extract' },
-    { id: 'pak_font_replace', label: 'Font Replace' },
-    { id: '_s3', label: 'FONT', section: true },
-    { id: 'font_extract', label: 'Font Extract' },
-    { id: 'font_edit', label: 'Font Edit' },
-    { id: '_s3b', label: 'VIET FONT', section: true },
+    { id: 'music_extract', label: 'Music Extract', labelFr: 'Extraire la musique' },
+    { id: 'voice_extract', label: 'Voice Extract', labelFr: 'Extraire les voix' },
+    { id: 'audio_convert', label: 'Ogg / MP3 Convert', labelFr: 'Convertir Ogg / MP3' },
+    { id: '_s2b', label: 'PAK (Font)', labelFr: 'PAK (Police)', section: true },
+    { id: 'pak_font_extract', label: 'Font Extract', labelFr: 'Extraire la police' },
+    { id: 'pak_font_replace', label: 'Font Replace', labelFr: 'Remplacer la police' },
+    { id: '_s3', label: 'FONT', labelFr: 'POLICE', section: true },
+    { id: 'font_extract', label: 'Font Extract', labelFr: 'Extraire la police' },
+    { id: 'font_edit', label: 'Font Edit', labelFr: 'Modifier la police' },
+    { id: '_s3b', label: 'VIET FONT', labelFr: 'POLICE VIET', section: true },
     { id: 'viet_font_patch', label: 'AIR / SG Patch' },
     { id: '_s3c', label: 'DLL HOOK', section: true },
     { id: 'luca_menu_dll', label: 'Luca Menu DLL' },
     { id: '_s4', label: 'IMAGE', section: true },
-    { id: 'image_export', label: 'Image Export' },
-    { id: 'image_import', label: 'Image Import' },
-    { id: '_s6', label: 'DIALOGUE', section: true },
-    { id: 'dlg_extract', label: 'Extract Dialogues' },
-    { id: 'dlg_import', label: 'Import Dialogues' },
+    { id: 'image_export', label: 'Image Export', labelFr: 'Exporter les images' },
+    { id: 'image_import', label: 'Image Import', labelFr: 'Importer les images' },
+    { id: '_s6', label: 'DIALOGUE', labelFr: 'DIALOGUES', section: true },
+    { id: 'dlg_extract', label: 'Extract Dialogues', labelFr: 'Extraire les dialogues' },
+    { id: 'dlg_import', label: 'Import Dialogues', labelFr: 'Importer les dialogues' },
     { id: '_s5', label: '', section: true },
-    { id: 'about', label: 'À propos' },
+    { id: 'about', label: 'About', labelFr: 'À propos' },
   ];
 
   // ===== Console =====
@@ -334,13 +345,14 @@
   }
 
   onMount(async () => {
+    try { setUiLanguage(localStorage.getItem('lucksystem-ui-language') || 'fr'); } catch (_) {}
     window.addEventListener('click', closeConsoleMenu);
     window.addEventListener('keydown', handleWindowKeydown);
     EventsOn('log', (msg) => addLine(msg));
     lucaMenuDllAvailable = await SupportsLucaMenuDLL();
     lsPath = await GetLuckSystemPath();
     if (lsPath) {
-      addLine('LuckSystem 2.3.2 - Yoremi fork v3.29');
+      addLine('LuckSystem 2.3.2 - Yoremi fork v3.30');
       addLine('Executable: ' + lsPath);
       // Scan data/ folder for game presets
       gamePresets = (await ScanGameData()) || [];
@@ -380,7 +392,7 @@
   async function browsePakExtSource() { const f = await SelectPakFile(); if (f) pakExtSource = f; }
   async function browsePakExtOutput() { const d = await SelectDirectory('Select extraction output'); if (d) pakExtOutput = d; }
   async function browsePakRepSource() { const f = await SelectPakFile(); if (f) pakRepSource = f; }
-  async function browsePakRepListFile() { const f = await SelectFile('Sélectionner le fichier liste (_list.txt)', '*.txt', 'Fichiers liste'); if (f) pakRepListFile = f; }
+  async function browsePakRepListFile() { const f = await SelectFile(t('Sélectionner le fichier liste (_list.txt)', 'Select list file (_list.txt)'), '*.txt', t('Fichiers liste', 'List files')); if (f) pakRepListFile = f; }
   async function browsePakRepInput() { const d = await SelectDirectory('Select folder with modified files'); if (d) pakRepInput = d; }
   async function browsePakRepOutput() { const f = await SelectSaveFile('Save output PAK', 'FONT.out.PAK', '*.PAK;*.pak', 'PAK files'); if (f) pakRepOutput = f; }
 
@@ -398,12 +410,12 @@
   async function browseAudioConvOutput() { const d = await SelectDirectory('Select converted audio output folder'); if (d) audioConvOutput = d; }
 
   async function browsePakFontExtSource() { const f = await SelectPakFile(); if (f) pakFontExtSource = f; }
-  async function browsePakFontExtOutput() { const d = await SelectDirectory('Dossier d\'extraction'); if (d) pakFontExtOutput = d; }
+  async function browsePakFontExtOutput() { const d = await SelectDirectory(t('Dossier d\'extraction', 'Extraction folder')); if (d) pakFontExtOutput = d; }
   async function browsePakFontRepSource() { const f = await SelectPakFile(); if (f) pakFontRepSource = f; }
-  async function browsePakFontRepListFile() { const f = await SelectFile('Sélectionner le fichier liste (_list.txt)', '*.txt', 'Fichiers liste'); if (f) pakFontRepListFile = f; }
-  async function browsePakFontRepInput() { const d = await SelectDirectory('Dossier des fichiers modifiés'); if (d) pakFontRepInput = d; }
+  async function browsePakFontRepListFile() { const f = await SelectFile(t('Sélectionner le fichier liste (_list.txt)', 'Select list file (_list.txt)'), '*.txt', t('Fichiers liste', 'List files')); if (f) pakFontRepListFile = f; }
+  async function browsePakFontRepInput() { const d = await SelectDirectory(t('Dossier des fichiers modifiés', 'Modified files folder')); if (d) pakFontRepInput = d; }
   async function browsePakFontRepSingleFile() {
-    const f = await SelectFile('Sélectionner le fichier à remplacer', '*.*', 'Tous les fichiers');
+    const f = await SelectFile(t('Sélectionner le fichier à remplacer', 'Select file to replace'), '*.*', t('Tous les fichiers', 'All files'));
     if (f) {
       pakFontRepSingleFile = f;
       if (!pakFontRepSingleName) pakFontRepSingleName = f.split(/[\\/]/).pop();
@@ -418,8 +430,8 @@
   async function browseFontEditCz() { const f = await SelectFile('Select source CZ', '*.*', 'Font CZ files'); if (f) fontEditCz = f; }
   async function browseFontEditInfo() { const f = await SelectFile('Select source info', '*.*', 'Info files'); if (f) fontEditInfo = f; }
   async function browseFontEditTtf() { const f = await SelectFile('Select TTF font', '*.ttf;*.otf', 'Font files'); if (f) fontEditTtf = f; }
-  async function browseFontEditOutCz() { const d = await SelectDirectory('Dossier de sortie pour le CZ modifié'); if (d) fontEditOutCz = d + '\\'; }
-  async function browseFontEditOutInfo() { const d = await SelectDirectory('Dossier de sortie pour le fichier info'); if (d) fontEditOutInfo = d + '\\'; }
+  async function browseFontEditOutCz() { const d = await SelectDirectory(t('Dossier de sortie pour le CZ modifié', 'Output folder for modified CZ')); if (d) fontEditOutCz = d + '\\'; }
+  async function browseFontEditOutInfo() { const d = await SelectDirectory(t('Dossier de sortie pour le fichier info', 'Output folder for info file')); if (d) fontEditOutInfo = d + '\\'; }
   async function browseFontEditCharset() { const f = await SelectFile('Select charset file', '*.txt', 'Text files'); if (f) fontEditCharsetFile = f; }
 
   async function browseVietFontRoot() { const d = await SelectDirectory('Select AIR / Planetarian SG files folder'); if (d) vietFontRoot = d; }
@@ -579,9 +591,9 @@
   }
 
   function slotLabel(slot) {
-    if (slot === 'jp') return 'Japonais';
-    if (slot === 'cn') return 'Chinois';
-    return 'Anglais';
+    if (slot === 'jp') return t('Japonais', 'Japanese');
+    if (slot === 'cn') return t('Chinois', 'Chinese');
+    return t('Anglais', 'English');
   }
 
   function byteLen(value) {
@@ -650,6 +662,7 @@
     lucaGame = value;
     lucaExe = '';
     lucaBuildDll = true;
+    lucaCustomPatch = '';
     syncLucaProfileDefaults();
     refreshLucaEntries();
   }
@@ -707,13 +720,22 @@
   }
 
   async function browseLucaExe() {
-    const f = await SelectFile('Select Luca game EXE', '*.exe', 'Executable files');
+    const f = await SelectFile(t("Sélectionner l'EXE du jeu Luca", 'Select Luca game EXE'), '*.exe', t('Fichiers exécutables', 'Executable files'));
     if (f) lucaExe = f;
   }
 
   async function browseLucaOutput() {
-    const d = await SelectDirectory('Select Luca DLL output folder');
+    const d = await SelectDirectory(t('Sélectionner le dossier de sortie DLL Luca', 'Select Luca DLL output folder'));
     if (d) lucaOutputDir = d;
+  }
+
+  async function browseLucaCustomPatch() {
+    const f = await SelectFile(t('Sélectionner un fichier PATCHES personnalisé', 'Select custom PATCHES file'), '*.py', t('Fichiers Python PATCHES', 'Python PATCHES files'));
+    if (f) {
+      lucaCustomPatch = f;
+      lucaProxyChoice = 'winmm';
+      lucaBuildDll = true;
+    }
   }
 
   function startLucaGenerate() {
@@ -727,8 +749,8 @@
       include: e.include,
       budget: e.budget
     }));
-    if (!entries.length) {
-      addLine('[ERROR] Aucune chaîne remplie et sélectionnée pour le slot ' + slotLabel(lucaSlot) + '.');
+    if (!entries.length && !lucaCustomPatch) {
+      addLine(t('[ERROR] Aucune chaîne remplie et sélectionnée pour le slot ', '[ERROR] No filled and selected string for the ') + slotLabel(lucaSlot) + t('.', ' slot.'));
       return;
     }
     run(() => LucaMenuGenerate({
@@ -741,6 +763,7 @@
       buildDll: lucaBuildDll,
       proxyDll: lucaProxyChoice,
       preset: lucaFillMode,
+      customPatch: lucaCustomPatch,
       entries
     }));
   }
@@ -828,24 +851,33 @@
 
 <div id="app">
   <div class="titlebar">
-    <span>LuckSystem 2.3.2 - Yoremi fork v3.29</span>
-    <span class="titlebar-path" on:click={locateLuckSystem} title="Click to change">
-      {#if lsPath}📁 {lsPath}{:else}⚠ lucksystem.exe not found - Click to locate{/if}
-    </span>
+    <span>LuckSystem 2.3.2 - Yoremi fork v3.30</span>
+    <div class="titlebar-tools">
+      <label class="ui-language">
+        <span>{t('Interface', 'Interface', uiLanguage)}</span>
+        <select value={uiLanguage} on:change={(e) => setUiLanguage(e.target.value)}>
+          <option value="fr">Français</option>
+          <option value="en">English</option>
+        </select>
+      </label>
+      <span class="titlebar-path" on:click={locateLuckSystem} title={t('Cliquer pour modifier', 'Click to change', uiLanguage)}>
+        {#if lsPath}📁 {lsPath}{:else}⚠ {t('lucksystem.exe introuvable — cliquer pour le localiser', 'lucksystem.exe not found — click to locate', uiLanguage)}{/if}
+      </span>
+    </div>
   </div>
 
   <div class="content">
     <!-- LEFT SIDEBAR -->
     <div class="sidebar">
-      <div class="sidebar-title">Select option:</div>
+      <div class="sidebar-title">{t('Choisir une option :', 'Select option:', uiLanguage)}</div>
       <div class="sidebar-list">
         {#each operations as op}
           {#if lucaMenuDllAvailable || (op.id !== '_s3c' && op.id !== 'luca_menu_dll')}
             {#if op.section}
-              <div class="sidebar-section">{op.label}</div>
+              <div class="sidebar-section">{uiLanguage === 'fr' && op.labelFr ? op.labelFr : op.label}</div>
             {:else}
               <div class="sidebar-item" class:active={selectedOp === op.id} class:disabled={op.disabled} on:click={() => selectOp(op)}>
-                {op.label}
+                {uiLanguage === 'fr' && op.labelFr ? op.labelFr : op.label}
               </div>
             {/if}
           {/if}
@@ -887,11 +919,11 @@
       {:else if selectedOp === 'siglus_luca'}
         <div class="form-title">Siglus -> Luca Script Bridge</div>
         <div class="form-hint" style="margin-bottom:10px">
-          Importe des lignes traduites depuis des exports Siglus dans des scripts Luca décompilés. Les lignes Luca-only et les découpages à vérifier sont exportés en TSV dans le dossier de sortie.
+          {t('Importe des lignes traduites depuis des exports Siglus dans des scripts Luca décompilés. Les lignes Luca-only et les découpages à vérifier sont exportés en TSV dans le dossier de sortie.', 'Imports translated lines from Siglus exports into decompiled Luca scripts. Luca-only lines and segments requiring review are exported as TSV files in the output folder.', uiLanguage)}
         </div>
-        <div class="form-group"><label>Luca scripts folder:</label><div class="form-row"><input type="text" bind:value={siglusLucaLucaDir} readonly placeholder="SCRIPT.PAK decompiled folder" /><button class="btn" on:click={browseSiglusLucaLucaDir}>Select</button></div><div class="form-hint">Dossier contenant les scripts Luca .txt à patcher.</div></div>
-        <div class="form-group"><label>Siglus Full folder:</label><div class="form-row"><input type="text" bind:value={siglusLucaSiglusDir} readonly placeholder="TRAD-silgus\Full" /><button class="btn" on:click={browseSiglusLucaSiglusDir}>Select</button></div><div class="form-hint">Dossier contenant les exports Siglus .ss.txt avec source et traduction.</div></div>
-        <div class="form-group"><label>Output folder:</label><div class="form-row"><input type="text" bind:value={siglusLucaOutput} readonly placeholder="Luca_from_Siglus_FR" /><button class="btn" on:click={browseSiglusLucaOutput}>Select</button></div><div class="form-hint">Les scripts patchés, <code>hd_candidates.tsv</code> et <code>review.tsv</code> seront écrits ici.</div></div>
+        <div class="form-group"><label>Luca scripts folder:</label><div class="form-row"><input type="text" bind:value={siglusLucaLucaDir} readonly placeholder="SCRIPT.PAK decompiled folder" /><button class="btn" on:click={browseSiglusLucaLucaDir}>Select</button></div><div class="form-hint">{t('Dossier contenant les scripts Luca .txt à patcher.', 'Folder containing the Luca .txt scripts to patch.', uiLanguage)}</div></div>
+        <div class="form-group"><label>Siglus Full folder:</label><div class="form-row"><input type="text" bind:value={siglusLucaSiglusDir} readonly placeholder="TRAD-silgus\Full" /><button class="btn" on:click={browseSiglusLucaSiglusDir}>Select</button></div><div class="form-hint">{t('Dossier contenant les exports Siglus .ss.txt avec source et traduction.', 'Folder containing Siglus .ss.txt exports with source and translated text.', uiLanguage)}</div></div>
+        <div class="form-group"><label>Output folder:</label><div class="form-row"><input type="text" bind:value={siglusLucaOutput} readonly placeholder="Luca_from_Siglus_FR" /><button class="btn" on:click={browseSiglusLucaOutput}>Select</button></div><div class="form-hint">{t('Les scripts patchés,', 'The patched scripts,', uiLanguage)} <code>hd_candidates.tsv</code> {t('et', 'and', uiLanguage)} <code>review.tsv</code> {t('seront écrits ici.', 'will be written here.', uiLanguage)}</div></div>
         <div class="form-group">
           <label>Target column:</label>
           <div class="form-row">
@@ -902,7 +934,7 @@
               <option value={4}>Lang 4</option>
             </select>
           </div>
-          <div class="form-hint">Garder Lang 2 pour les scripts Luca dont le deuxième slot texte est la langue à remplacer.</div>
+          <div class="form-hint">{t('Garder Lang 2 pour les scripts Luca dont le deuxième slot texte est la langue à remplacer.', 'Keep Lang 2 for Luca scripts whose second text slot is the language to replace.', uiLanguage)}</div>
         </div>
         <div class="form-actions">
           {#if running}<span class="running-indicator"></span> Running...
@@ -916,7 +948,7 @@
       {:else if selectedOp === 'pak_cg_extract'}
         <div class="form-title">PAK (CG) — Extract</div>
         <div class="form-group"><label>PAK file (CG) :</label><div class="form-row"><input type="text" bind:value={pakExtSource} readonly /><button class="btn" on:click={browsePakExtSource}>Select</button></div></div>
-        <div class="form-group"><label>Output folder:</label><div class="form-row"><input type="text" bind:value={pakExtOutput} readonly /><button class="btn" on:click={browsePakExtOutput}>Select</button></div><div class="form-hint">Le fichier liste <code>&lt;NOM&gt;_list.txt</code> sera généré automatiquement dans ce dossier</div></div>
+        <div class="form-group"><label>Output folder:</label><div class="form-row"><input type="text" bind:value={pakExtOutput} readonly /><button class="btn" on:click={browsePakExtOutput}>Select</button></div><div class="form-hint">{t('Le fichier liste', 'The list file', uiLanguage)} <code>&lt;NAME&gt;_list.txt</code> {t('sera généré automatiquement dans ce dossier', 'will be generated automatically in this folder', uiLanguage)}</div></div>
         <div class="form-actions">{#if running}<span class="running-indicator"></span> Running...{:else}<button class="btn btn-primary" on:click={startPakExtract} disabled={!pakExtSource || !pakExtOutput}>Start Extract</button>{/if}</div>
 
       <!-- BGMOVIE EXTRACT -->
@@ -973,17 +1005,17 @@
         <div class="form-title">PAK (CG) — Replace</div>
         <div class="form-group"><label>Original PAK file:</label><div class="form-row"><input type="text" bind:value={pakRepSource} readonly /><button class="btn" on:click={browsePakRepSource}>Select</button></div></div>
         <div class="form-group">
-          <label>Mode d'entrée :</label>
+          <label>{t("Mode d'entrée :", 'Input mode:', uiLanguage)}</label>
           <div class="form-row checkbox-row" style="margin-bottom:6px">
-            <label class="checkbox-label"><input type="radio" bind:group={pakRepUseList} value={true} /> Fichier liste (<code>*_list.txt</code>)</label>
-            <label class="checkbox-label"><input type="radio" bind:group={pakRepUseList} value={false} /> Dossier de fichiers</label>
+            <label class="checkbox-label"><input type="radio" bind:group={pakRepUseList} value={true} /> {t('Fichier liste', 'List file', uiLanguage)} (<code>*_list.txt</code>)</label>
+            <label class="checkbox-label"><input type="radio" bind:group={pakRepUseList} value={false} /> {t('Dossier de fichiers', 'Files folder', uiLanguage)}</label>
           </div>
           {#if pakRepUseList}
             <div class="form-row"><input type="text" bind:value={pakRepListFile} placeholder="SYSCG_list.txt" readonly /><button class="btn" on:click={browsePakRepListFile}>Select</button></div>
-            <div class="form-hint">Fichier liste généré lors de l'extraction (ex : SYSCG_list.txt)</div>
+            <div class="form-hint">{t("Fichier liste généré lors de l'extraction (ex : SYSCG_list.txt)", 'List file generated during extraction (e.g. SYSCG_list.txt)', uiLanguage)}</div>
           {:else}
             <div class="form-row"><input type="text" bind:value={pakRepInput} readonly /><button class="btn" on:click={browsePakRepInput}>Select</button></div>
-            <div class="form-hint">Dossier contenant les fichiers modifiés à réinjecter</div>
+            <div class="form-hint">{t('Dossier contenant les fichiers modifiés à réinjecter', 'Folder containing modified files to reinsert', uiLanguage)}</div>
           {/if}
         </div>
         <div class="form-group"><label>Output PAK:</label><div class="form-row"><input type="text" bind:value={pakRepOutput} readonly /><button class="btn" on:click={browsePakRepOutput}>Select</button></div></div>
@@ -1003,7 +1035,7 @@
         <div class="form-title">PAK (Font) — Extract</div>
         <div class="form-group"><label>PAK file (Font) :</label><div class="form-row"><input type="text" bind:value={pakFontExtSource} readonly /><button class="btn" on:click={browsePakFontExtSource}>Select</button></div></div>
         <div class="form-group"><label>Charset :</label><div class="form-row"><select bind:value={pakFontExtCharset}><option value="UTF-8">UTF-8</option><option value="ShiftJIS">Shift-JIS</option><option value="GBK">GBK</option></select></div></div>
-        <div class="form-group"><label>Output folder :</label><div class="form-row"><input type="text" bind:value={pakFontExtOutput} readonly /><button class="btn" on:click={browsePakFontExtOutput}>Select</button></div><div class="form-hint">Tous les fichiers du PAK seront extraits ici</div></div>
+        <div class="form-group"><label>Output folder :</label><div class="form-row"><input type="text" bind:value={pakFontExtOutput} readonly /><button class="btn" on:click={browsePakFontExtOutput}>Select</button></div><div class="form-hint">{t('Tous les fichiers du PAK seront extraits ici', 'All files in the PAK will be extracted here', uiLanguage)}</div></div>
         <div class="form-actions">{#if running}<span class="running-indicator"></span> Running...{:else}<button class="btn btn-primary" on:click={startPakFontExtract} disabled={!pakFontExtSource || !pakFontExtOutput}>Start Extract</button>{/if}</div>
 
       <!-- PAK FONT REPLACE -->
@@ -1012,33 +1044,33 @@
         <div class="form-group"><label>Original PAK file (Font) :</label><div class="form-row"><input type="text" bind:value={pakFontRepSource} readonly /><button class="btn" on:click={browsePakFontRepSource}>Select</button></div></div>
         <div class="form-group"><label>Charset :</label><div class="form-row"><select bind:value={pakFontRepCharset}><option value="UTF-8">UTF-8</option><option value="ShiftJIS">Shift-JIS</option><option value="GBK">GBK</option></select></div></div>
         <div class="form-group">
-          <label>Mode d'entrée :</label>
+          <label>{t("Mode d'entrée :", 'Input mode:', uiLanguage)}</label>
           <div class="form-row checkbox-row" style="margin-bottom:6px">
-            <label class="checkbox-label"><input type="radio" bind:group={pakFontRepMode} value="list" /> Fichier liste (<code>*_list.txt</code>)</label>
-            <label class="checkbox-label"><input type="radio" bind:group={pakFontRepMode} value="dir" /> Dossier de fichiers</label>
-            <label class="checkbox-label"><input type="radio" bind:group={pakFontRepMode} value="single" /> Fichier unique par nom</label>
-            <label class="checkbox-label"><input type="radio" bind:group={pakFontRepMode} value="alias" /> Alias de taille compatible</label>
+            <label class="checkbox-label"><input type="radio" bind:group={pakFontRepMode} value="list" /> {t('Fichier liste', 'List file', uiLanguage)} (<code>*_list.txt</code>)</label>
+            <label class="checkbox-label"><input type="radio" bind:group={pakFontRepMode} value="dir" /> {t('Dossier de fichiers', 'Files folder', uiLanguage)}</label>
+            <label class="checkbox-label"><input type="radio" bind:group={pakFontRepMode} value="single" /> {t('Fichier unique par nom', 'Single file by name', uiLanguage)}</label>
+            <label class="checkbox-label"><input type="radio" bind:group={pakFontRepMode} value="alias" /> {t('Alias de taille compatible', 'Compatible-size alias', uiLanguage)}</label>
           </div>
           {#if pakFontRepMode === 'list'}
             <div class="form-row"><input type="text" bind:value={pakFontRepListFile} placeholder="FONT__INFO_list.txt" readonly /><button class="btn" on:click={browsePakFontRepListFile}>Select</button></div>
-            <div class="form-hint">Fichier liste généré lors de l'extraction (ex : FONT__INFO_list.txt)</div>
+            <div class="form-hint">{t("Fichier liste généré lors de l'extraction (ex : FONT__INFO_list.txt)", 'List file generated during extraction (e.g. FONT__INFO_list.txt)', uiLanguage)}</div>
           {:else if pakFontRepMode === 'dir'}
             <div class="form-row"><input type="text" bind:value={pakFontRepInput} readonly /><button class="btn" on:click={browsePakFontRepInput}>Select</button></div>
-            <div class="form-hint">Remplace uniquement les fichiers du dossier dont le nom existe dans le PAK.</div>
+            <div class="form-hint">{t('Remplace uniquement les fichiers du dossier dont le nom existe dans le PAK.', 'Only replaces files whose names exist in the PAK.', uiLanguage)}</div>
           {:else if pakFontRepMode === 'single'}
             <div class="form-row"><input type="text" bind:value={pakFontRepSingleFile} readonly placeholder="ex : C:\dossier\info30" /><button class="btn" on:click={browsePakFontRepSingleFile}>Select</button></div>
             <div class="form-row" style="margin-top:6px"><input type="text" bind:value={pakFontRepSingleName} placeholder="Nom interne exact : info30 ou 明朝30" /></div>
-            <div class="form-hint">Recommandé pour Kanon : faites deux remplacements séparés, <code>info30</code> dans <code>FONT__INFO.PAK</code>, puis <code>明朝30</code> dans <code>FONT_MINCHO.PAK</code>.</div>
+            <div class="form-hint">{t('Recommandé pour Kanon : effectuez deux remplacements séparés,', 'Recommended for Kanon: make two separate replacements,', uiLanguage)} <code>info30</code> {t('dans', 'in', uiLanguage)} <code>FONT__INFO.PAK</code>, {t('puis', 'then', uiLanguage)} <code>明朝30</code> {t('dans', 'in', uiLanguage)} <code>FONT_MINCHO.PAK</code>.</div>
           {:else}
             <div class="form-row">
-              <span style="min-width:110px;font-size:12px">Copier depuis :</span>
+              <span style="min-width:110px;font-size:12px">{t('Copier depuis :', 'Copy from:', uiLanguage)}</span>
               <input type="text" bind:value={pakFontRepAliasFrom} placeholder="info30 ou 明朝30" />
             </div>
             <div class="form-row" style="margin-top:6px">
-              <span style="min-width:110px;font-size:12px">Vers :</span>
+              <span style="min-width:110px;font-size:12px">{t('Vers :', 'To:', uiLanguage)}</span>
               <input type="text" bind:value={pakFontRepAliasTo} placeholder="info32 ou 明朝32" />
             </div>
-            <div class="form-hint">Adapte les données de la taille source à la structure de la taille cible. Test Kanon arabe : <code>info30 → info32</code>, puis dans l'autre PAK <code>明朝30 → 明朝32</code>. Le CZ2 conserve la largeur, les cellules et la longueur d'entrée attendues pour la taille 32. Cela affecte toute l'entrée 32, pas uniquement SELECT.</div>
+            <div class="form-hint">{t("Adapte les données de la taille source à la structure de la taille cible. Test Kanon arabe : info30 → info32, puis 明朝30 → 明朝32 dans l'autre PAK. Le CZ2 conserve la largeur, les cellules et la longueur d'entrée attendues pour la taille 32. Cela affecte toute l'entrée 32, pas uniquement SELECT.", 'Adapts the source-size data to the target-size structure. Arabic Kanon test: info30 → info32, then 明朝30 → 明朝32 in the other PAK. CZ2 preserves the width, cells, and expected entry length for size 32. This affects the entire size-32 entry, not only SELECT.', uiLanguage)}</div>
           {/if}
         </div>
         <div class="form-group"><label>Output PAK :</label><div class="form-row"><input type="text" bind:value={pakFontRepOutput} readonly /><button class="btn" on:click={browsePakFontRepOutput}>Select</button></div></div>
@@ -1064,8 +1096,8 @@
 
       <!-- FONT EDIT -->
       {:else if selectedOp === 'font_edit'}
-        <div class="form-title">Font Edit — Modification de glyphes</div>
-        <div class="form-hint form-hint-warn">⚠ Font Edit modifie les glyphes d'un fichier CZ avec un TTF. Pour simplement re-packer un PAK de font, utilisez <strong>PAK (Font) → Font Replace</strong>.</div>
+        <div class="form-title">{t('Font Edit — Modification de glyphes', 'Font Edit — Glyph modification', uiLanguage)}</div>
+        <div class="form-hint form-hint-warn">⚠ {t("Font Edit modifie les glyphes d'un fichier CZ avec un TTF. Pour simplement re-packer un PAK de police, utilisez", 'Font Edit modifies glyphs in a CZ file using a TTF. To simply repack a font PAK, use', uiLanguage)} <strong>PAK (Font) → Font Replace</strong>.</div>
 
         <div class="form-group"><label>Source CZ file:</label><div class="form-row"><input type="text" bind:value={fontEditCz} readonly /><button class="btn" on:click={browseFontEditCz}>Select</button></div></div>
         <div class="form-group"><label>Source info file:</label><div class="form-row"><input type="text" bind:value={fontEditInfo} readonly /><button class="btn" on:click={browseFontEditInfo}>Select</button></div></div>
@@ -1079,20 +1111,20 @@
             <label class="checkbox-label"><input type="radio" bind:group={fontEditMode} value="insert" /> Insert at index</label>
           </div>
           {#if fontEditMode === 'redraw'}
-            <div class="form-hint">Redessine TOUS les glyphes existants avec le TTF. Aucun charset requis.</div>
+            <div class="form-hint">{t('Redessine TOUS les glyphes existants avec le TTF. Aucun charset requis.', 'Redraws ALL existing glyphs with the TTF. No charset is required.', uiLanguage)}</div>
           {:else if fontEditMode === 'append'}
-            <div class="form-hint">Ajoute les caractères du charset à la fin de la police.</div>
+            <div class="form-hint">{t('Ajoute les caractères du charset à la fin de la police.', 'Appends the charset characters to the end of the font.', uiLanguage)}</div>
           {:else if fontEditMode === 'insert'}
             <div class="form-row" style="margin-top:4px">
               <span style="min-width:90px;font-size:12px">Start index :</span>
               <input type="number" bind:value={fontEditIndex} min="0" style="width:80px;height:26px;padding:0 6px;border:1px solid #c0c0c0;border-radius:2px" />
             </div>
-            <div class="form-hint">Insère/remplace à partir de cette position (0-indexé).</div>
+            <div class="form-hint">{t('Insère/remplace à partir de cette position (index commençant à 0).', 'Inserts/replaces from this position (zero-based index).', uiLanguage)}</div>
           {/if}
         </div>
 
         {#if fontEditMode !== 'redraw'}
-          <div class="form-group"><label>Charset file <span class="required">*</span> :</label><div class="form-row"><input type="text" bind:value={fontEditCharsetFile} readonly /><button class="btn" on:click={browseFontEditCharset}>Select</button></div><div class="form-hint">Fichier texte listant les caractères à ajouter/insérer (ex : accents_fr.txt)</div></div>
+          <div class="form-group"><label>Charset file <span class="required">*</span> :</label><div class="form-row"><input type="text" bind:value={fontEditCharsetFile} readonly /><button class="btn" on:click={browseFontEditCharset}>Select</button></div><div class="form-hint">{t('Fichier texte listant les caractères à ajouter/insérer (ex : accents_fr.txt)', 'Text file listing the characters to append/insert (e.g. accents_fr.txt)', uiLanguage)}</div></div>
         {/if}
 
         <div class="form-group">
@@ -1117,8 +1149,8 @@
           <div class="form-hint">Arabic preset shifts Arabic glyphs toward the Latin baseline. Connector bleed is experimental and stays manual.</div>
         </div>
 
-        <div class="form-group"><label>Output CZ <span class="required">*</span> :</label><div class="form-row"><input type="text" bind:value={fontEditOutCz} placeholder="ex: C:\dossier\ゴシック26" /><button class="btn" on:click={browseFontEditOutCz}>📁</button></div><div class="form-hint">Tapez le chemin complet sans extension — le bouton sélectionne le dossier</div></div>
-        <div class="form-group"><label>Output info <span class="required">*</span> :</label><div class="form-row"><input type="text" bind:value={fontEditOutInfo} placeholder="ex: C:\dossier\info26" /><button class="btn" on:click={browseFontEditOutInfo}>📁</button></div><div class="form-hint">Tapez le chemin complet sans extension — requis pour mettre à jour le compte de caractères</div></div>
+        <div class="form-group"><label>Output CZ <span class="required">*</span> :</label><div class="form-row"><input type="text" bind:value={fontEditOutCz} placeholder="ex: C:\dossier\ゴシック26" /><button class="btn" on:click={browseFontEditOutCz}>📁</button></div><div class="form-hint">{t('Tapez le chemin complet sans extension — le bouton sélectionne le dossier', 'Enter the full path without an extension — the button selects the folder', uiLanguage)}</div></div>
+        <div class="form-group"><label>Output info <span class="required">*</span> :</label><div class="form-row"><input type="text" bind:value={fontEditOutInfo} placeholder="ex: C:\dossier\info26" /><button class="btn" on:click={browseFontEditOutInfo}>📁</button></div><div class="form-hint">{t('Tapez le chemin complet sans extension — requis pour mettre à jour le compte de caractères', 'Enter the full path without an extension — required to update the character count', uiLanguage)}</div></div>
 
         <div class="form-actions">
           {#if running}
@@ -1200,13 +1232,13 @@
 
         {#if !lucaInventory}
           <div class="form-actions" style="justify-content:flex-start">
-            <button class="btn btn-primary" on:click={loadLucaInventory}>Charger l'inventaire Luca</button>
+            <button class="btn btn-primary" on:click={loadLucaInventory}>{t("Charger l'inventaire Luca", 'Load Luca inventory', uiLanguage)}</button>
           </div>
         {:else if !currentLucaProfile()}
-          <div class="form-hint form-hint-warn">Aucun profil Luca disponible dans le kit.</div>
+          <div class="form-hint form-hint-warn">{t('Aucun profil Luca disponible dans le kit.', 'No Luca profile is available in the kit.', uiLanguage)}</div>
         {:else}
           <div class="form-group">
-            <label>Profil et slot :</label>
+            <label>{t('Profil et slot :', 'Profile and slot:', uiLanguage)}</label>
             <div class="form-row">
               <select bind:value={lucaGame} on:change={() => setLucaGame(lucaGame)}>
                 {#each lucaGameProfiles() as profile}
@@ -1214,44 +1246,56 @@
                 {/each}
               </select>
               <select value={lucaSlot} on:change={(e) => setLucaSlot(e.target.value)}>
-                <option value="en">Slot anglais</option>
-                <option value="jp">Slot japonais</option>
-                <option value="cn">Slot chinois</option>
+                <option value="en">{t('Slot anglais', 'English slot', uiLanguage)}</option>
+                <option value="jp">{t('Slot japonais', 'Japanese slot', uiLanguage)}</option>
+                <option value="cn">{t('Slot chinois', 'Chinese slot', uiLanguage)}</option>
               </select>
               <button class="btn" on:click={loadLucaInventory}>Rescan</button>
             </div>
             <div class="form-hint">
-              EN {lucaAvailableSlotCount('en')} · JP {lucaAvailableSlotCount('jp')} · CN {lucaAvailableSlotCount('cn')} · FR sûr sur ce slot {lucaSafeFrenchCount()}
+              EN {lucaAvailableSlotCount('en')} · JP {lucaAvailableSlotCount('jp')} · CN {lucaAvailableSlotCount('cn')} · {t('FR sûr sur ce slot', 'safe FR strings in this slot', uiLanguage)} {lucaSafeFrenchCount()}
             </div>
             {#if lucaSlotSourceProfile() && lucaSlotSourceProfile().id !== currentLucaProfile().id}
-              <div class="form-hint">Inventaire du slot chargé depuis {lucaSlotSourceProfile().id}.</div>
+              <div class="form-hint">{t('Inventaire du slot chargé depuis', 'Slot inventory loaded from', uiLanguage)} {lucaSlotSourceProfile().id}.</div>
             {:else if !lucaSlotSourceProfile()}
-              <div class="form-hint form-hint-warn">Aucune chaîne du slot {slotLabel(lucaSlot)} n'est encore inventoriée pour ce jeu.</div>
+              <div class="form-hint form-hint-warn">{t('Aucune chaîne du slot', 'No strings from the', uiLanguage)} {slotLabel(lucaSlot)} {t("n'est encore inventoriée pour ce jeu.", 'slot have been inventoried for this game yet.', uiLanguage)}</div>
             {/if}
           </div>
 
           <div class="form-group">
-            <label>EXE du jeu <span class="required">*</span> :</label>
-            <div class="form-row"><input type="text" bind:value={lucaExe} placeholder={currentLucaProfile().gameExe || 'Sélectionnez le véritable EXE du jeu'} /><button class="btn" on:click={browseLucaExe}>Select</button></div>
-            <div class="form-hint">Sélectionnez l'EXE présent dans le dossier du jeu afin de vérifier les offsets et la taille des chaînes.</div>
+            <label>{t('EXE du jeu', 'Game EXE', uiLanguage)} <span class="required">*</span> :</label>
+            <div class="form-row"><input type="text" bind:value={lucaExe} placeholder={currentLucaProfile().gameExe || t('Sélectionnez le véritable EXE du jeu', 'Select the actual game EXE', uiLanguage)} /><button class="btn" on:click={browseLucaExe}>Select</button></div>
+            <div class="form-hint">{t("Sélectionnez l'EXE présent dans le dossier du jeu afin de vérifier les offsets et la taille des chaînes.", 'Select the EXE located in the game folder so offsets and string sizes can be verified.', uiLanguage)}</div>
           </div>
 
           <div class="form-group">
-            <label>Dossier de sortie <span class="required">*</span> :</label>
+            <label>{t('Dossier de sortie', 'Output folder', uiLanguage)} <span class="required">*</span> :</label>
             <div class="form-row"><input type="text" bind:value={lucaOutputDir} readonly /><button class="btn" on:click={browseLucaOutput}>Select</button></div>
-            <div class="form-hint">Le dossier recevra {lucaFillMode === 'ru' ? 'mixed_patches.py, russian_preset.py' : 'patches.py'}, patches.h, patches.csv, version.c, {lucaProxyName()}.def et {lucaProxyName()}.dll si la compilation réussit.</div>
+            <div class="form-hint">{t('Le dossier recevra', 'The folder will receive', uiLanguage)} {lucaCustomPatch ? 'mixed_patches.py, custom_patches.py' : lucaFillMode === 'ru' ? 'mixed_patches.py, russian_preset.py' : 'patches.py'}, patches.h, patches.csv, version.c, {lucaProxyName()}.def {t('et', 'and', uiLanguage)} {lucaProxyName()}.dll {t('si la compilation réussit.', 'if compilation succeeds.', uiLanguage)}</div>
           </div>
 
+          {#if (lucaGame || '').split('/')[0].toUpperCase() === 'LBEE'}
+            <div class="form-group">
+              <label>{t('Fichier PATCHES personnalisé (facultatif) :', 'Custom PATCHES file (optional):', uiLanguage)}</label>
+              <div class="form-row">
+                <input type="text" bind:value={lucaCustomPatch} readonly placeholder={t('russian_preset.py ou autre fichier contenant PATCHES', 'russian_preset.py or another file containing PATCHES', uiLanguage)} />
+                <button class="btn" on:click={browseLucaCustomPatch}>Select</button>
+                {#if lucaCustomPatch}<button class="btn" on:click={() => lucaCustomPatch = ''}>{t('Vider', 'Clear', uiLanguage)}</button>{/if}
+              </div>
+              <div class="form-hint">{t('Si renseigné, ce fichier remplace le preset russe interne. Le dossier de sortie reste uniquement la destination des fichiers générés.', 'When selected, this file replaces the built-in Russian preset. The output folder remains only the destination for generated files.', uiLanguage)}</div>
+            </div>
+          {/if}
+
           <div class="form-group">
-            <label>Identité du patch :</label>
+            <label>{t('Identité du patch :', 'Patch identity:', uiLanguage)}</label>
             <div class="form-row">
-              <input type="text" bind:value={lucaPatchName} placeholder="Nom affiché dans luckproxy.log" />
+              <input type="text" bind:value={lucaPatchName} placeholder={t('Nom affiché dans luckproxy.log', 'Name shown in luckproxy.log', uiLanguage)} />
               <input type="text" bind:value={lucaPatchVersion} placeholder="Version" style="max-width:140px" />
             </div>
           </div>
 
           <div class="form-group luca-proxy-group">
-            <label>DLL proxy à compiler :</label>
+            <label>{t('DLL proxy à compiler :', 'Proxy DLL to compile:', uiLanguage)}</label>
             <div class="form-row checkbox-row luca-proxy-row">
               <label class:luca-proxy-selected={lucaBuildDll && lucaProxyChoice === 'version'} class="checkbox-label luca-proxy-option">
                 <input type="checkbox" checked={lucaBuildDll && lucaProxyChoice === 'version'} on:change={(e) => selectLucaProxy('version', e.target.checked)} />
@@ -1262,44 +1306,44 @@
                 <span><strong>winmm.dll</strong><small>Little Busters! · PE32/x86</small></span>
               </label>
             </div>
-            <div class="form-hint">Choix exclusif : cocher une DLL décoche automatiquement l'autre. Décochez la sélection active pour générer le kit sans compiler.</div>
+            <div class="form-hint">{t("Choix exclusif : cocher une DLL décoche automatiquement l'autre. Décochez la sélection active pour générer le kit sans compiler.", 'Exclusive choice: selecting one DLL automatically clears the other. Clear the active selection to generate the kit without compiling.', uiLanguage)}</div>
             {#if lucaProxyChoice === 'winmm'}
-              <div class="form-hint form-hint-warn"><strong>LBEE sélectionné :</strong> la GUI compilera <code>winmm.dll</code> en 32 bits. Installez uniquement cette DLL à côté de <code>LITBUS_WIN32.exe</code> ; n'utilisez pas <code>version.dll</code>.</div>
+              <div class="form-hint form-hint-warn"><strong>{t('LBEE sélectionné :', 'LBEE selected:', uiLanguage)}</strong> {t('la GUI compilera', 'the GUI will compile', uiLanguage)} <code>winmm.dll</code> {t('en 32 bits. Installez uniquement cette DLL à côté de', 'as 32-bit. Install only this DLL next to', uiLanguage)} <code>LITBUS_WIN32.exe</code> ; {t("n'utilisez pas", 'do not use', uiLanguage)} <code>version.dll</code>.</div>
             {/if}
           </div>
 
           <div class="form-group">
-            <label>Langue à injecter :</label>
+            <label>{t('Langue à injecter :', 'Language to inject:', uiLanguage)}</label>
             <div class="form-row checkbox-row luca-toolbar">
               <select value={lucaFillMode} on:change={(e) => setLucaFillMode(e.target.value)}>
                 <option value="fr">FR</option>
-                <option value="fr-safe">FR (sûr)</option>
+                <option value="fr-safe">{t('FR (sûr)', 'FR (safe)', uiLanguage)}</option>
                 <option value="en">ENG</option>
-                <option value="en-safe">ENG (sûr)</option>
-                <option value="ar">Arabe</option>
-                <option value="ru">Russe (LBEE)</option>
-                <option value="jp">Japonais</option>
-                <option value="cn">Chinois</option>
+                <option value="en-safe">{t('ENG (sûr)', 'ENG (safe)', uiLanguage)}</option>
+                <option value="ar">{t('Arabe', 'Arabic', uiLanguage)}</option>
+                <option value="ru">{t('Russe (LBEE)', 'Russian (LBEE)', uiLanguage)}</option>
+                <option value="jp">{t('Japonais', 'Japanese', uiLanguage)}</option>
+                <option value="cn">{t('Chinois', 'Chinese', uiLanguage)}</option>
               </select>
-              <button class="btn" on:click={clearLucaTargets}>Vider</button>
+              <button class="btn" on:click={clearLucaTargets}>{t('Vider', 'Clear', uiLanguage)}</button>
             </div>
-            <div class="form-hint">Les modes sûrs limitent la sélection aux chaînes communes aux quatre jeux et compatibles avec le budget du slot.</div>
+            <div class="form-hint">{t('Les modes sûrs limitent la sélection aux chaînes communes aux quatre jeux et compatibles avec le budget du slot.', 'Safe modes limit selection to strings shared by all four games and compatible with the slot budget.', uiLanguage)}</div>
           </div>
 
           <div class="form-group">
-            <label>Filtre :</label>
+            <label>{t('Filtre :', 'Filter:', uiLanguage)}</label>
             <div class="form-row">
-              <input type="text" bind:value={lucaSearch} placeholder="source, cible, contexte..." />
-              <span class="luca-count">{lucaSelectedEntries().length} sélectionnée(s) · {lucaVisibleEntries().length} visible(s) · slot {slotLabel(lucaSlot)}</span>
+              <input type="text" bind:value={lucaSearch} placeholder={t('source, cible, contexte...', 'source, target, context...', uiLanguage)} />
+              <span class="luca-count">{lucaSelectedEntries().length} {t('sélectionnée(s)', 'selected', uiLanguage)} · {lucaVisibleEntries().length} {t('visible(s)', 'visible', uiLanguage)} · slot {slotLabel(lucaSlot)}</span>
             </div>
           </div>
 
           <div class="luca-table">
             <div class="luca-row luca-head">
               <div></div>
-              <div>Contexte</div>
+              <div>{t('Contexte', 'Context', uiLanguage)}</div>
               <div>Source</div>
-              <div>Cible</div>
+              <div>{t('Cible', 'Target', uiLanguage)}</div>
               <div>Budget</div>
             </div>
             {#each lucaVisibleEntries() as entry (entry.rawOffset + entry.source)}
@@ -1310,7 +1354,7 @@
                   <div class="luca-meta">{entry.rawOffset} · {entry.encoding || 'utf-8'} · {entry.textKind}{entry.commonCount ? ` · ${entry.commonCount}/4` : ''}{entry.risk ? ` · ${entry.risk}` : ''}</div>
                 </div>
                 <div class="luca-source">{entry.source}</div>
-                <div><input type="text" bind:value={entry.target} placeholder={entry.suggestedFr || 'Traduction'} /></div>
+                <div><input type="text" bind:value={entry.target} placeholder={entry.suggestedFr || t('Traduction', 'Translation', uiLanguage)} /></div>
                 <div class="luca-budget">{lucaEncodedLen(entry)} / {entry.budget >= 0 ? entry.budget : '?'}</div>
               </div>
             {/each}
@@ -1321,8 +1365,8 @@
               <span class="running-indicator"></span> Running...
             {:else}
               <button class="btn btn-primary" on:click={startLucaGenerate}
-                disabled={!lucaExe || !lucaOutputDir || lucaSelectedEntries().length === 0}>
-                Générer le kit DLL
+                disabled={!lucaExe || !lucaOutputDir || (lucaSelectedEntries().length === 0 && !lucaCustomPatch)}>
+                {t('Générer le kit DLL', 'Generate DLL kit', uiLanguage)}
               </button>
             {/if}
           </div>
@@ -1360,31 +1404,31 @@
 
       <!-- DIALOGUE EXTRACT -->
       {:else if selectedOp === 'dlg_extract'}
-        <div class="form-title">Extract Dialogues</div>
+        <div class="form-title">{t('Extraire les dialogues', 'Extract Dialogues', uiLanguage)}</div>
         <div class="form-hint" style="margin-bottom:10px">
-          Extrait les lignes <strong>MESSAGE</strong>, <strong>LOG_BEGIN</strong> et <strong>SELECT</strong> des scripts décompilés (.txt) vers un fichier TSV éditable.<br>
-          Les colonnes correspondent aux chaînes entre guillemets dans l'ordre d'apparition. L'attribution des langues varie selon le jeu — vérifiez manuellement.
+          {t('Extrait les lignes', 'Extracts', uiLanguage)} <strong>MESSAGE</strong>, <strong>LOG_BEGIN</strong> {t('et', 'and', uiLanguage)} <strong>SELECT</strong> {t('des scripts décompilés (.txt) vers un fichier TSV éditable.', 'lines from decompiled scripts (.txt) to an editable TSV file.', uiLanguage)}<br>
+          {t("Les colonnes correspondent aux chaînes entre guillemets dans l'ordre d'apparition. L'attribution des langues varie selon le jeu — vérifiez manuellement.", 'Columns match quoted strings in their order of appearance. Language assignment varies by game — check it manually.', uiLanguage)}
         </div>
         <div class="form-group">
           <div class="form-row checkbox-row">
-            <label class="checkbox-label"><input type="checkbox" bind:checked={dlgExtBatch} on:change={toggleDlgExtBatch} /> Batch mode (dossier entier)</label>
+            <label class="checkbox-label"><input type="checkbox" bind:checked={dlgExtBatch} on:change={toggleDlgExtBatch} /> {t('Mode par lot (dossier entier)', 'Batch mode (entire folder)', uiLanguage)}</label>
           </div>
         </div>
         <div class="form-group">
-          <label>Colonnes à extraire :</label>
+          <label>{t('Colonnes à extraire :', 'Columns to extract:', uiLanguage)}</label>
           <div class="form-row checkbox-row">
             <label class="checkbox-label"><input type="checkbox" bind:checked={dlgExtLang1} /> Lang 1</label>
             <label class="checkbox-label"><input type="checkbox" bind:checked={dlgExtLang2} /> Lang 2</label>
             <label class="checkbox-label"><input type="checkbox" bind:checked={dlgExtLang3} /> Lang 3</label>
             <label class="checkbox-label"><input type="checkbox" bind:checked={dlgExtLang4} /> Lang 4</label>
           </div>
-          <div class="form-hint">Chaque numéro correspond à la Nième chaîne entre guillemets dans le script. Ex: pour AIR, Lang 1 = JAP, Lang 2 = ENG, Lang 3 = CN.</div>
+          <div class="form-hint">{t('Chaque numéro correspond à la Nième chaîne entre guillemets dans le script. Ex. : pour AIR, Lang 1 = JAP, Lang 2 = ENG, Lang 3 = CN.', 'Each number matches the corresponding quoted string in the script. Example for AIR: Lang 1 = JAP, Lang 2 = ENG, Lang 3 = CN.', uiLanguage)}</div>
         </div>
-        <div class="form-group"><label>{dlgExtBatch ? 'Dossier scripts (.txt) :' : 'Fichier script (.txt) :'}</label><div class="form-row"><input type="text" bind:value={dlgExtInput} readonly /><button class="btn" on:click={browseDlgExtInput}>Select</button></div>
-          {#if dlgExtDetectedFmt}<div class="form-hint">Format détecté : <strong>{dlgExtDetectedFmt}</strong></div>{/if}
+        <div class="form-group"><label>{dlgExtBatch ? t('Dossier scripts (.txt) :', 'Scripts folder (.txt):', uiLanguage) : t('Fichier script (.txt) :', 'Script file (.txt):', uiLanguage)}</label><div class="form-row"><input type="text" bind:value={dlgExtInput} readonly /><button class="btn" on:click={browseDlgExtInput}>Select</button></div>
+          {#if dlgExtDetectedFmt}<div class="form-hint">{t('Format détecté :', 'Detected format:', uiLanguage)} <strong>{dlgExtDetectedFmt}</strong></div>{/if}
         </div>
-        <div class="form-group"><label>{dlgExtBatch ? 'Dossier de sortie :' : 'Fichier TSV de sortie :'}</label><div class="form-row"><input type="text" bind:value={dlgExtOutput} readonly /><button class="btn" on:click={browseDlgExtOutput}>Select</button></div>
-          {#if dlgExtBatch}<div class="form-hint">Un fichier <code>*.ext.txt</code> sera créé par script contenant des MESSAGE</div>{/if}
+        <div class="form-group"><label>{dlgExtBatch ? t('Dossier de sortie :', 'Output folder:', uiLanguage) : t('Fichier TSV de sortie :', 'Output TSV file:', uiLanguage)}</label><div class="form-row"><input type="text" bind:value={dlgExtOutput} readonly /><button class="btn" on:click={browseDlgExtOutput}>Select</button></div>
+          {#if dlgExtBatch}<div class="form-hint">{t('Un fichier', 'One', uiLanguage)} <code>*.ext.txt</code> {t('sera créé par script contenant des MESSAGE', 'file will be created for each script containing MESSAGE lines', uiLanguage)}</div>{/if}
         </div>
         <div class="form-actions">
           {#if running}<span class="running-indicator"></span> Running...
@@ -1396,35 +1440,35 @@
 
       <!-- DIALOGUE IMPORT -->
       {:else if selectedOp === 'dlg_import'}
-        <div class="form-title">Import Dialogues</div>
+        <div class="form-title">{t('Importer les dialogues', 'Import Dialogues', uiLanguage)}</div>
         <div class="form-hint" style="margin-bottom:10px">
-          Réinjecte les dialogues traduits (TSV) dans les fichiers scripts (.txt).<br>
-          Le TSV doit avoir été généré par l'extraction ci-dessus. Supporte MESSAGE, LOG_BEGIN et SELECT.
+          {t('Réinjecte les dialogues traduits (TSV) dans les fichiers scripts (.txt).', 'Reinserts translated dialogues (TSV) into script files (.txt).', uiLanguage)}<br>
+          {t("Le TSV doit avoir été généré par l'extraction ci-dessus. Supporte MESSAGE, LOG_BEGIN et SELECT.", 'The TSV must have been generated by the extraction tool above. Supports MESSAGE, LOG_BEGIN, and SELECT.', uiLanguage)}
         </div>
         <div class="form-group">
           <div class="form-row checkbox-row">
-            <label class="checkbox-label"><input type="checkbox" bind:checked={dlgImpBatch} on:change={toggleDlgImpBatch} /> Batch mode (dossier entier)</label>
+            <label class="checkbox-label"><input type="checkbox" bind:checked={dlgImpBatch} on:change={toggleDlgImpBatch} /> {t('Mode par lot (dossier entier)', 'Batch mode (entire folder)', uiLanguage)}</label>
           </div>
         </div>
         <div class="form-group">
-          <label>Colonne cible à réinjecter :</label>
+          <label>{t('Colonne cible à réinjecter :', 'Target column to reinsert:', uiLanguage)}</label>
           <div class="form-row">
             <select bind:value={dlgImpTargetCol}>
-              <option value={1}>Lang 1 (1ère chaîne)</option>
-              <option value={2}>Lang 2 (2ème chaîne)</option>
-              <option value={3}>Lang 3 (3ème chaîne)</option>
-              <option value={4}>Lang 4 (4ème chaîne)</option>
+              <option value={1}>{t('Lang 1 (1re chaîne)', 'Lang 1 (1st string)', uiLanguage)}</option>
+              <option value={2}>{t('Lang 2 (2e chaîne)', 'Lang 2 (2nd string)', uiLanguage)}</option>
+              <option value={3}>{t('Lang 3 (3e chaîne)', 'Lang 3 (3rd string)', uiLanguage)}</option>
+              <option value={4}>{t('Lang 4 (4e chaîne)', 'Lang 4 (4th string)', uiLanguage)}</option>
             </select>
           </div>
-          <div class="form-hint">La colonne sélectionnée sera lue dans le TSV et réinjectée dans la Nième chaîne entre guillemets du script.</div>
+          <div class="form-hint">{t('La colonne sélectionnée sera lue dans le TSV et réinjectée dans la chaîne correspondante entre guillemets du script.', 'The selected column will be read from the TSV and reinserted into the corresponding quoted string in the script.', uiLanguage)}</div>
         </div>
-        <div class="form-group"><label>{dlgImpBatch ? 'Dossier scripts originaux :' : 'Fichier script original :'}</label><div class="form-row"><input type="text" bind:value={dlgImpScript} readonly /><button class="btn" on:click={browseDlgImpScript}>Select</button></div>
-          <div class="form-hint">Les fichiers .txt décompilés (originaux ou déjà traduits)</div>
+        <div class="form-group"><label>{dlgImpBatch ? t('Dossier scripts originaux :', 'Original scripts folder:', uiLanguage) : t('Fichier script original :', 'Original script file:', uiLanguage)}</label><div class="form-row"><input type="text" bind:value={dlgImpScript} readonly /><button class="btn" on:click={browseDlgImpScript}>Select</button></div>
+          <div class="form-hint">{t('Les fichiers .txt décompilés (originaux ou déjà traduits)', 'The decompiled .txt files (original or already translated)', uiLanguage)}</div>
         </div>
-        <div class="form-group"><label>{dlgImpBatch ? 'Dossier TSV traduits :' : 'Fichier TSV traduit :'}</label><div class="form-row"><input type="text" bind:value={dlgImpTsv} readonly /><button class="btn" on:click={browseDlgImpTsv}>Select</button></div>
-          {#if dlgImpBatch}<div class="form-hint">Fichiers <code>*.ext.txt</code> — chaque TSV sera associé au script correspondant</div>{/if}
+        <div class="form-group"><label>{dlgImpBatch ? t('Dossier TSV traduits :', 'Translated TSV folder:', uiLanguage) : t('Fichier TSV traduit :', 'Translated TSV file:', uiLanguage)}</label><div class="form-row"><input type="text" bind:value={dlgImpTsv} readonly /><button class="btn" on:click={browseDlgImpTsv}>Select</button></div>
+          {#if dlgImpBatch}<div class="form-hint">{t('Fichiers', 'Files', uiLanguage)} <code>*.ext.txt</code> — {t('chaque TSV sera associé au script correspondant', 'each TSV will be matched with its corresponding script', uiLanguage)}</div>{/if}
         </div>
-        <div class="form-group"><label>{dlgImpBatch ? 'Dossier de sortie :' : 'Fichier de sortie :'}</label><div class="form-row"><input type="text" bind:value={dlgImpOutput} readonly /><button class="btn" on:click={browseDlgImpOutput}>Select</button></div></div>
+        <div class="form-group"><label>{dlgImpBatch ? t('Dossier de sortie :', 'Output folder:', uiLanguage) : t('Fichier de sortie :', 'Output file:', uiLanguage)}</label><div class="form-row"><input type="text" bind:value={dlgImpOutput} readonly /><button class="btn" on:click={browseDlgImpOutput}>Select</button></div></div>
         <div class="form-actions">
           {#if running}<span class="running-indicator"></span> Running...
           {:else}<button class="btn btn-primary" on:click={startDlgImport}
@@ -1435,25 +1479,25 @@
 
       <!-- ABOUT -->
       {:else if selectedOp === 'about'}
-        <div class="form-title">À propos</div>
+        <div class="form-title">{t('À propos', 'About', uiLanguage)}</div>
         <div class="about-panel">
           <div class="about-logo">LuckSystem</div>
-          <div class="about-subtitle">Fork · Yoremi-v3.29</div>
+          <div class="about-subtitle">Fork · Yoremi-v3.30</div>
           <div class="about-desc">
-            Interface graphique pour LuckSystem, l'outil de traduction de visual novels Visual Art's / Key.<br>
-            Inclut des correctifs CZ (CZ1, CZ4), script, PAK, et une interface subprocess.
+            {t("Interface graphique pour LuckSystem, l'outil de traduction de visual novels Visual Art's / Key.", "Graphical interface for LuckSystem, the Visual Art's / Key visual novel translation tool.", uiLanguage)}<br>
+            {t('Inclut des correctifs CZ (CZ1, CZ4), script et PAK, ainsi que la gestion des processus.', 'Includes CZ (CZ1, CZ4), script, and PAK fixes, plus process management.', uiLanguage)}
           </div>
           <div class="about-links">
             <div class="about-link-row">
-              <span class="about-link-label">Projet source :</span>
+              <span class="about-link-label">{t('Projet source :', 'Upstream project:', uiLanguage)}</span>
               <span class="about-link-url">https://github.com/wetor/LuckSystem</span>
             </div>
             <div class="about-link-row">
-              <span class="about-link-label">Fork Yoremi :</span>
+              <span class="about-link-label">{t('Fork Yoremi :', 'Yoremi fork:', uiLanguage)}</span>
               <span class="about-link-url">https://github.com/yoremi-trad-fr/LuckSystem-2.3.2-Yoremi-Update</span>
             </div>
           </div>
-          <div class="about-version">v3.29 GUI · Wails + Svelte</div>
+          <div class="about-version">v3.30 GUI · Wails + Svelte</div>
         </div>
       {/if}
     </div>
@@ -1462,19 +1506,19 @@
   <!-- CONSOLE -->
   <div class="console-wrapper">
     <div class="console-header">
-      <span>Console Output</span>
+      <span>{t('Sortie de la console', 'Console Output', uiLanguage)}</span>
       <div style="display:flex;gap:6px;align-items:center">
         {#if running}
-          <button class="console-stop" on:click={stopProcess}>■ Stop</button>
+          <button class="console-stop" on:click={stopProcess}>■ {t('Arrêter', 'Stop', uiLanguage)}</button>
         {/if}
-        <button class="console-clear" on:click={clearConsole}>Clear</button>
+        <button class="console-clear" on:click={clearConsole}>{t('Effacer', 'Clear', uiLanguage)}</button>
       </div>
     </div>
     <div
       class="console"
       bind:this={consoleEl}
       role="textbox"
-      aria-label="Console Output"
+      aria-label={t('Sortie de la console', 'Console Output', uiLanguage)}
       aria-readonly="true"
       tabindex="0"
       on:contextmenu={openConsoleMenu}
@@ -1490,9 +1534,9 @@
       role="menu"
       style="left: {consoleMenuX}px; top: {consoleMenuY}px;"
     >
-      <button type="button" on:click={copyConsoleSelection}>Copier sélection</button>
-      <button type="button" on:click={copyConsoleAll}>Copier tout</button>
-      <button type="button" on:click={pasteConsoleClipboard}>Coller</button>
+      <button type="button" on:click={copyConsoleSelection}>{t('Copier la sélection', 'Copy selection', uiLanguage)}</button>
+      <button type="button" on:click={copyConsoleAll}>{t('Copier tout', 'Copy all', uiLanguage)}</button>
+      <button type="button" on:click={pasteConsoleClipboard}>{t('Coller', 'Paste', uiLanguage)}</button>
     </div>
   {/if}
 </div>

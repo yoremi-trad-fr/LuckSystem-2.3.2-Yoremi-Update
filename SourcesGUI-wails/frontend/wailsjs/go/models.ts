@@ -144,6 +144,7 @@ export namespace main {
 	    buildDll: boolean;
 	    proxyDll: string;
 	    preset: string;
+	    customPatch: string;
 	    entries: LucaMenuPatchEdit[];
 	
 	    static createFrom(source: any = {}) {
@@ -161,6 +162,7 @@ export namespace main {
 	        this.buildDll = source["buildDll"];
 	        this.proxyDll = source["proxyDll"];
 	        this.preset = source["preset"];
+	        this.customPatch = source["customPatch"];
 	        this.entries = this.convertValues(source["entries"], LucaMenuPatchEdit);
 	    }
 	

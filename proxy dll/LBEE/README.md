@@ -13,7 +13,7 @@ the timer functions used by the game and dynamically loaded graphics drivers
 (`timeBeginPeriod`, `timeEndPeriod`, `timeGetDevCaps`, and `timeGetTime`) to the
 real Windows system DLL. Do not install `version.dll` alongside it.
 
-## GUI workflow (v3.29+)
+## GUI workflow (v3.30+)
 
 Select **Little Busters! English Edition** in `DLL HOOK -> Luca Menu DLL`, then
 select the exact `LITBUS_WIN32.exe` used to build the inventory. The GUI handles
@@ -23,6 +23,12 @@ Choose **Russe (LBEE)** under **Langue à injecter** to load the validated menu
 translations and build the complete bundled community preset automatically.
 The GUI runs `mixed_patches.py` against `russian_preset.py`, producing 1,034
 effective patches; no Russian strings need to be entered manually.
+
+To use another table, select a Python file in **Custom PATCHES file**. It must
+define a `PATCHES` variable in one of the formats accepted by
+`mixed_patches.py`. The GUI copies it to the output kit as
+`custom_patches.py` and uses it instead of the bundled Russian preset. Merely
+placing a custom file in the output folder does not select it.
 
 ## Generate the complete Russian preset
 

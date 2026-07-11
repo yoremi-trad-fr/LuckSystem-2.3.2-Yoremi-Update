@@ -1,3 +1,39 @@
+# V3.30 — LBEE custom PATCHES import and bilingual Windows GUI
+
+11/07/2026
+
+## Added: custom LBEE patch tables in the GUI
+
+- Added an optional **Custom PATCHES file** selector to
+  `DLL HOOK -> Luca Menu DLL` for Little Busters! English Edition.
+- The backend validates that the selected `.py` file defines `PATCHES`, copies
+  it to the generated kit as `custom_patches.py`, and passes it explicitly to
+  `mixed_patches.py`.
+- A custom table can generate the kit without selecting rows from the built-in
+  41-entry inventory. The output folder remains only the destination for
+  generated files and is no longer treated as an implicit source location.
+- Custom LBEE tables always select the required PE32/x86 `winmm.dll` build and
+  keep the existing warning against installing `version.dll` beside the game.
+
+## Added: Français / English interface selector
+
+- Added a persistent interface-language selector to the Windows GUI title bar.
+- Added English translations for the remaining French-only Luca, PAK, font,
+  dialogue, console, help, placeholder, and file-dialog text.
+- The selected interface language is stored locally and restored the next time
+  the GUI starts.
+
+## Validation and version
+
+- Added unit coverage for valid, malformed, and incorrectly named custom
+  `PATCHES` files.
+- Generated the complete 1,034-patch LBEE table through the custom-file path and
+  compiled the resulting `winmm.dll` as PE32/x86 against the supplied game EXE.
+- `go test ./...` in `SourcesGUI-wails`, the focused CLI/core package tests,
+  the production frontend build, and `wails build -clean` pass.
+- Updated CLI and GUI labels to `v3.30`; `lucksystem --version` reports
+  `2.3.2-yoremi.3.30`.
+
 # V3.29 — Little Busters English Edition x86 WinMM proxy and GUI generation
 
 11/07/2026

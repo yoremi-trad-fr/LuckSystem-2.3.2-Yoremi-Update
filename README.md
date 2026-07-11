@@ -1,4 +1,4 @@
-# LuckSystem 2.3.2 — Yoremi Fork (v3.29)
+# LuckSystem 2.3.2 — Yoremi Fork (v3.30)
 
 Fork de [LuckSystem](https://github.com/wetor/LuckSystem) avec corrections de bugs, support de nouveaux formats, et interface graphique pour la traduction de visual novels Visual Art's/Key.
 
@@ -29,6 +29,8 @@ A graphical interface is available in this fork, built with Wails (Go + Svelte).
 - Vietnamese Font Patch for AIR / Planetarian SG (slot/family selectors, TTF/OTF selection, Y-offset test folders, optional Latin redraw test mode)
 - **Windows only:** Luca Menu DLL hook generator for AIR, Kanon, Harmonia HD, LOOPERS, and Little Busters English Edition, with mixed UTF-8/UTF-16LE budget checks and automatic x64 `version.dll` or x86 `winmm.dll` compilation
 - **LBEE Russian preset:** the GUI can preload the validated Russian menu text and build the bundled 1,034-patch `russian_preset.py` WinMM hook without manual entry
+- **LBEE custom PATCHES import:** the Luca DLL page can load a Python `.py` file that defines `PATCHES`, copy it as `custom_patches.py`, and generate the x86 `winmm.dll` directly from that table
+- **Bilingual GUI:** the title bar provides a persistent **Français / English** interface selector, including the Luca/LBEE workflow, help text, dialogs, and console controls
 - Image Export / Import (single file + batch folder mode)
 - Real-time console output
 - **Stop button** to cancel any running operation
@@ -45,7 +47,7 @@ Une version Linux est disponible en binaires séparés (GUI + CLI). Voir les rel
 
 A Linux version is available as separate binaries (GUI + CLI). See the releases for download.
 
-The Luca menu DLL hook is not included in the Linux GUI. Version 3.29
+The Luca menu DLL hook is not included in the Linux GUI. Version 3.30
 keeps this workflow Windows-only because it relies on Windows DLL proxy loading
 and Win32 memory APIs. Wine support is deferred until there is a user request.
 
@@ -53,7 +55,18 @@ and Win32 memory APIs. Wine support is deferred until there is a user request.
 
 ## Patches
 
-### Version 3.29 — *(latest)*
+### Version 3.30 — *(latest)*
+
+43. **LBEE custom PATCHES import** — `SourcesGUI-wails/luca_menu_dll.go`, `SourcesGUI-wails/frontend/src/App.svelte`
+    - Adds an optional `.py` file picker for external tables that define `PATCHES`.
+    - Validates and copies the selected table as `custom_patches.py`, then uses it as the actual input for the x86 `winmm.dll` build.
+    - Keeps the output folder as a destination only; placing a file there no longer needs to be confused with selecting an input table.
+
+44. **Français / English GUI selector** — `SourcesGUI-wails/frontend/src/App.svelte`, `SourcesGUI-wails/frontend/src/style.css`
+    - Adds a persistent interface-language selector to the Windows GUI title bar.
+    - Provides English text for the remaining French-only Luca, PAK, font, dialogue, console, help, and file-dialog content.
+
+### Version 3.29
 
 41. **Little Busters English Edition x86 WinMM proxy** — `proxy dll/LBEE/`, `proxy dll/version.c`, `proxy dll/winmm.def`
     - Adds a 32-bit `winmm.dll` proxy because `LITBUS_WIN32.exe` does not import `version.dll`.

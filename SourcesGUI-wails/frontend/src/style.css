@@ -36,6 +36,15 @@ html, body {
   max-width: 500px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .titlebar-path:hover { opacity: 1; text-decoration: underline; }
+.titlebar-tools { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.ui-language {
+  display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 500;
+  --wails-draggable: no-drag;
+}
+.ui-language select {
+  height: 22px; padding: 0 22px 0 7px; border: 1px solid rgba(255,255,255,.55);
+  border-radius: 3px; background: #fff; color: #222; font-size: 11px; cursor: pointer;
+}
 
 /* Main Layout */
 .content { display: flex; flex: 1; min-height: 0; border-top: 1px solid var(--border); }

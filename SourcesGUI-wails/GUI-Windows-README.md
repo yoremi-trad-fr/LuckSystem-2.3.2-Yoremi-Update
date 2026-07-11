@@ -1,4 +1,4 @@
-# LuckSystem GUI (Windows) — Yoremi fork v3.29
+# LuckSystem GUI (Windows) — Yoremi fork v3.30
 
 Graphical interface for [LuckSystem](https://github.com/wetor/LuckSystem), the Visual Art's/Key visual novel translation toolkit.
 
@@ -45,6 +45,9 @@ GUI/
 
 The GUI auto-detects `lucksystem.exe` in the same directory, current working directory, or system PATH. You can also manually locate it by clicking the path indicator in the title bar.
 
+Use the **Interface** selector in the title bar to switch between **Français**
+and **English**. The selection is stored locally and restored on the next run.
+
 ## Features
 
 | Operation | Description |
@@ -78,8 +81,8 @@ choose two independent values:
 
 - **Source slot:** English, Japanese, or Simplified Chinese. This is the menu
   language currently stored in the EXE and replaced by the hook.
-- **Language to inject:** FR, FR (safe), ENG, ENG (safe), Arabic, Japanese, or
-  Chinese.
+- **Language to inject:** FR, FR (safe), ENG, ENG (safe), Arabic, Russian
+  (LBEE), Japanese, or Chinese.
 
 The safe presets only select catalogued strings shared by AIR, Kanon, Harmonia
 HD, and LOOPERS that fit the byte budget of the chosen source slot. Individual
@@ -93,6 +96,12 @@ Studio Build Tools through `vswhere`; `cl.exe` does not need to be in `PATH`.
 AIR, Kanon, Harmonia HD, and LOOPERS generate x64 `version.dll`. Little Busters!
 English Edition generates x86 `winmm.dll`, handles mixed UTF-8/UTF-16LE slots,
 and must not be installed together with a generated `version.dll`.
+
+For LBEE, **Russian (LBEE)** uses the bundled complete preset. To use an
+external table instead, select a Python `.py` file under **Custom PATCHES
+file**. The file must define `PATCHES`; it is copied to the output kit as
+`custom_patches.py` and becomes the actual source for the WinMM build. The
+output folder itself is only a destination and is never scanned implicitly.
 
 Install the generated proxy DLL next to the selected game EXE. The hook
 patches strings in memory after SteamStub finishes and does not modify the EXE
