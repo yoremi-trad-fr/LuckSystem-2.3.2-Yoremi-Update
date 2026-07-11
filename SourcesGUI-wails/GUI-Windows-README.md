@@ -1,4 +1,4 @@
-# LuckSystem GUI (Windows) — Yoremi fork v3.28
+# LuckSystem GUI (Windows) — Yoremi fork v3.29
 
 Graphical interface for [LuckSystem](https://github.com/wetor/LuckSystem), the Visual Art's/Key visual novel translation toolkit.
 
@@ -35,9 +35,11 @@ GUI/
     ├── menu_catalog.json
     ├── version.c
     ├── version.def
+    ├── winmm.def
     ├── AIR/
     ├── HarmoniaHD/
     ├── Kanon/
+    ├── LBEE/
     └── Loopers/
 ```
 
@@ -59,7 +61,7 @@ The GUI auto-detects `lucksystem.exe` in the same directory, current working dir
 | **Image Import** | Convert PNG back to CZ format (single or batch) |
 | **Dialogue Extract** | Extract translatable dialogue from decompiled scripts to TSV (single file or batch) |
 | **Dialogue Import** | Reimport translated dialogue from TSV back into scripts (single file or batch) |
-| **Luca Menu DLL** | Generate a Windows `version.dll` hook for translated hardcoded Luca menu strings |
+| **Luca Menu DLL** | Generate a Windows `version.dll` or LBEE `winmm.dll` hook for translated hardcoded Luca menu strings |
 
 ### Font size alias and CZ2 round-trip
 
@@ -84,11 +86,15 @@ HD, and LOOPERS that fit the byte budget of the chosen source slot. Individual
 rows remain editable and can be enabled or disabled before generation.
 
 The output folder receives `patches.py`, `patches.h`, `patches.csv`, the shared
-proxy sources, and `version.dll` when compilation succeeds. Python 3 is needed
+proxy sources, and the selected proxy DLL when compilation succeeds. Python 3 is needed
 for patch validation. The GUI automatically uses MinGW GCC or discovers Visual
 Studio Build Tools through `vswhere`; `cl.exe` does not need to be in `PATH`.
 
-Install the generated `version.dll` next to the selected game EXE. The hook
+AIR, Kanon, Harmonia HD, and LOOPERS generate x64 `version.dll`. Little Busters!
+English Edition generates x86 `winmm.dll`, handles mixed UTF-8/UTF-16LE slots,
+and must not be installed together with a generated `version.dll`.
+
+Install the generated proxy DLL next to the selected game EXE. The hook
 patches strings in memory after SteamStub finishes and does not modify the EXE
 on disk.
 

@@ -339,7 +339,7 @@
     lucaMenuDllAvailable = await SupportsLucaMenuDLL();
     lsPath = await GetLuckSystemPath();
     if (lsPath) {
-      addLine('LuckSystem 2.3.2 - Yoremi fork v3.28');
+      addLine('LuckSystem 2.3.2 - Yoremi fork v3.29');
       addLine('Executable: ' + lsPath);
       // Scan data/ folder for game presets
       gamePresets = (await ScanGameData()) || [];
@@ -583,8 +583,12 @@
     return new TextEncoder().encode(value || '').length;
   }
 
+  function lucaEncodedLen(entry, value = entry?.target || '') {
+    return entry?.encoding === 'utf-16-le' ? String(value).length * 2 : byteLen(value);
+  }
+
   function entryTooLong(entry) {
-    return entry.budget >= 0 && byteLen(entry.target) > entry.budget;
+    return entry.budget >= 0 && lucaEncodedLen(entry) > entry.budget;
   }
 
   async function loadLucaInventory() {
@@ -649,7 +653,7 @@
     const safeMode = mode === 'fr-safe' || mode === 'en-safe';
     lucaEntries = lucaEntries.map(entry => {
       const target = lucaPresetTarget(entry, mode);
-      const fits = entry.budget < 0 || byteLen(target) <= entry.budget;
+      const fits = entry.budget < 0 || lucaEncodedLen(entry, target) <= entry.budget;
       const safe = entry.commonCount >= 4 && (mode !== 'fr-safe' || entry.safeAuto);
       const include = target !== '' && target !== entry.source && fits && (!safeMode || safe);
       return { ...entry, target, include };
@@ -694,6 +698,7 @@
       target: e.target,
       context: e.context,
       note: e.note,
+      encoding: e.encoding,
       include: e.include,
       budget: e.budget
     }));
@@ -796,7 +801,7 @@
 
 <div id="app">
   <div class="titlebar">
-    <span>LuckSystem 2.3.2 - Yoremi fork v3.28</span>
+    <span>LuckSystem 2.3.2 - Yoremi fork v3.29</span>
     <span class="titlebar-path" on:click={locateLuckSystem} title="Click to change">
       {#if lsPath}📁 {lsPath}{:else}⚠ lucksystem.exe not found - Click to locate{/if}
     </span>
@@ -1207,7 +1212,7 @@
           <div class="form-group">
             <label>Dossier de sortie <span class="required">*</span> :</label>
             <div class="form-row"><input type="text" bind:value={lucaOutputDir} readonly /><button class="btn" on:click={browseLucaOutput}>Select</button></div>
-            <div class="form-hint">Le dossier recevra patches.py, patches.h, patches.csv, version.c, version.def et version.dll si la compilation réussit.</div>
+            <div class="form-hint">Le dossier recevra patches.py, patches.h, patches.csv, version.c, {currentLucaProfile().proxyDll || 'version'}.def et {currentLucaProfile().proxyDll || 'version'}.dll si la compilation réussit.</div>
           </div>
 
           <div class="form-group">
@@ -1215,7 +1220,7 @@
             <div class="form-row">
               <input type="text" bind:value={lucaPatchName} placeholder="Nom affiché dans luckproxy.log" />
               <input type="text" bind:value={lucaPatchVersion} placeholder="Version" style="max-width:140px" />
-              <label class="checkbox-label" style="margin-bottom:0"><input type="checkbox" bind:checked={lucaBuildDll} /> Compiler version.dll</label>
+              <label class="checkbox-label" style="margin-bottom:0"><input type="checkbox" bind:checked={lucaBuildDll} /> Compiler {currentLucaProfile().proxyDll || 'version'}.dll ({currentLucaProfile().architecture || 'x64'})</label>
             </div>
           </div>
 
@@ -1257,11 +1262,11 @@
                 <div class="luca-check"><input type="checkbox" bind:checked={entry.include} /></div>
                 <div>
                   <div class="luca-context">{entry.context}</div>
-                  <div class="luca-meta">{entry.rawOffset} · {entry.textKind}{entry.commonCount ? ` · ${entry.commonCount}/4` : ''}{entry.risk ? ` · ${entry.risk}` : ''}</div>
+                  <div class="luca-meta">{entry.rawOffset} · {entry.encoding || 'utf-8'} · {entry.textKind}{entry.commonCount ? ` · ${entry.commonCount}/4` : ''}{entry.risk ? ` · ${entry.risk}` : ''}</div>
                 </div>
                 <div class="luca-source">{entry.source}</div>
                 <div><input type="text" bind:value={entry.target} placeholder={entry.suggestedFr || 'Traduction'} /></div>
-                <div class="luca-budget">{byteLen(entry.target)} / {entry.budget >= 0 ? entry.budget : '?'}</div>
+                <div class="luca-budget">{lucaEncodedLen(entry)} / {entry.budget >= 0 ? entry.budget : '?'}</div>
               </div>
             {/each}
           </div>
@@ -1388,7 +1393,7 @@
         <div class="form-title">À propos</div>
         <div class="about-panel">
           <div class="about-logo">LuckSystem</div>
-          <div class="about-subtitle">Fork · Yoremi-v3.28</div>
+          <div class="about-subtitle">Fork · Yoremi-v3.29</div>
           <div class="about-desc">
             Interface graphique pour LuckSystem, l'outil de traduction de visual novels Visual Art's / Key.<br>
             Inclut des correctifs CZ (CZ1, CZ4), script, PAK, et une interface subprocess.
@@ -1403,7 +1408,7 @@
               <span class="about-link-url">https://github.com/yoremi-trad-fr/LuckSystem-2.3.2-Yoremi-Update</span>
             </div>
           </div>
-          <div class="about-version">v3.28 GUI · Wails + Svelte</div>
+          <div class="about-version">v3.29 GUI · Wails + Svelte</div>
         </div>
       {/if}
     </div>

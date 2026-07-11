@@ -15,6 +15,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"unicode/utf16"
 	"unicode/utf8"
 )
 
@@ -31,6 +32,9 @@ type LucaMenuProfile struct {
 	PatchFile     string          `json:"patchFile"`
 	GameExe       string          `json:"gameExe"`
 	RvaDelta      string          `json:"rvaDelta"`
+	RvaMode       string          `json:"rvaMode"`
+	ProxyDLL      string          `json:"proxyDll"`
+	Architecture  string          `json:"architecture"`
 	PatchGameName string          `json:"patchGameName"`
 	PatchVersion  string          `json:"patchVersion"`
 	Entries       []LucaMenuEntry `json:"entries"`
@@ -56,6 +60,7 @@ type LucaMenuEntry struct {
 	Slot        string   `json:"slot"`
 	Category    string   `json:"category"`
 	TextKind    string   `json:"textKind"`
+	Encoding    string   `json:"encoding"`
 	SourceBytes int      `json:"sourceBytes"`
 	TargetBytes int      `json:"targetBytes"`
 	Budget      int      `json:"budget"`
@@ -79,6 +84,7 @@ type LucaMenuPatchEdit struct {
 	Target    string `json:"target"`
 	Context   string `json:"context"`
 	Note      string `json:"note"`
+	Encoding  string `json:"encoding"`
 	Include   bool   `json:"include"`
 	Budget    int    `json:"budget"`
 }
@@ -100,6 +106,7 @@ type parsedPatchTuple struct {
 	Target    string
 	Context   string
 	Note      string
+	Encoding  string
 }
 
 type lucaMenuCatalogFile struct {
@@ -120,7 +127,7 @@ type lucaMenuCatalogEntry struct {
 
 var lucaKitDirNames = []string{"proxy dll", "LuckEngine_proxy_DLL.-KIT"}
 
-// SupportsLucaMenuDLL keeps the Win32 version.dll workflow out of native Linux builds.
+// SupportsLucaMenuDLL keeps the Win32 proxy-DLL workflow out of native Linux builds.
 func (a *App) SupportsLucaMenuDLL() bool {
 	return runtime.GOOS == "windows"
 }
@@ -169,7 +176,7 @@ func (a *App) ScanLucaMenuKit() LucaMenuInventory {
 
 func (a *App) LucaMenuGenerate(req LucaMenuGenerateRequest) string {
 	if !a.SupportsLucaMenuDLL() {
-		a.logError("Luca DLL: the version.dll hook is available only in the Windows GUI.")
+		a.logError("Luca DLL: the Windows proxy hook is available only in the Windows GUI.")
 		return "ERROR"
 	}
 	if req.ProfileID == "" || req.GameExe == "" || req.OutputDir == "" {
@@ -215,8 +222,9 @@ func (a *App) LucaMenuGenerate(req LucaMenuGenerateRequest) string {
 			continue
 		}
 		seen[key] = true
-		if e.Budget >= 0 && len([]byte(e.Target)) > e.Budget {
-			a.logError(fmt.Sprintf("Luca DLL: target too long at %s (%d bytes > budget %d): %s", e.RawOffset, len([]byte(e.Target)), e.Budget, e.Target))
+		encodedLen := lucaEncodedLen(e.Target, e.Encoding)
+		if e.Budget >= 0 && encodedLen > e.Budget {
+			a.logError(fmt.Sprintf("Luca DLL: target too long at %s (%d bytes > budget %d, %s): %s", e.RawOffset, encodedLen, e.Budget, normalizeLucaEncoding(e.Encoding), e.Target))
 			return "ERROR"
 		}
 		selected = append(selected, e)
@@ -252,7 +260,9 @@ func (a *App) LucaMenuGenerate(req LucaMenuGenerateRequest) string {
 		a.logError(fmt.Sprintf("Luca DLL: cannot write patches.py: %v", err))
 		return "ERROR"
 	}
-	for _, name := range []string{"version.c", "version.def", "Makefile"} {
+	proxyDLL := normalizeLucaProxyDLL(profile.ProxyDLL)
+	architecture := normalizeLucaArchitecture(profile.Architecture)
+	for _, name := range []string{"version.c", proxyDLL + ".def", "Makefile"} {
 		if err := copyFile(filepath.Join(inv.KitDir, name), filepath.Join(req.OutputDir, name)); err != nil {
 			a.logError(fmt.Sprintf("Luca DLL: cannot copy %s from proxy dll folder: %v", name, err))
 			return "ERROR"
@@ -264,6 +274,7 @@ func (a *App) LucaMenuGenerate(req LucaMenuGenerateRequest) string {
 	a.log("════════════════════════════════════════")
 	a.log(fmt.Sprintf("Profile: %s", profile.Name))
 	a.log(fmt.Sprintf("Slot:    %s", req.Slot))
+	a.log(fmt.Sprintf("Proxy:   %s.dll (%s)", proxyDLL, architecture))
 	a.log(fmt.Sprintf("Entries: %d", len(selected)))
 	a.log(fmt.Sprintf("Output:  %s", req.OutputDir))
 
@@ -279,12 +290,12 @@ func (a *App) LucaMenuGenerate(req LucaMenuGenerateRequest) string {
 	}
 
 	if req.BuildDLL {
-		if err := a.buildLucaVersionDLL(req.OutputDir); err != nil {
+		if err := a.buildLucaDLL(req.OutputDir, proxyDLL, architecture); err != nil {
 			a.logError(err.Error())
-			a.log("Generated patches.py, patches.h and patches.csv are ready; install a Windows C compiler to build version.dll.")
+			a.log(fmt.Sprintf("Generated patches.py, patches.h and patches.csv are ready; install a Windows C compiler to build %s.dll.", proxyDLL))
 			return "ERROR"
 		}
-		a.logOK(fmt.Sprintf("version.dll generated: %s", filepath.Join(req.OutputDir, "version.dll")))
+		a.logOK(fmt.Sprintf("%s.dll generated: %s", proxyDLL, filepath.Join(req.OutputDir, proxyDLL+".dll")))
 	} else {
 		a.logOK("patches.py, patches.h and patches.csv generated")
 	}
@@ -342,11 +353,14 @@ func parseLucaPatchScript(kitDir, patchPath string) (LucaMenuProfile, error) {
 	rel = filepath.ToSlash(rel)
 
 	profile := LucaMenuProfile{
-		ID:        rel,
-		Folder:    filepath.Dir(patchPath),
-		PatchFile: patchPath,
-		GameExe:   extractPyAssignmentString(text, "GAME_EXE"),
-		RvaDelta:  extractPyAssignmentExpr(text, "RVA_DELTA"),
+		ID:           rel,
+		Folder:       filepath.Dir(patchPath),
+		PatchFile:    patchPath,
+		GameExe:      extractPyAssignmentString(text, "GAME_EXE"),
+		RvaDelta:     extractPyAssignmentExpr(text, "RVA_DELTA"),
+		RvaMode:      extractPyAssignmentString(text, "RVA_MODE"),
+		ProxyDLL:     extractPyAssignmentString(text, "PROXY_DLL"),
+		Architecture: extractPyAssignmentString(text, "ARCHITECTURE"),
 	}
 	profile.PatchGameName = extractPyAssignmentString(text, "PATCH_GAME_NAME")
 	profile.PatchVersion = extractPyAssignmentString(text, "PATCH_VERSION")
@@ -366,8 +380,20 @@ func parseLucaPatchScript(kitDir, patchPath string) (LucaMenuProfile, error) {
 			if profile.PatchVersion == "" {
 				profile.PatchVersion = extractPyAssignmentString(parentText, "PATCH_VERSION")
 			}
+			if profile.RvaMode == "" {
+				profile.RvaMode = extractPyAssignmentString(parentText, "RVA_MODE")
+			}
+			if profile.ProxyDLL == "" {
+				profile.ProxyDLL = extractPyAssignmentString(parentText, "PROXY_DLL")
+			}
+			if profile.Architecture == "" {
+				profile.Architecture = extractPyAssignmentString(parentText, "ARCHITECTURE")
+			}
 		}
 	}
+	profile.RvaMode = normalizeLucaRvaMode(profile.RvaMode)
+	profile.ProxyDLL = normalizeLucaProxyDLL(profile.ProxyDLL)
+	profile.Architecture = normalizeLucaArchitecture(profile.Architecture)
 	profile.Name = profile.PatchGameName
 	if profile.Name == "" {
 		profile.Name = strings.ReplaceAll(rel, "/", " / ")
@@ -387,8 +413,9 @@ func parseLucaPatchScript(kitDir, patchPath string) (LucaMenuProfile, error) {
 			Slot:        detectLucaSlot(t.Source, t.Note),
 			Category:    detectLucaCategory(t.Context),
 			TextKind:    detectLucaTextKind(t.Context, t.Note, t.Source),
-			SourceBytes: len([]byte(t.Source)),
-			TargetBytes: len([]byte(t.Target)),
+			Encoding:    normalizeLucaEncoding(t.Encoding),
+			SourceBytes: lucaEncodedLen(t.Source, t.Encoding),
+			TargetBytes: lucaEncodedLen(t.Target, t.Encoding),
 			Budget:      parseBudget(t.Note),
 			Include:     false,
 		}
@@ -437,12 +464,19 @@ func parsePatchTuples(text string) []parsedPatchTuple {
 			if !ok {
 				continue
 			}
+			encoding := encodingFromLucaNote(note)
+			if len(parts) >= 6 {
+				if parsed, ok := parsePythonValue(parts[5]); ok {
+					encoding = parsed
+				}
+			}
 			tuples = append(tuples, parsedPatchTuple{
 				RawOffset: off,
 				Source:    src,
 				Target:    target,
 				Context:   context,
 				Note:      note,
+				Encoding:  normalizeLucaEncoding(encoding),
 			})
 		}
 	}
@@ -588,7 +622,7 @@ func annotateLucaInventory(inv *LucaMenuInventory, catalog map[string]lucaMenuCa
 				isSafe = isSafe && catalogRow.Safe
 			}
 			if isSafe {
-				e.SafeAuto = e.Budget < 0 || len([]byte(e.SuggestedFr)) <= e.Budget
+				e.SafeAuto = e.Budget < 0 || lucaEncodedLen(e.SuggestedFr, e.Encoding) <= e.Budget
 			}
 			if e.SafeAuto {
 				p.SafeAutoCount++
@@ -615,9 +649,11 @@ func buildGeneratedLucaPatchesPy(profile LucaMenuProfile, req LucaMenuGenerateRe
 	b.WriteString("Slot: " + req.Slot + "\n")
 	b.WriteString("\"\"\"\n\n")
 	b.WriteString("from pathlib import Path\n")
+	b.WriteString("import struct\n")
 	b.WriteString("import sys\n\n")
 	b.WriteString("GAME_EXE = " + pyStringLiteral(req.GameExe) + "\n")
 	b.WriteString("RVA_DELTA = " + strings.TrimSpace(profile.RvaDelta) + "\n")
+	b.WriteString("RVA_MODE = " + pyStringLiteral(normalizeLucaRvaMode(profile.RvaMode)) + "\n")
 	b.WriteString("PATCH_GAME_NAME = " + pyStringLiteral(patchName) + "\n")
 	b.WriteString("PATCH_VERSION = " + pyStringLiteral(patchVersion) + "\n\n")
 	b.WriteString("PATCHES = [\n")
@@ -630,12 +666,13 @@ func buildGeneratedLucaPatchesPy(profile LucaMenuProfile, req LucaMenuGenerateRe
 		} else if !strings.Contains(note, "GUI slot=") {
 			note += "; " + guiNote
 		}
-		b.WriteString(fmt.Sprintf("    (0x%X, %s, %s, %s, %s),\n",
+		b.WriteString(fmt.Sprintf("    (0x%X, %s, %s, %s, %s, %s),\n",
 			off,
-			pyBytesLiteral(e.Source),
+			pyStringLiteral(e.Source),
 			pyStringLiteral(e.Target),
 			pyStringLiteral(e.Context),
 			pyStringLiteral(note),
+			pyStringLiteral(normalizeLucaEncoding(e.Encoding)),
 		))
 	}
 	b.WriteString("]\n\n")
@@ -651,38 +688,78 @@ func generatedLucaPythonTail() string {
 
     data = Path(GAME_EXE).read_bytes()
 
-    def slot_size(start):
-        i = start
-        while data[i] != 0:
-            i += 1
-        while i < len(data) and data[i] == 0:
-            i += 1
-        return i - start
+    def read_pe_sections():
+        if data[:2] != b'MZ':
+            raise ValueError('selected file is not a PE executable')
+        pe_offset = struct.unpack_from('<I', data, 0x3C)[0]
+        if data[pe_offset:pe_offset + 4] != b'PE\0\0':
+            raise ValueError('selected file has no PE header')
+        section_count = struct.unpack_from('<H', data, pe_offset + 6)[0]
+        optional_size = struct.unpack_from('<H', data, pe_offset + 20)[0]
+        table = pe_offset + 24 + optional_size
+        sections = []
+        for index in range(section_count):
+            start = table + index * 40
+            name = data[start:start + 8].split(b'\0', 1)[0].decode('ascii', 'replace')
+            virtual_size, virtual_address, raw_size, raw_offset = struct.unpack_from('<IIII', data, start + 8)
+            sections.append((name, raw_offset, raw_size, virtual_address, virtual_size))
+        return sections
+
+    sections = read_pe_sections() if RVA_MODE == 'pe' else []
+
+    def raw_to_rva(raw_offset):
+        if RVA_MODE != 'pe':
+            return raw_offset + RVA_DELTA, 'fixed-delta'
+        for name, section_raw, raw_size, virtual_address, _ in sections:
+            if section_raw <= raw_offset < section_raw + raw_size:
+                return virtual_address + raw_offset - section_raw, name
+        raise ValueError(f'raw offset 0x{raw_offset:X} is outside all PE sections')
 
     rows = []
     errors = []
-    for off, src, target, context, note in PATCHES:
-        actual = data[off:off + len(src)]
-        if actual != src:
-            errors.append(f"0x{off:X}: expected {src!r}, got {actual!r}")
+    for off, source, target, context, note, encoding in PATCHES:
+        source_bytes = source.encode(encoding)
+        target_bytes = target.encode(encoding)
+        actual = data[off:off + len(source_bytes)]
+        if actual != source_bytes:
+            errors.append(f"0x{off:X}: expected {source_bytes!r}, got {actual!r}")
             continue
-        target_bytes = target.encode('utf-8')
-        slot = slot_size(off)
-        budget = slot - 1
+
+        terminator_size = 2 if encoding == 'utf-16-le' else 1
+        after = off + len(source_bytes)
+        zero_run = 0
+        while after + zero_run < len(data) and data[after + zero_run] == 0:
+            zero_run += 1
+        terminated = zero_run >= terminator_size
+        write_len = len(source_bytes) + zero_run if terminated else len(source_bytes)
+        budget = write_len - terminator_size if terminated else write_len
         fits = len(target_bytes) <= budget
+
+        try:
+            rva, section = raw_to_rva(off)
+        except ValueError as error:
+            errors.append(str(error))
+            continue
+
+        expected = source_bytes + bytes(write_len - len(source_bytes))
+        replacement = target_bytes + bytes(write_len - len(target_bytes)) if fits else b''
         rows.append({
             'off': off,
-            'src': src.decode('utf-8', errors='replace'),
+            'rva': rva,
+            'section': section,
+            'encoding': encoding,
+            'src': source,
             'target': target,
-            'src_len': len(src),
+            'src_len': len(source_bytes),
             'target_len': len(target_bytes),
-            'slot': slot,
+            'slot': write_len,
+            'write_len': write_len,
             'budget': budget,
             'fits': fits,
             'context': context,
             'note': note,
-            'src_bytes': src,
-            'target_bytes': target_bytes,
+            'src_bytes': expected,
+            'target_bytes': replacement,
         })
 
     if errors:
@@ -691,8 +768,8 @@ func generatedLucaPythonTail() string {
             print('  ' + e, file=sys.stderr)
         sys.exit(1)
 
-    print(f"{'off':>8}  {'slot':>4}  {'src':>3}  {'tgt':>3}  {'fit':3}  src -> target")
-    print('-' * 100)
+    print(f"{'off':>8}  {'rva':>10}  {'enc':>8}  {'slot':>4}  {'src':>3}  {'tgt':>3}  {'fit':3}  src -> target")
+    print('-' * 125)
     n_ok = n_bad = 0
     for r in rows:
         mark = 'OK' if r['fits'] else 'NO'
@@ -700,7 +777,7 @@ func generatedLucaPythonTail() string {
             n_ok += 1
         else:
             n_bad += 1
-        print(f"0x{r['off']:06X}  {r['slot']:>4}  {r['src_len']:>3}  {r['target_len']:>3}  {mark:3}  {r['src']!r} -> {r['target']!r}")
+        print(f"0x{r['off']:06X}  0x{r['rva']:08X}  {r['encoding']:>8}  {r['slot']:>4}  {r['src_len']:>3}  {r['target_len']:>3}  {mark:3}  {r['src']!r} -> {r['target']!r}")
     print(f"\nTotal: {len(rows)}  OK: {n_ok}  FAIL: {n_bad}")
     if n_bad:
         print('\nFailures (target too long):')
@@ -715,36 +792,30 @@ func generatedLucaPythonTail() string {
         f.write(f'#define PATCH_GAME_NAME "{PATCH_GAME_NAME}"\n')
         f.write(f'#define PATCH_VERSION   "{PATCH_VERSION}"\n\n')
         for i, r in enumerate(rows):
-            write_len = max(len(r['src_bytes']), len(r['target_bytes'])) + 1
-            src_padded = list(r['src_bytes']) + [0] * (write_len - len(r['src_bytes']))
-            target_padded = list(r['target_bytes']) + [0] * (write_len - len(r['target_bytes']))
-            src_arr = ','.join(f'0x{x:02X}' for x in src_padded)
-            target_arr = ','.join(f'0x{x:02X}' for x in target_padded)
+            src_arr = ','.join(f'0x{x:02X}' for x in r['src_bytes'])
+            target_arr = ','.join(f'0x{x:02X}' for x in r['target_bytes'])
             f.write(f'static const BYTE s_src_{i:03d}[] = {{ {src_arr} }};\n')
             f.write(f'static const BYTE s_tgt_{i:03d}[] = {{ {target_arr} }};\n')
         f.write('\nstatic const LuckPatch g_patches[] = {\n')
         for i, r in enumerate(rows):
-            rva = r['off'] + RVA_DELTA
-            write_len = max(len(r['src_bytes']), len(r['target_bytes'])) + 1
             ctx = r['context'] + ': ' + r['src'][:30]
             ctx = (ctx.replace('\\', '\\\\')
                       .replace('"', '\\"')
                       .replace('\n', '\\n')
                       .replace('\r', '\\r')
                       .replace('\t', '\\t'))
-            f.write(f'    {{ 0x{rva:06X}, {write_len:>4}, s_src_{i:03d}, s_tgt_{i:03d}, "{ctx}" }},\n')
+            f.write(f'    {{ 0x{r["rva"]:08X}, {r["write_len"]:>4}, s_src_{i:03d}, s_tgt_{i:03d}, "{ctx}" }},\n')
         f.write('};\n\n#define N_PATCHES (sizeof(g_patches)/sizeof(g_patches[0]))\n')
         f.write('\n#endif\n')
     print(f"\nGenerated patches.h with {len(rows)} entries.")
 
     with open('patches.csv', 'w', encoding='utf-8') as f:
-        f.write('raw_offset,rva,slot,budget,src_len,target_len,fits,src,target,context,note\n')
+        f.write('raw_offset,rva,section,encoding,slot,budget,src_len,target_len,fits,src,target,context,note\n')
         for r in rows:
-            rva = r['off'] + RVA_DELTA
             def esc(s):
                 return '"' + s.replace('"', '""') + '"'
             f.write(
-                f'0x{r["off"]:X},0x{rva:X},{r["slot"]},{r["budget"]},'
+                f'0x{r["off"]:X},0x{r["rva"]:X},{r["section"]},{r["encoding"]},{r["slot"]},{r["budget"]},'
                 f'{r["src_len"]},{r["target_len"]},{r["fits"]},'
                 f'{esc(r["src"])},{esc(r["target"])},{esc(r["context"])},{esc(r["note"])}\n'
             )
@@ -810,30 +881,49 @@ func (a *App) runLucaCommand(workdir, name string, args ...string) error {
 	return nil
 }
 
-func (a *App) buildLucaVersionDLL(outputDir string) error {
-	gcc, err := exec.LookPath("x86_64-w64-mingw32-gcc")
-	if err != nil {
-		gcc, err = exec.LookPath("gcc")
+func (a *App) buildLucaDLL(outputDir, proxyDLL, architecture string) error {
+	proxyDLL = normalizeLucaProxyDLL(proxyDLL)
+	architecture = normalizeLucaArchitecture(architecture)
+	defFile := proxyDLL + ".def"
+	outputDLL := proxyDLL + ".dll"
+
+	gccNames := []string{"x86_64-w64-mingw32-gcc", "gcc"}
+	if architecture == "x86" {
+		gccNames = []string{"i686-w64-mingw32-gcc"}
 	}
-	if err == nil {
+	for _, name := range gccNames {
+		gcc, err := exec.LookPath(name)
+		if err != nil {
+			continue
+		}
 		args := []string{
 			"-O2", "-Wall", "-Wextra", "-Wno-unused-parameter",
 			"-I.", "-shared", "-s", "-static-libgcc",
 			"-Wl,--subsystem,windows,--enable-stdcall-fixup",
-			"-o", "version.dll", "version.c", "version.def",
 		}
+		if proxyDLL == "winmm" {
+			args = append(args, "-DLUCKPROXY_WINMM")
+		}
+		args = append(args, "-o", outputDLL, "version.c", defFile)
 		return a.runLucaCommand(outputDir, gcc, args...)
 	}
 
-	cl, err := exec.LookPath("cl")
-	if err == nil {
-		args := []string{
-			"/nologo", "/O2", "/W3", "/LD", "/I", ".",
-			"/Fe:version.dll", "version.c",
-			"/link", "/DEF:version.def", "/SUBSYSTEM:WINDOWS", "/NOLOGO",
-		}
-		return a.runLucaCommand(outputDir, cl, args...)
+	machine := "X64"
+	devArchitecture := "amd64"
+	if architecture == "x86" {
+		machine = "X86"
+		devArchitecture = "x86"
 	}
+	msvcArgs := []string{
+		"/nologo", "/O2", "/W3", "/LD", "/D_CRT_SECURE_NO_WARNINGS", "/I", ".",
+	}
+	if proxyDLL == "winmm" {
+		msvcArgs = append(msvcArgs, "/DLUCKPROXY_WINMM")
+	}
+	msvcArgs = append(msvcArgs,
+		"/Fe:"+outputDLL, "version.c",
+		"/link", "/DEF:"+defFile, "/SUBSYSTEM:WINDOWS", "/MACHINE:"+machine, "/NOLOGO",
+	)
 
 	if devCmd := findVisualStudioDevCmd(); devCmd != "" {
 		comspec := os.Getenv("ComSpec")
@@ -842,8 +932,8 @@ func (a *App) buildLucaVersionDLL(outputDir string) error {
 		}
 		buildScript := filepath.Join(outputDir, ".luca-build.cmd")
 		command := fmt.Sprintf(
-			"@echo off\r\ncall \"%s\" -no_logo -arch=amd64 -host_arch=amd64\r\nif errorlevel 1 exit /b %%errorlevel%%\r\ncl.exe /nologo /O2 /W3 /LD /D_CRT_SECURE_NO_WARNINGS /I . /Fe:version.dll version.c /link /DEF:version.def /SUBSYSTEM:WINDOWS /NOLOGO\r\n",
-			devCmd,
+			"@echo off\r\ncall \"%s\" -no_logo -arch=%s -host_arch=amd64\r\nif errorlevel 1 exit /b %%errorlevel%%\r\ncl.exe %s\r\n",
+			devCmd, devArchitecture, strings.Join(msvcArgs, " "),
 		)
 		if err := os.WriteFile(buildScript, []byte(command), 0600); err != nil {
 			return fmt.Errorf("Luca DLL: cannot prepare Visual Studio build: %w", err)
@@ -852,13 +942,17 @@ func (a *App) buildLucaVersionDLL(outputDir string) error {
 		if err := a.runLucaCommand(outputDir, comspec, "/d", "/c", filepath.Base(buildScript)); err != nil {
 			return err
 		}
-		for _, name := range []string{"version.obj", "version.lib", "version.exp"} {
+		for _, name := range []string{"version.obj", proxyDLL + ".lib", proxyDLL + ".exp"} {
 			_ = os.Remove(filepath.Join(outputDir, name))
 		}
 		return nil
 	}
 
-	return fmt.Errorf("Luca DLL: no C compiler found (MinGW GCC or Visual Studio Build Tools)")
+	if cl, err := exec.LookPath("cl"); err == nil {
+		return a.runLucaCommand(outputDir, cl, msvcArgs...)
+	}
+
+	return fmt.Errorf("Luca DLL: no %s C compiler found for %s.dll (MinGW GCC or Visual Studio Build Tools)", architecture, proxyDLL)
 }
 
 func findVisualStudioDevCmd() string {
@@ -1220,6 +1314,58 @@ func parseIntLiteral(expr string) (int64, error) {
 	return strconv.ParseInt(expr, 0, 64)
 }
 
+func normalizeLucaEncoding(encoding string) string {
+	value := strings.ToLower(strings.TrimSpace(encoding))
+	value = strings.ReplaceAll(value, "_", "-")
+	switch value {
+	case "utf-16", "utf-16le", "utf16", "utf16-le", "utf-16-le":
+		return "utf-16-le"
+	default:
+		return "utf-8"
+	}
+}
+
+func encodingFromLucaNote(note string) string {
+	for _, part := range strings.Split(note, ";") {
+		part = strings.TrimSpace(part)
+		if strings.HasPrefix(strings.ToLower(part), "encoding=") {
+			return strings.TrimSpace(strings.SplitN(part, "=", 2)[1])
+		}
+	}
+	return "utf-8"
+}
+
+func lucaEncodedLen(value, encoding string) int {
+	if normalizeLucaEncoding(encoding) == "utf-16-le" {
+		return len(utf16.Encode([]rune(value))) * 2
+	}
+	return len([]byte(value))
+}
+
+func normalizeLucaProxyDLL(name string) string {
+	name = strings.ToLower(strings.TrimSuffix(strings.TrimSpace(name), ".dll"))
+	if name == "winmm" {
+		return "winmm"
+	}
+	return "version"
+}
+
+func normalizeLucaArchitecture(architecture string) string {
+	switch strings.ToLower(strings.TrimSpace(architecture)) {
+	case "x86", "i386", "i686", "32", "win32":
+		return "x86"
+	default:
+		return "x64"
+	}
+}
+
+func normalizeLucaRvaMode(mode string) string {
+	if strings.EqualFold(strings.TrimSpace(mode), "pe") {
+		return "pe"
+	}
+	return "delta"
+}
+
 func detectLucaSlot(source, note string) string {
 	lower := strings.ToLower(note)
 	if strings.Contains(lower, "japanese slot") || strings.Contains(lower, "jp source slot") || strings.Contains(lower, "slot=jp") || hasJapanese(source) {
@@ -1396,6 +1542,7 @@ func lucaProfileSortKey(id string) string {
 		"AIR":        "1",
 		"HarmoniaHD": "2",
 		"Loopers":    "3",
+		"LBEE":       "4",
 	}
 	root := strings.Split(id, "/")[0]
 	if prefix, ok := order[root]; ok {

@@ -1,3 +1,49 @@
+# V3.29 — Little Busters English Edition x86 WinMM proxy and GUI generation
+
+11/07/2026
+
+## Added: LBEE runtime string hook
+
+- Added a 32-bit `winmm.dll` proxy for `LITBUS_WIN32.exe`, which does not import
+  `version.dll` and therefore could never load the previous hook.
+- Added runtime forwarding for `timeBeginPeriod`, `timeEndPeriod`,
+  `timeGetDevCaps`, and `timeGetTime`. The `timeGetDevCaps` export is also
+  required by dynamically loaded NVIDIA graphics drivers; without it, Windows
+  reports a missing entry point and the game falls through to a misleading
+  DirectX initialization error.
+- Added mixed UTF-8/UTF-16LE generation with correct two-byte wide-string
+  terminators, encoding-aware byte budgets, and PE section-aware RVA mapping.
+- Added an external-table helper for Dolamroth's 1,033-entry Russian test table.
+- Corrected the source table's first-match behavior: standalone duplicates are
+  expanded across UTF-8 and UTF-16LE pools, correcting 36 non-standalone
+  offsets and avoiding false matches such as `Close` inside `CloseThreadpool`.
+  Ten no-op source=target rows are omitted, leaving 1,034 effective patches.
+- Unpacked LBEE executables are now patched synchronously during DLL attach so
+  startup menu labels cannot be cached before the patch worker runs. Packed
+  SteamStub builds keep the asynchronous polling path.
+
+## Added: LBEE in the Windows GUI
+
+- `DLL HOOK -> Luca Menu DLL` now lists Little Busters! English Edition with a
+  41-entry catalog-backed English menu inventory.
+- The GUI carries the encoding of every row through editing and generation,
+  displays the correct UTF-8 or UTF-16LE byte count, and validates the selected
+  EXE before emitting the patch table.
+- Build profiles now select the proxy name and architecture: existing games
+  keep x64 `version.dll`, while LBEE automatically uses x86 `winmm.dll`.
+- Visual Studio discovery initializes the matching x86 or x64 developer
+  environment; MinGW selection likewise uses `i686-w64-mingw32-gcc` for LBEE.
+
+## Validation and version
+
+- Generated and compiled an LBEE French safe preset through the same backend
+  used by the GUI; the resulting DLL is PE32/x86.
+- Generated Dolamroth's full 1,033-entry mixed table, launched the matching
+  executable, loaded the real system WinMM DLL, and applied all patches.
+- Existing x64 `version.dll` compilation and the GUI Go test suite remain valid.
+- Updated CLI and GUI labels to `v3.29`; `lucksystem --version` reports
+  `2.3.2-yoremi.3.29`.
+
 # V3.28 — Target-compatible Font PAK alias and CZ2 startup-safe round-trip
 
 10/07/2026

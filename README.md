@@ -1,4 +1,4 @@
-# LuckSystem 2.3.2 — Yoremi Fork (v3.28)
+# LuckSystem 2.3.2 — Yoremi Fork (v3.29)
 
 Fork de [LuckSystem](https://github.com/wetor/LuckSystem) avec corrections de bugs, support de nouveaux formats, et interface graphique pour la traduction de visual novels Visual Art's/Key.
 
@@ -27,7 +27,7 @@ A graphical interface is available in this fork, built with Wails (Go + Svelte).
 - MUSIC/VOICE/SYSVOICE PAK audio extraction to native Ogg, with optional MP3 copies and Ogg/MP3 conversion
 - Font Extract / Edit (append, insert, redraw modes, Arabic metrics preset, manual X/Y/advance offsets, manual connector bleed)
 - Vietnamese Font Patch for AIR / Planetarian SG (slot/family selectors, TTF/OTF selection, Y-offset test folders, optional Latin redraw test mode)
-- **Windows only:** Luca Menu DLL hook generator for AIR, Kanon, Harmonia HD, and LOOPERS, with EN/JP/CN source slots, FR/ENG/Arabic/JP/CN target presets, safe common-string modes, byte-budget checks, and automatic `version.dll` compilation
+- **Windows only:** Luca Menu DLL hook generator for AIR, Kanon, Harmonia HD, LOOPERS, and Little Busters English Edition, with mixed UTF-8/UTF-16LE budget checks and automatic x64 `version.dll` or x86 `winmm.dll` compilation
 - Image Export / Import (single file + batch folder mode)
 - Real-time console output
 - **Stop button** to cancel any running operation
@@ -44,7 +44,7 @@ Une version Linux est disponible en binaires séparés (GUI + CLI). Voir les rel
 
 A Linux version is available as separate binaries (GUI + CLI). See the releases for download.
 
-The Luca menu `version.dll` hook is not included in the Linux GUI. Version 3.28
+The Luca menu DLL hook is not included in the Linux GUI. Version 3.29
 keeps this workflow Windows-only because it relies on Windows DLL proxy loading
 and Win32 memory APIs. Wine support is deferred until there is a user request.
 
@@ -52,7 +52,19 @@ and Win32 memory APIs. Wine support is deferred until there is a user request.
 
 ## Patches
 
-### Version 3.28 — *(latest)*
+### Version 3.29 — *(latest)*
+
+41. **Little Busters English Edition x86 WinMM proxy** — `proxy dll/LBEE/`, `proxy dll/version.c`, `proxy dll/winmm.def`
+    - Adds a 32-bit `winmm.dll` proxy because `LITBUS_WIN32.exe` does not import `version.dll`.
+    - Supports mixed UTF-8 and UTF-16LE replacement tables, two-byte wide-string terminators, and PE section-aware RVA conversion.
+    - Forwards `timeBeginPeriod`, `timeEndPeriod`, `timeGetDevCaps`, and `timeGetTime`; `timeGetDevCaps` is required by dynamically loaded NVIDIA graphics drivers.
+
+42. **LBEE support in the Windows Luca DLL GUI** — `SourcesGUI-wails/luca_menu_dll.go`, `SourcesGUI-wails/frontend/src/App.svelte`
+    - Adds Little Busters! English Edition to the game profiles with 41 catalogued English menu strings.
+    - Tracks each entry's encoding and byte budget, selects the x86 compiler environment, and generates `winmm.dll` automatically.
+    - Keeps the existing x64 `version.dll` workflow unchanged for AIR, Kanon, Harmonia HD, and LOOPERS.
+
+### Version 3.28
 
 39. **Target-compatible PAK Font size alias** — `font/alias.go`, `cmd/pakFontAlias.go`, `SourcesGUI-wails/app.go`, `SourcesGUI-wails/frontend/src/App.svelte`
     - Adds `pak font-alias` and an optional GUI mode that adapts one internal font-size entry to another instead of copying incompatible bytes directly.

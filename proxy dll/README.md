@@ -1,32 +1,38 @@
 # LuckEngine Proxy DLL — In-Memory String Patch Toolkit
 
-A `version.dll` proxy for Steam releases of **Visual Art's / Key** games running
-on the Luck Engine. Lets you patch hardcoded UI strings in RAM at runtime, with
-**zero modifications to the on-disk exe** — SteamStub DRM and file integrity
-remain intact.
+A system-DLL proxy for Steam releases of **Visual Art's / Key** games running
+on the Luck Engine. It patches hardcoded strings in RAM at runtime, with **zero
+modifications to the on-disk exe** — SteamStub DRM and file integrity remain
+intact. Most supported games use `version.dll`; 32-bit Little Busters! English
+Edition uses `winmm.dll`.
 
 Tested on: **Kanon** (Steam), **AIR** (Steam), **Harmonia Full HD Edition**
-(Steam), **LOOPERS** (Steam). Should work on any Luck Engine title that ships a
-`VERSION.dll`-importing exe with SteamStub.
+(Steam), **LOOPERS** (Steam), **Little Busters! English Edition**. The default
+`version.dll` mode should work on other Luck Engine titles that import
+`VERSION.dll` and use the same supported architecture.
 
-> **Platform scope:** this toolkit and the v3.28 GUI generator are Windows-only.
-> The proxy relies on Windows `version.dll` resolution, Win32 memory APIs, and
-> forwarding exports to the system DLL. Native Linux support is intentionally
-> out of scope for v3.28; Wine can be evaluated later if requested.
+> **Platform scope:** this toolkit and the v3.29 GUI generator are Windows-only.
+> The proxy relies on Windows DLL resolution, Win32 memory APIs, and forwarding
+> exports to the system DLL. Native Linux support is intentionally
+> out of scope for v3.29; Wine can be evaluated later if requested.
 
 ---
 
 ## How it works
 
-1. Windows resolves `VERSION.dll` imports from the exe's own directory before
-   `System32` (it is not a Known DLL), so our proxy is loaded first.
+1. Windows resolves the selected non-Known DLL import from the exe's own
+   directory before `System32`, so our proxy is loaded first.
 2. On attach, a worker thread polls a sentinel byte in `.rdata` until SteamStub
    finishes decrypting the section (~200 ms typically, 30 s timeout).
 3. Each patch is applied via `VirtualProtect` + `memcpy`, then protection is
    restored. The sentinel is the first entry in `patches.h` — make sure it is
    a reliable, unique string.
-4. All `VERSION.dll` exports are forwarded at runtime to the real
-   `C:\Windows\System32\version.dll`.
+4. The required exports are forwarded at runtime to the real DLL in the
+   Windows system directory.
+
+LBEE is the special case: `LITBUS_WIN32.exe` is x86, imports `winmm.dll` rather
+than `version.dll`, and mixes UTF-8 with UTF-16LE strings. See
+[`LBEE/README.md`](LBEE/README.md) for its generator and build procedure.
 
 ---
 
@@ -38,33 +44,37 @@ patches.py      ← single source of truth: edit this to add/change strings
 patches.h       ← auto-generated (do not edit)
 patches.csv     ← auto-generated review table
 version.c       ← DLL core (proxy + patch engine), shared across all games
-version.def     ← export forwarding table
+version.def     ← version.dll export forwarding table
+winmm.def       ← LBEE winmm.dll export forwarding table
 Makefile        ← build recipe
+LBEE/           ← mixed UTF-8/UTF-16LE generator and LBEE instructions
 tools/build_slot_profiles.py ← rebuilds JP/CN inventories from installed EXEs
 ```
 
 One subfolder per game (`Kanon/`, `AIR/`, `HarmoniaHD/`, `Loopers/`) contains
 the English base table plus generated `Slots-JP/` and `Slots-CN/` inventories.
 Kanon also keeps the tested Arabic-B profiles and their ASCII fallbacks. The
-`version.c`, `version.def`, and `Makefile` files at the root are shared.
+`version.c`, the `.def` files, and `Makefile` at the root are shared. LBEE's
+manual mixed-encoding workflow is kept in its own folder.
 
 ---
 
 ## Workflow
 
-### GUI workflow (recommended in LuckSystem v3.28)
+### GUI workflow (recommended in LuckSystem v3.29)
 
 Keep this complete `proxy dll` folder next to `LuckSystemGUI.exe` and
 `lucksystem.exe`, then open `DLL HOOK -> Luca Menu DLL`.
 
-1. Select AIR, Kanon, Harmonia HD, or LOOPERS.
+1. Select AIR, Kanon, Harmonia HD, LOOPERS, or Little Busters! English Edition.
 2. Select the real game EXE so source offsets and slot budgets can be checked.
 3. Select the source slot to replace: English, Japanese, or Chinese.
 4. Select the language to inject: FR, FR (safe), ENG, ENG (safe), Arabic,
    Japanese, or Chinese.
 5. Review/edit the selected rows and generate the kit.
 
-The GUI writes reviewable Python/CSV/header files and compiles `version.dll`.
+The GUI writes reviewable Python/CSV/header files and compiles x64 `version.dll`
+for the four original profiles or x86 `winmm.dll` for LBEE.
 It prefers MinGW GCC and otherwise discovers Visual Studio Build Tools through
 `vswhere`, including installations where `cl.exe` is not in `PATH`.
 

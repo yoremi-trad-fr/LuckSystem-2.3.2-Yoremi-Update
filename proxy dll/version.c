@@ -1,10 +1,11 @@
 /*
- * version.dll proxy for Luck Engine (Steam) — in-memory string patch toolkit
+ * System DLL proxy for Luck Engine (Steam) — in-memory string patch toolkit
  *
  * How it works:
- *   1) The game exe imports VERSION.dll. Windows resolves imports from the exe's
- *      directory BEFORE System32 (VERSION.dll is not a Known DLL), so our
- *      proxy gets loaded instead of the real one.
+ *   1) The game exe imports a supported non-Known system DLL. Windows resolves
+ *      it from the exe's directory before System32, so our proxy gets loaded
+ *      instead of the real one. The default is VERSION.dll; define
+ *      LUCKPROXY_WINMM when building the 32-bit LBEE winmm.dll variant.
  *   2) On DLL_PROCESS_ATTACH we spawn a worker thread that waits for the
  *      SteamStub DRM to finish decrypting / verifying .text + .rdata.
  *      Detection: poll a sentinel byte at a known .rdata offset until it
@@ -13,12 +14,14 @@
  *   3) Apply the string patches via VirtualProtect + memcpy, restore page
  *      protection, done. The on-disk exe is never modified: SteamStub
  *      integrity checks pass, Steam is happy.
- *   4) Exports are runtime-forwarded to the real C:\Windows\System32\version.dll
- *      so the game's VERSION.dll imports resolve normally.
+ *   4) Exports are runtime-forwarded to the real DLL in the Windows system
+ *      directory so the game's imports resolve normally.
  *
  * Build:
  *   x86_64-w64-mingw32-gcc -O2 -s -shared -o version.dll \
  *       version.c version.def -static-libgcc -Wl,--subsystem,windows
+ *   i686-w64-mingw32-gcc -O2 -s -shared -DLUCKPROXY_WINMM -o winmm.dll \
+ *       version.c winmm.def -static-libgcc -Wl,--subsystem,windows
  */
 
 #include <windows.h>
@@ -74,10 +77,28 @@ static void log_msg(const char *fmt, ...) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Real VERSION.dll forwarding                                         */
+/*  Real system DLL forwarding                                          */
 /* ------------------------------------------------------------------ */
 
 static HMODULE g_hRealDll = NULL;
+
+#ifdef LUCKPROXY_WINMM
+
+#define PROXY_DLL_NAME "winmm.dll"
+
+typedef UINT  (WINAPI *fn_timeBeginPeriod)(UINT);
+typedef UINT  (WINAPI *fn_timeEndPeriod)(UINT);
+typedef UINT  (WINAPI *fn_timeGetDevCaps)(LPVOID, UINT);
+typedef DWORD (WINAPI *fn_timeGetTime)(void);
+
+static fn_timeBeginPeriod p_timeBeginPeriod;
+static fn_timeEndPeriod   p_timeEndPeriod;
+static fn_timeGetDevCaps  p_timeGetDevCaps;
+static fn_timeGetTime     p_timeGetTime;
+
+#else
+
+#define PROXY_DLL_NAME "version.dll"
 
 /* Windows 10+ exports (superset; older Windows lack the *Ex variants, we
  * tolerate their absence by returning 0/FALSE) */
@@ -107,17 +128,25 @@ static fn_VerInstallFileW         p_VerInstallFileW;
 static fn_VerLanguageNameA        p_VerLanguageNameA;
 static fn_VerLanguageNameW        p_VerLanguageNameW;
 
-static void load_real_version_dll(void) {
+#endif
+
+static void load_real_proxy_dll(void) {
     if (g_hRealDll) return;
     char path[MAX_PATH];
     UINT n = GetSystemDirectoryA(path, MAX_PATH);
-    if (!n || n >= MAX_PATH - 16) return;
-    lstrcatA(path, "\\version.dll");
+    if (!n || n >= MAX_PATH - sizeof(PROXY_DLL_NAME) - 1) return;
+    lstrcatA(path, "\\" PROXY_DLL_NAME);
     g_hRealDll = LoadLibraryA(path);
     if (!g_hRealDll) { log_msg("ERROR: cannot load %s", path); return; }
-    log_msg("Loaded real version.dll from %s", path);
+    log_msg("Loaded real %s from %s", PROXY_DLL_NAME, path);
 
 #define LOAD(name) p_##name = (fn_##name)GetProcAddress(g_hRealDll, #name)
+#ifdef LUCKPROXY_WINMM
+    LOAD(timeBeginPeriod);
+    LOAD(timeEndPeriod);
+    LOAD(timeGetDevCaps);
+    LOAD(timeGetTime);
+#else
     LOAD(GetFileVersionInfoSizeA);
     LOAD(GetFileVersionInfoSizeW);
     LOAD(GetFileVersionInfoA);
@@ -130,6 +159,7 @@ static void load_real_version_dll(void) {
     LOAD(VerInstallFileW);
     LOAD(VerLanguageNameA);
     LOAD(VerLanguageNameW);
+#endif
 #undef LOAD
 }
 
@@ -137,54 +167,77 @@ static void load_real_version_dll(void) {
 /*  Exports (forward to real DLL)                                       */
 /* ------------------------------------------------------------------ */
 
+#ifdef LUCKPROXY_WINMM
+
+UINT WINAPI LKPRX_timeBeginPeriod(UINT period) {
+    load_real_proxy_dll();
+    return p_timeBeginPeriod ? p_timeBeginPeriod(period) : 1;
+}
+UINT WINAPI LKPRX_timeEndPeriod(UINT period) {
+    load_real_proxy_dll();
+    return p_timeEndPeriod ? p_timeEndPeriod(period) : 1;
+}
+UINT WINAPI LKPRX_timeGetDevCaps(LPVOID caps, UINT size) {
+    load_real_proxy_dll();
+    return p_timeGetDevCaps ? p_timeGetDevCaps(caps, size) : 1;
+}
+DWORD WINAPI LKPRX_timeGetTime(void) {
+    load_real_proxy_dll();
+    return p_timeGetTime ? p_timeGetTime() : GetTickCount();
+}
+
+#else
+
 DWORD WINAPI LKPRX_GetFileVersionInfoSizeA(LPCSTR f, LPDWORD h) {
-    load_real_version_dll();
+    load_real_proxy_dll();
     return p_GetFileVersionInfoSizeA ? p_GetFileVersionInfoSizeA(f, h) : 0;
 }
 DWORD WINAPI LKPRX_GetFileVersionInfoSizeW(LPCWSTR f, LPDWORD h) {
-    load_real_version_dll();
+    load_real_proxy_dll();
     return p_GetFileVersionInfoSizeW ? p_GetFileVersionInfoSizeW(f, h) : 0;
 }
 BOOL WINAPI LKPRX_GetFileVersionInfoA(LPCSTR f, DWORD h, DWORD l, LPVOID d) {
-    load_real_version_dll();
+    load_real_proxy_dll();
     return p_GetFileVersionInfoA ? p_GetFileVersionInfoA(f, h, l, d) : FALSE;
 }
 BOOL WINAPI LKPRX_GetFileVersionInfoW(LPCWSTR f, DWORD h, DWORD l, LPVOID d) {
-    load_real_version_dll();
+    load_real_proxy_dll();
     return p_GetFileVersionInfoW ? p_GetFileVersionInfoW(f, h, l, d) : FALSE;
 }
 BOOL WINAPI LKPRX_VerQueryValueA(LPCVOID b, LPCSTR s, LPVOID *p, PUINT l) {
-    load_real_version_dll();
+    load_real_proxy_dll();
     return p_VerQueryValueA ? p_VerQueryValueA(b, s, p, l) : FALSE;
 }
 BOOL WINAPI LKPRX_VerQueryValueW(LPCVOID b, LPCWSTR s, LPVOID *p, PUINT l) {
-    load_real_version_dll();
+    load_real_proxy_dll();
     return p_VerQueryValueW ? p_VerQueryValueW(b, s, p, l) : FALSE;
 }
 DWORD WINAPI LKPRX_VerFindFileA(DWORD a, LPCSTR b, LPCSTR c, LPCSTR d, LPSTR e, PUINT f, LPSTR g, PUINT h) {
-    load_real_version_dll();
+    load_real_proxy_dll();
     return p_VerFindFileA ? p_VerFindFileA(a,b,c,d,e,f,g,h) : 0;
 }
 DWORD WINAPI LKPRX_VerFindFileW(DWORD a, LPCWSTR b, LPCWSTR c, LPCWSTR d, LPWSTR e, PUINT f, LPWSTR g, PUINT h) {
-    load_real_version_dll();
+    load_real_proxy_dll();
     return p_VerFindFileW ? p_VerFindFileW(a,b,c,d,e,f,g,h) : 0;
 }
 DWORD WINAPI LKPRX_VerInstallFileA(DWORD a, LPCSTR b, LPCSTR c, LPCSTR d, LPCSTR e, LPCSTR f, LPSTR g, PUINT h) {
-    load_real_version_dll();
+    load_real_proxy_dll();
     return p_VerInstallFileA ? p_VerInstallFileA(a,b,c,d,e,f,g,h) : 0;
 }
 DWORD WINAPI LKPRX_VerInstallFileW(DWORD a, LPCWSTR b, LPCWSTR c, LPCWSTR d, LPCWSTR e, LPCWSTR f, LPWSTR g, PUINT h) {
-    load_real_version_dll();
+    load_real_proxy_dll();
     return p_VerInstallFileW ? p_VerInstallFileW(a,b,c,d,e,f,g,h) : 0;
 }
 DWORD WINAPI LKPRX_VerLanguageNameA(DWORD l, LPSTR s, DWORD n) {
-    load_real_version_dll();
+    load_real_proxy_dll();
     return p_VerLanguageNameA ? p_VerLanguageNameA(l, s, n) : 0;
 }
 DWORD WINAPI LKPRX_VerLanguageNameW(DWORD l, LPWSTR s, DWORD n) {
-    load_real_version_dll();
+    load_real_proxy_dll();
     return p_VerLanguageNameW ? p_VerLanguageNameW(l, s, n) : 0;
 }
+
+#endif
 
 /* ------------------------------------------------------------------ */
 /*  Patch thread                                                        */
@@ -215,6 +268,13 @@ static void apply_patch(BYTE *base, const LuckPatch *p) {
             p->rva, (unsigned long long)p->len, p->comment);
 }
 
+static void apply_all_patches(BYTE *base, const char *phase) {
+    log_msg("%s, applying %d patch(es)", phase, (int)N_PATCHES);
+    for (size_t i = 0; i < N_PATCHES; ++i)
+        apply_patch(base, &g_patches[i]);
+    log_msg("Patch application done.");
+}
+
 static DWORD WINAPI patch_thread(LPVOID unused) {
     (void)unused;
     HMODULE hExe = GetModuleHandleA(NULL);
@@ -236,12 +296,7 @@ static DWORD WINAPI patch_thread(LPVOID unused) {
                 got[0], got[1], got[2], got[3], got[4]);
         return 2;
     }
-    log_msg("Sentinel ready, applying %d patch(es)", (int)N_PATCHES);
-
-    for (size_t i = 0; i < N_PATCHES; ++i)
-        apply_patch(base, &g_patches[i]);
-
-    log_msg("Patch thread done.");
+    apply_all_patches(base, "Sentinel ready in worker thread");
     return 0;
 }
 
@@ -256,6 +311,20 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved) {
         log_open();
         log_msg("DLL_PROCESS_ATTACH (%s proxy v%s, %d patches)",
                 PATCH_GAME_NAME, PATCH_VERSION, (int)N_PATCHES);
+
+#ifdef LUCKPROXY_WINMM
+        /* Unpacked LBEE reads several menu labels during its earliest startup
+         * initialization. If the sentinel is already plaintext, patch here
+         * under the loader lock so those strings cannot be copied before the
+         * worker thread gets scheduled. Packed builds still use the polling
+         * worker below, because their sections are decrypted after attach. */
+        BYTE *base = (BYTE *)GetModuleHandleA(NULL);
+        if (base && sentinel_ready(base)) {
+            apply_all_patches(base, "Sentinel ready during DLL_PROCESS_ATTACH");
+            return TRUE;
+        }
+#endif
+
         HANDLE h = CreateThread(NULL, 0, patch_thread, NULL, 0, NULL);
         if (h) CloseHandle(h);
         else log_msg("ERROR: CreateThread failed: %lu", GetLastError());

@@ -65,6 +65,7 @@ export namespace main {
 	    slot: string;
 	    category: string;
 	    textKind: string;
+	    encoding: string;
 	    sourceBytes: number;
 	    targetBytes: number;
 	    budget: number;
@@ -94,6 +95,7 @@ export namespace main {
 	        this.slot = source["slot"];
 	        this.category = source["category"];
 	        this.textKind = source["textKind"];
+	        this.encoding = source["encoding"];
 	        this.sourceBytes = source["sourceBytes"];
 	        this.targetBytes = source["targetBytes"];
 	        this.budget = source["budget"];
@@ -110,6 +112,7 @@ export namespace main {
 	    target: string;
 	    context: string;
 	    note: string;
+	    encoding: string;
 	    include: boolean;
 	    budget: number;
 	
@@ -124,6 +127,7 @@ export namespace main {
 	        this.target = source["target"];
 	        this.context = source["context"];
 	        this.note = source["note"];
+	        this.encoding = source["encoding"];
 	        this.include = source["include"];
 	        this.budget = source["budget"];
 	    }
@@ -179,6 +183,9 @@ export namespace main {
 	    patchFile: string;
 	    gameExe: string;
 	    rvaDelta: string;
+	    rvaMode: string;
+	    proxyDll: string;
+	    architecture: string;
 	    patchGameName: string;
 	    patchVersion: string;
 	    entries: LucaMenuEntry[];
@@ -200,6 +207,9 @@ export namespace main {
 	        this.patchFile = source["patchFile"];
 	        this.gameExe = source["gameExe"];
 	        this.rvaDelta = source["rvaDelta"];
+	        this.rvaMode = source["rvaMode"];
+	        this.proxyDll = source["proxyDll"];
+	        this.architecture = source["architecture"];
 	        this.patchGameName = source["patchGameName"];
 	        this.patchVersion = source["patchVersion"];
 	        this.entries = this.convertValues(source["entries"], LucaMenuEntry);

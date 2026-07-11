@@ -1,0 +1,6 @@
+LIBRARY winmm
+EXPORTS
+    timeBeginPeriod = LKPRX_timeBeginPeriod
+    timeEndPeriod   = LKPRX_timeEndPeriod
+    timeGetDevCaps  = LKPRX_timeGetDevCaps
+    timeGetTime     = LKPRX_timeGetTime

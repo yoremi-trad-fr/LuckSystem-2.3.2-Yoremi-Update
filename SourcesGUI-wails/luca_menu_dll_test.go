@@ -1,11 +1,13 @@
 package main
 
 import (
+	"debug/pe"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -50,6 +52,39 @@ func TestParseCoreLucaPatchScripts(t *testing.T) {
 	}
 	if profile.Entries[0].Source != "Close" || profile.Entries[0].Slot != "en" {
 		t.Fatalf("first AIR entry = %#v", profile.Entries[0])
+	}
+}
+
+func TestParseLBEEMixedEncodingProfile(t *testing.T) {
+	kit := testLucaKitDir(t)
+	profile, err := parseLucaPatchScript(kit, filepath.Join(kit, "LBEE", "patches.py"))
+	if err != nil {
+		t.Fatalf("parse LBEE patches: %v", err)
+	}
+	if profile.ProxyDLL != "winmm" || profile.Architecture != "x86" || profile.RvaMode != "pe" {
+		t.Fatalf("LBEE build profile = proxy %q arch %q RVA %q", profile.ProxyDLL, profile.Architecture, profile.RvaMode)
+	}
+	if len(profile.Entries) < 40 {
+		t.Fatalf("LBEE entries = %d, want at least 40", len(profile.Entries))
+	}
+	wide := 0
+	for _, entry := range profile.Entries {
+		if entry.Encoding == "utf-16-le" {
+			wide++
+			if entry.SourceBytes != len([]rune(entry.Source))*2 {
+				t.Fatalf("LBEE UTF-16 byte length for %q = %d", entry.Source, entry.SourceBytes)
+			}
+		}
+	}
+	if wide < 7 {
+		t.Fatalf("LBEE UTF-16 entries = %d, want at least 7", wide)
+	}
+	definition, err := os.ReadFile(filepath.Join(kit, "winmm.def"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(definition), "timeGetDevCaps") {
+		t.Fatal("winmm.def must forward timeGetDevCaps for dynamically loaded graphics drivers")
 	}
 }
 
@@ -245,5 +280,112 @@ func TestAIRJapaneseFrenchDLLIntegration(t *testing.T) {
 	}
 	if info, err := os.Stat(filepath.Join(outputDir, "version.dll")); err != nil || info.Size() == 0 {
 		t.Fatalf("version.dll was not generated: %v", err)
+	}
+}
+
+func TestLBEEMixedWinMMDLLIntegration(t *testing.T) {
+	if os.Getenv("LUCA_LBEE_DLL_INTEGRATION") != "1" {
+		t.Skip("set LUCA_LBEE_DLL_INTEGRATION=1 and LBEE_EXE to run the x86 winmm test")
+	}
+	gameExe := os.Getenv("LBEE_EXE")
+	if gameExe == "" {
+		t.Fatal("LBEE_EXE is required")
+	}
+	if _, err := os.Stat(gameExe); err != nil {
+		t.Fatalf("LBEE executable not found: %v", err)
+	}
+
+	kit := testLucaKitDir(t)
+	profile, err := parseLucaPatchScript(kit, filepath.Join(kit, "LBEE", "patches.py"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	catalog, err := loadLucaMenuCatalog(kit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	inv := LucaMenuInventory{KitDir: kit, Profiles: []LucaMenuProfile{profile}}
+	annotateLucaInventory(&inv, catalog)
+	profile = inv.Profiles[0]
+
+	edits := make([]LucaMenuPatchEdit, 0, len(profile.Entries))
+	for _, entry := range profile.Entries {
+		if !entry.SafeAuto || entry.SuggestedFr == "" {
+			continue
+		}
+		edits = append(edits, LucaMenuPatchEdit{
+			RawOffset: entry.RawOffset,
+			Source:    entry.Source,
+			Target:    entry.SuggestedFr,
+			Context:   entry.Context,
+			Note:      entry.Note,
+			Encoding:  entry.Encoding,
+			Include:   true,
+			Budget:    entry.Budget,
+		})
+	}
+	if len(edits) < 25 {
+		t.Fatalf("safe LBEE EN -> FR edits = %d, want at least 25", len(edits))
+	}
+
+	outputDir := t.TempDir()
+	req := LucaMenuGenerateRequest{
+		ProfileID:     "LBEE",
+		GameExe:       gameExe,
+		OutputDir:     outputDir,
+		PatchGameName: "LBEE FR GUI integration",
+		PatchVersion:  "test",
+		Slot:          "en",
+		BuildDLL:      true,
+		Entries:       edits,
+	}
+	script := buildGeneratedLucaPatchesPy(profile, req, edits, req.PatchGameName, req.PatchVersion)
+	if err := os.WriteFile(filepath.Join(outputDir, "patches.py"), []byte(script), 0644); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"version.c", "winmm.def"} {
+		if err := copyFile(filepath.Join(kit, name), filepath.Join(outputDir, name)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	python, args, err := findPythonCommand()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command(python, append(args, "patches.py")...)
+	cmd.Dir = outputDir
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("LBEE patches.py failed: %v\n%s", err, output)
+	}
+
+	devCmd := findVisualStudioDevCmd()
+	if devCmd == "" {
+		t.Skip("Visual Studio Build Tools are not installed")
+	}
+	comspec := os.Getenv("ComSpec")
+	if comspec == "" {
+		comspec = "cmd.exe"
+	}
+	compile := fmt.Sprintf(
+		"@echo off\r\ncall \"%s\" -no_logo -arch=x86 -host_arch=amd64\r\nif errorlevel 1 exit /b %%errorlevel%%\r\ncl.exe /nologo /O2 /W3 /LD /D_CRT_SECURE_NO_WARNINGS /DLUCKPROXY_WINMM /I . /Fe:winmm.dll version.c /link /DEF:winmm.def /SUBSYSTEM:WINDOWS /MACHINE:X86 /NOLOGO\r\n",
+		devCmd,
+	)
+	buildScript := filepath.Join(outputDir, ".luca-build.cmd")
+	if err := os.WriteFile(buildScript, []byte(compile), 0600); err != nil {
+		t.Fatal(err)
+	}
+	cmd = exec.Command(comspec, "/d", "/c", filepath.Base(buildScript))
+	cmd.Dir = outputDir
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("LBEE winmm.dll build failed: %v\n%s", err, output)
+	}
+	dllPath := filepath.Join(outputDir, "winmm.dll")
+	dll, err := pe.Open(dllPath)
+	if err != nil {
+		t.Fatalf("open generated winmm.dll: %v", err)
+	}
+	defer dll.Close()
+	if dll.FileHeader.Machine != pe.IMAGE_FILE_MACHINE_I386 {
+		t.Fatalf("winmm.dll machine = 0x%X, want x86", dll.FileHeader.Machine)
 	}
 }

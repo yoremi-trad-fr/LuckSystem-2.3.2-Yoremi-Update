@@ -1,3 +1,43 @@
+# V3.29 — Proxy WinMM x86 et chaînes mixtes UTF-8/UTF-16LE pour LBEE
+
+La v3.29 étend le moteur de patch mémoire à Little Busters! English Edition.
+`LITBUS_WIN32.exe` est un PE32 et n'importe pas `version.dll` : le hook est donc
+construit sous le nom `winmm.dll` avec une chaîne d'outils x86. Les fonctions
+WinMM utilisées par le jeu et le pilote graphique (`timeBeginPeriod`,
+`timeEndPeriod`, `timeGetDevCaps`, `timeGetTime`) sont résolues dynamiquement
+depuis la DLL système réelle.
+
+Le générateur ne suppose plus que toutes les chaînes sont UTF-8. Chaque entrée
+porte son encodage, son budget est calculé dans cet encodage et les chaînes
+UTF-16LE conservent un terminateur de deux octets. Le mode RVA `pe` lit la table
+des sections de l'exécutable et convertit chaque offset brut séparément, ce qui
+évite l'hypothèse incorrecte d'un delta unique entre `.rdata` et `.rsrc`.
+
+Le GUI Windows expose un profil LBEE de 41 chaînes de menu liées au catalogue,
+affiche les budgets UTF-8/UTF-16LE et produit automatiquement `winmm.dll` en
+x86. Les profils AIR, Kanon, Harmonia HD et LOOPERS restent sur le chemin
+historique `version.dll` x64.
+
+Pour la table externe, la recherche historique gardait uniquement la première
+occurrence d'un texte et privilégiait UTF-16LE. Elle sélectionnait ainsi des
+sous-chaînes techniques (`CloseThreadpool`, `Task::LanguageIndicator`,
+`English Edition`) au lieu des libellés autonomes du menu. La v3.29 remplace ces
+offsets par les occurrences autonomes trouvées dans les sections de chaînes.
+Trente-six premiers résultats non autonomes sont corrigés et dix lignes sans
+changement source=cible sont omises, pour 1 034 patches effectifs.
+
+Si la sentinelle est déjà en clair lors de `DLL_PROCESS_ATTACH`, les patches
+sont appliqués immédiatement sous le verrou du chargeur avant l'initialisation
+du jeu. Les libellés précoces ne peuvent plus être copiés en anglais dans les
+structures UI. Le thread de polling reste utilisé lorsque SteamStub doit encore
+déchiffrer les sections.
+
+Validation : génération GUI LBEE FR sûre, compilation MSVC x86, contrôle PE32,
+et test d'intégration de la table externe de 1 033 chaînes avec application
+complète des patches en mémoire.
+
+---
+
 # V3.28 — Alias de taille Font PAK et round-trip CZ2 compatible préchargement
 
 ## Portée
