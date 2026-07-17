@@ -4,6 +4,7 @@ Copyright © 2022 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/go-restruct/restruct"
@@ -19,7 +20,7 @@ import (
 var scriptImportCmd = &cobra.Command{
 	Use:   "import",
 	Short: "导入反编译的脚本",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		restruct.EnableExprBeta()
 		game.ScriptBlackList = append(game.ScriptBlackList, strings.Split(ScriptBlackList, ",")...)
 
@@ -36,6 +37,9 @@ var scriptImportCmd = &cobra.Command{
 			Coding:     charset.Charset(Charset),
 			Mode:       enum.VMRunImport,
 		})
+		if err := g.VM.InitError(); err != nil {
+			return fmt.Errorf("cannot import scripts: plugin initialization failed: %w", err)
+		}
 		g.LoadScriptResources(ScriptSource)
 		g.ImportScript(ScriptImportDir, ScriptNoSubDir)
 		g.RunScript()
@@ -44,7 +48,7 @@ var scriptImportCmd = &cobra.Command{
 		operator.PrintUndefinedOpcodeSummary()
 
 		g.ImportScriptWrite(ScriptImportOutput)
-
+		return nil
 	},
 }
 

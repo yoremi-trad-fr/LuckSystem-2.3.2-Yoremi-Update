@@ -40,12 +40,17 @@ func Execute() {
 }
 
 func configureLogging() {
-	if !Log {
-		return
+	if Log {
+		_ = flag.Set("alsologtostderr", "true")
+		_ = flag.Set("log_dir", LogDir)
+		_ = flag.Set("v", strconv.Itoa(LogLevel))
 	}
-	_ = flag.Set("alsologtostderr", "true")
-	_ = flag.Set("log_dir", LogDir)
-	_ = flag.Set("v", strconv.Itoa(LogLevel))
+	// Cobra parses its own pflag set, not Go's standard flag set used by glog.
+	// Mark the latter as parsed without feeding it Cobra's arguments; otherwise
+	// every glog call is prefixed with "ERROR: logging before flag.Parse".
+	if !flag.Parsed() {
+		_ = flag.CommandLine.Parse([]string{})
+	}
 }
 
 var (
@@ -62,7 +67,7 @@ func init() {
 
 	restruct.EnableExprBeta()
 
-	rootCmd.Flags().BoolVar(&Log, "log", true, "启用日志")
-	rootCmd.Flags().IntVar(&LogLevel, "log_level", 5, "输出日志等级")
-	rootCmd.Flags().StringVar(&LogDir, "log_dir", "log", "保存日志路径")
+	rootCmd.PersistentFlags().BoolVar(&Log, "log", true, "启用日志")
+	rootCmd.PersistentFlags().IntVar(&LogLevel, "log_level", 5, "输出日志等级")
+	rootCmd.PersistentFlags().StringVar(&LogDir, "log_dir", "log", "保存日志路径")
 }

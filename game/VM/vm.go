@@ -19,6 +19,7 @@ type VM struct {
 
 	// 游戏对应操作接口
 	Operate api.Operator
+	initErr error
 
 	Scripts map[string]*script.Script
 	// 当前脚本名
@@ -35,7 +36,9 @@ func NewVM(opts *Options) *VM {
 		Scripts: make(map[string]*script.Script),
 	}
 	if len(opts.PluginFile) != 0 {
-		vm.Operate = operator.NewPlugin(opts.PluginFile)
+		plugin := operator.NewPlugin(opts.PluginFile)
+		vm.Operate = plugin
+		vm.initErr = plugin.LoadError()
 	} else {
 		switch opts.GameName {
 		case "LB_EN":
@@ -54,8 +57,16 @@ func NewVM(opts *Options) *VM {
 		vm.Operate = operator.NewGeneric()
 	}
 	vm.Runtime = runtime.NewRuntime(opts.Mode)
-	vm.Operate.Init(vm.Runtime)
+	if vm.initErr == nil {
+		vm.Operate.Init(vm.Runtime)
+	}
 	return vm
+}
+
+// InitError reports a failure that makes script processing unsafe, such as a
+// Python plugin that could not be loaded.
+func (vm *VM) InitError() error {
+	return vm.initErr
 }
 
 func (vm *VM) LoadScript(scr *script.Script, _switch bool) {

@@ -1,3 +1,5 @@
+
+
 # V3.30 — LBEE custom PATCHES import and bilingual Windows GUI
 
 11/07/2026
@@ -88,6 +90,35 @@
 - Existing x64 `version.dll` compilation and the GUI Go test suite remain valid.
 - Updated CLI and GUI labels to `v3.29`; `lucksystem --version` reports
   `2.3.2-yoremi.3.29`.
+  
+  # V3.29 Linux hotfix — Python plugin paths and logging initialization
+
+16/07/2026
+
+## Fixed: script plugins were never loaded from absolute Linux paths
+
+- Corrected the gpython v0.2.0 path-resolution incompatibility that removed
+  the leading slash from absolute Unix plugin paths such as
+  `/home/.../data/AIR.py`.
+- Plugin-backed script decompile/import now stops with a non-zero exit status
+  if the selected Python module cannot be loaded. The GUI therefore no longer
+  reports `[OK]` after silently exporting empty opcode parameters.
+- Marked the standard Go flag set as parsed after Cobra configuration, removing
+  the misleading `ERROR: logging before flag.Parse` prefix on Linux and
+  Windows.
+- Made `--log`, `--log_level`, and `--log_dir` persistent flags so they can be
+  used with actual subcommands.
+
+## Validation
+
+- AIR Steam `BAK-SCRIPT.PAK`: 30 scripts extracted successfully; the complete
+  Linux output is byte-for-byte identical to the Windows v3.29 output.
+- Absolute-path plugin loading also passed for CartagraHD, HARMONIA, Kanon,
+  LOOPERS, and Planetarian Snow Globe. The native LB_EN operator passed as
+  well.
+- A missing plugin exits with status 1 before creating an output directory.
+- Focused CLI/plugin tests, GUI backend tests, frontend production build, and
+  Linux/Windows CLI builds pass.
 
 # V3.28 — Target-compatible Font PAK alias and CZ2 startup-safe round-trip
 

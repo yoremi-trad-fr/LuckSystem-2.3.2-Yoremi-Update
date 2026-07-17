@@ -13,9 +13,10 @@ import (
 )
 
 type Plugin struct {
-	file   string
-	ctx    py.Context
-	module *py.Module
+	file    string
+	ctx     py.Context
+	module  *py.Module
+	loadErr error
 }
 
 // NewPlugin loads a Python plugin file (e.g. data/KANON.py) into a gpython
@@ -41,14 +42,27 @@ func NewPlugin(file string) *Plugin {
 			SysPaths: []string{pluginDir, "."},
 		}),
 	}
-	p.module, err = py.RunFile(p.ctx, p.file, py.CompileOpts{
+	// gpython v0.2.0 joins the requested filename to "." with path.Join.
+	// On Unix, doing that with an absolute filename drops its leading slash,
+	// so a valid /home/.../plugin.py can never be resolved.  Give gpython the
+	// basename and its absolute parent separately; this also remains valid on
+	// Windows and keeps __file__ absolute after resolution.
+	p.module, err = py.RunFile(p.ctx, filepath.Base(p.file), py.CompileOpts{
 		CurDir: pluginDir,
 	}, nil)
 	if err != nil {
+		p.loadErr = err
 		py.TracebackDump(err)
 		fmt.Printf("[ERROR] Failed to load plugin %q: %v\n", p.file, err)
 	}
 	return p
+}
+
+// LoadError reports an error encountered while resolving, compiling, or
+// executing the plugin module.  Callers must stop the operation when non-nil;
+// continuing would export/import scripts with the generic fallback parser.
+func (g *Plugin) LoadError() error {
+	return g.loadErr
 }
 
 func (g *Plugin) Init(ctx *runtime.Runtime) {

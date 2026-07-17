@@ -107,7 +107,7 @@ func resolvePluginFile() string {
 var scriptDecompileCmd = &cobra.Command{
 	Use:   "decompile",
 	Short: "反编译脚本",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		fmt.Println("scriptExtract called")
 		restruct.EnableExprBeta()
 		game.ScriptBlackList = append(game.ScriptBlackList, strings.Split(ScriptBlackList, ",")...)
@@ -125,6 +125,9 @@ var scriptDecompileCmd = &cobra.Command{
 			Coding:     charset.Charset(Charset),
 			Mode:       enum.VMRunExport,
 		})
+		if err := g.VM.InitError(); err != nil {
+			return fmt.Errorf("cannot decompile scripts: plugin initialization failed: %w", err)
+		}
 		g.LoadScriptResources(ScriptSource)
 		g.RunScript()
 
@@ -132,6 +135,7 @@ var scriptDecompileCmd = &cobra.Command{
 		operator.PrintUndefinedOpcodeSummary()
 
 		g.ExportScript(ScriptExportDir, ScriptNoSubDir)
+		return nil
 	},
 }
 
