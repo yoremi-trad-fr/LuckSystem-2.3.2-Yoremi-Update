@@ -1,5 +1,44 @@
 
 
+# V3.31 — Modern LuckSystem GUI and application icon
+
+19/07/2026
+
+## Changed: modern category-based GUI
+
+- Replaced the legacy vertical option list with six top-level categories:
+  Scripts, Archives PAK, Fonts, Images, Dialogues, and Tools.
+- Added contextual operation tabs so each category exposes only its related
+  workflows while preserving every existing Wails/Go action.
+- Redesigned the application header with a clear LuckSystem identity, engine
+  detection status, persistent Français / English selector, and direct About
+  access.
+- Reworked forms into responsive workflow panels that use two columns at the
+  normal 900 x 650 window size and a single column at the 800 x 550 minimum.
+- Modernized inputs, buttons, warnings, running states, Luca Menu DLL tables,
+  and the About screen without changing backend validation or file handling.
+- Replaced the permanent 160-pixel console with a compact activity bar. The
+  log can be expanded manually and opens automatically when a task starts;
+  stop, clear, copy, paste, and context-menu behavior remains available.
+
+## Changed: modern Windows application icon
+
+- Replaced the former black `LS` icon with a blue rounded-square mark and four
+  white sparkles matching the redesigned GUI header.
+- Added a transparent high-resolution PNG source and a Windows ICO containing
+  16, 20, 24, 32, 40, 48, 64, 128, and 256 pixel representations.
+- The same ICO is used by the Windows executable and NSIS installer.
+
+## Validation and version
+
+- Visually checked the production layout at 900 x 650 and the supported
+  800 x 550 minimum size, including category navigation, responsive forms,
+  bilingual labels, and the collapsible activity log.
+- The frontend production build, `go test ./...` in `SourcesGUI-wails`, the
+  root CLI tests, and the complete Windows `wails build` pass.
+- Updated CLI, GUI, package, documentation, and LBEE patch labels to `v3.31`;
+  `lucksystem --version` reports `2.3.2-yoremi.3.31`.
+
 # V3.30 — LBEE custom PATCHES import and bilingual Windows GUI
 
 11/07/2026

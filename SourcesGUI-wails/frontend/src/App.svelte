@@ -1,5 +1,6 @@
 <script>
   import { onMount, onDestroy, tick } from 'svelte';
+  import Icon from './Icon.svelte';
   import { EventsOn, EventsOff, ClipboardGetText, ClipboardSetText } from '../wailsjs/runtime/runtime.js';
   import {
     GetLuckSystemPath,
@@ -47,6 +48,7 @@
   let running = false;
   let consoleLines = [];
   let consoleEl;
+  let consoleExpanded = false;
   let consoleMenuVisible = false;
   let consoleMenuX = 0;
   let consoleMenuY = 0;
@@ -203,40 +205,98 @@
   let dlgImpOutput = '';
   let dlgImpTargetCol = 2;  // default: Lang 2
 
-  // ===== Operations list =====
+  // ===== Navigation =====
   const operations = [
-    { id: '_s1', label: 'SCRIPT', section: true },
     { id: 'decompile', label: 'Script Decompile', labelFr: 'Décompiler les scripts' },
     { id: 'compile', label: 'Script Compile', labelFr: 'Compiler les scripts' },
     { id: 'siglus_luca', label: 'Siglus -> Luca' },
-    { id: '_s2', label: 'PAK (CG)', section: true },
     { id: 'pak_cg_extract', label: 'CG Extract', labelFr: 'Extraire les CG' },
     { id: 'pak_cg_replace', label: 'CG Replace', labelFr: 'Remplacer les CG' },
-    { id: '_s2v', label: 'PAK (Video)', labelFr: 'PAK (Vidéo)', section: true },
     { id: 'bgmovie_extract', label: 'BGMOVIE Extract', labelFr: 'Extraire BGMOVIE' },
-    { id: '_s2a', label: 'PAK (Audio)', section: true },
     { id: 'music_extract', label: 'Music Extract', labelFr: 'Extraire la musique' },
     { id: 'voice_extract', label: 'Voice Extract', labelFr: 'Extraire les voix' },
     { id: 'audio_convert', label: 'Ogg / MP3 Convert', labelFr: 'Convertir Ogg / MP3' },
-    { id: '_s2b', label: 'PAK (Font)', labelFr: 'PAK (Police)', section: true },
-    { id: 'pak_font_extract', label: 'Font Extract', labelFr: 'Extraire la police' },
-    { id: 'pak_font_replace', label: 'Font Replace', labelFr: 'Remplacer la police' },
-    { id: '_s3', label: 'FONT', labelFr: 'POLICE', section: true },
-    { id: 'font_extract', label: 'Font Extract', labelFr: 'Extraire la police' },
-    { id: 'font_edit', label: 'Font Edit', labelFr: 'Modifier la police' },
-    { id: '_s3b', label: 'VIET FONT', labelFr: 'POLICE VIET', section: true },
+    { id: 'pak_font_extract', label: 'Extract Font PAK', labelFr: 'Extraire le PAK police' },
+    { id: 'pak_font_replace', label: 'Rebuild Font PAK', labelFr: 'Reconstruire le PAK police' },
+    { id: 'font_extract', label: 'Export Glyphs', labelFr: 'Exporter les glyphes' },
+    { id: 'font_edit', label: 'Edit Glyphs', labelFr: 'Modifier les glyphes' },
     { id: 'viet_font_patch', label: 'AIR / SG Patch' },
-    { id: '_s3c', label: 'DLL HOOK', section: true },
     { id: 'luca_menu_dll', label: 'Luca Menu DLL' },
-    { id: '_s4', label: 'IMAGE', section: true },
     { id: 'image_export', label: 'Image Export', labelFr: 'Exporter les images' },
     { id: 'image_import', label: 'Image Import', labelFr: 'Importer les images' },
-    { id: '_s6', label: 'DIALOGUE', labelFr: 'DIALOGUES', section: true },
     { id: 'dlg_extract', label: 'Extract Dialogues', labelFr: 'Extraire les dialogues' },
     { id: 'dlg_import', label: 'Import Dialogues', labelFr: 'Importer les dialogues' },
-    { id: '_s5', label: '', section: true },
     { id: 'about', label: 'About', labelFr: 'À propos' },
   ];
+
+  const categories = [
+    {
+      id: 'scripts', icon: 'scripts', label: 'Scripts', labelFr: 'Scripts',
+      description: 'Decompile, translate and rebuild game scripts.',
+      descriptionFr: 'Décompiler, traduire et reconstruire les scripts du jeu.',
+      operations: ['decompile', 'compile', 'siglus_luca']
+    },
+    {
+      id: 'archives', icon: 'archive', label: 'PAK Archives', labelFr: 'Archives PAK',
+      description: 'Extract and rebuild image, video and audio archives.',
+      descriptionFr: 'Extraire et reconstruire les archives d’images, de vidéos et d’audio.',
+      operations: ['pak_cg_extract', 'pak_cg_replace', 'bgmovie_extract', 'music_extract', 'voice_extract', 'audio_convert']
+    },
+    {
+      id: 'fonts', icon: 'font', label: 'Fonts', labelFr: 'Polices',
+      description: 'Inspect, adapt and rebuild fonts for translated languages.',
+      descriptionFr: 'Inspecter, adapter et reconstruire les polices pour les langues traduites.',
+      operations: ['pak_font_extract', 'pak_font_replace', 'font_extract', 'font_edit', 'viet_font_patch']
+    },
+    {
+      id: 'images', icon: 'image', label: 'Images', labelFr: 'Images',
+      description: 'Convert CZ images to editable PNG files and back.',
+      descriptionFr: 'Convertir les images CZ en PNG éditables, puis revenir au format du jeu.',
+      operations: ['image_export', 'image_import']
+    },
+    {
+      id: 'dialogues', icon: 'dialogues', label: 'Dialogues', labelFr: 'Dialogues',
+      description: 'Move cleanly between decompiled scripts and translation TSV files.',
+      descriptionFr: 'Passer simplement des scripts décompilés aux fichiers TSV de traduction.',
+      operations: ['dlg_extract', 'dlg_import']
+    },
+    {
+      id: 'tools', icon: 'tools', label: 'Tools', labelFr: 'Outils',
+      description: 'Specialised workflows and information about this fork.',
+      descriptionFr: 'Retrouver les workflows spécialisés et les informations sur ce fork.',
+      operations: ['luca_menu_dll', 'about']
+    }
+  ];
+
+  $: activeCategory = categories.find(category => category.operations.includes(selectedOp)) || categories[0];
+
+  function operationById(id) {
+    return operations.find(operation => operation.id === id);
+  }
+
+  function categoryOperations(category) {
+    return category.operations
+      .filter(id => id !== 'luca_menu_dll' || lucaMenuDllAvailable)
+      .map(operationById)
+      .filter(Boolean);
+  }
+
+  function categoryLabel(category, language = uiLanguage) {
+    return language === 'fr' ? category.labelFr : category.label;
+  }
+
+  function categoryDescription(category, language = uiLanguage) {
+    return language === 'fr' ? category.descriptionFr : category.description;
+  }
+
+  function operationLabel(operation, language = uiLanguage) {
+    return language === 'fr' && operation.labelFr ? operation.labelFr : operation.label;
+  }
+
+  function selectCategory(category) {
+    const firstOperation = categoryOperations(category)[0];
+    if (firstOperation) selectOp(firstOperation);
+  }
 
   // ===== Console =====
   // Batched console updates for performance (flush every 80ms instead of per-line)
@@ -352,7 +412,7 @@
     lucaMenuDllAvailable = await SupportsLucaMenuDLL();
     lsPath = await GetLuckSystemPath();
     if (lsPath) {
-      addLine('LuckSystem 2.3.2 - Yoremi fork v3.30');
+      addLine('LuckSystem 2.3.2 - Yoremi fork v3.31');
       addLine('Executable: ' + lsPath);
       // Scan data/ folder for game presets
       gamePresets = (await ScanGameData()) || [];
@@ -476,6 +536,7 @@
   // ===== Actions =====
   async function run(fn) {
     if (running) return;
+    consoleExpanded = true;
     running = true;
     try { await fn(); } catch (e) { addLine('[ERROR] ' + e); }
     running = false;
@@ -850,43 +911,82 @@
 </script>
 
 <div id="app">
-  <div class="titlebar">
-    <span>LuckSystem 2.3.2 - Yoremi fork v3.30</span>
-    <div class="titlebar-tools">
+  <header class="app-header">
+    <div class="brand-block">
+      <div class="brand-mark"><Icon name="sparkles" size={22} /></div>
+      <div class="brand-copy">
+        <h1>LuckSystem</h1>
+        <p>{t('Boîte à outils de traduction pour Visual Art’s / Key', 'Translation toolkit for Visual Art’s / Key', uiLanguage)}</p>
+      </div>
+    </div>
+    <div class="header-tools">
+      <button
+        type="button"
+        class:missing={!lsPath}
+        class="engine-status"
+        on:click={locateLuckSystem}
+        title={t('Cliquer pour modifier le chemin', 'Click to change the path', uiLanguage)}
+      >
+        <Icon name={lsPath ? 'check' : 'warning'} size={17} />
+        <span class="engine-status-copy">
+          <strong>{lsPath ? t('Moteur détecté', 'Engine detected', uiLanguage) : t('Moteur introuvable', 'Engine not found', uiLanguage)}</strong>
+          <small>{lsPath || t('Cliquer pour localiser lucksystem.exe', 'Click to locate lucksystem.exe', uiLanguage)}</small>
+        </span>
+      </button>
       <label class="ui-language">
-        <span>{t('Interface', 'Interface', uiLanguage)}</span>
+        <span class="sr-only">{t('Langue de l’interface', 'Interface language', uiLanguage)}</span>
         <select value={uiLanguage} on:change={(e) => setUiLanguage(e.target.value)}>
           <option value="fr">Français</option>
           <option value="en">English</option>
         </select>
       </label>
-      <span class="titlebar-path" on:click={locateLuckSystem} title={t('Cliquer pour modifier', 'Click to change', uiLanguage)}>
-        {#if lsPath}📁 {lsPath}{:else}⚠ {t('lucksystem.exe introuvable — cliquer pour le localiser', 'lucksystem.exe not found — click to locate', uiLanguage)}{/if}
-      </span>
+      <button type="button" class="btn btn-ghost header-about" on:click={() => selectOp(operationById('about'))}>
+        <Icon name="info" size={17} /><span>{t('À propos', 'About', uiLanguage)}</span>
+      </button>
     </div>
-  </div>
+  </header>
+
+  <nav class="category-nav" aria-label={t('Catégories LuckSystem', 'LuckSystem categories', uiLanguage)}>
+    {#each categories as category}
+      <button
+        type="button"
+        class="category-tab"
+        class:active={activeCategory.id === category.id}
+        aria-pressed={activeCategory.id === category.id}
+        on:click={() => selectCategory(category)}
+      >
+        <Icon name={category.icon} size={18} />
+        <span>{categoryLabel(category, uiLanguage)}</span>
+      </button>
+    {/each}
+  </nav>
 
   <div class="content">
-    <!-- LEFT SIDEBAR -->
-    <div class="sidebar">
-      <div class="sidebar-title">{t('Choisir une option :', 'Select option:', uiLanguage)}</div>
-      <div class="sidebar-list">
-        {#each operations as op}
-          {#if lucaMenuDllAvailable || (op.id !== '_s3c' && op.id !== 'luca_menu_dll')}
-            {#if op.section}
-              <div class="sidebar-section">{uiLanguage === 'fr' && op.labelFr ? op.labelFr : op.label}</div>
-            {:else}
-              <div class="sidebar-item" class:active={selectedOp === op.id} class:disabled={op.disabled} on:click={() => selectOp(op)}>
-                {uiLanguage === 'fr' && op.labelFr ? op.labelFr : op.label}
-              </div>
-            {/if}
-          {/if}
+    <main class="form-panel">
+      <div class="category-heading">
+        <div>
+          <h2>{categoryLabel(activeCategory, uiLanguage)}</h2>
+          <p>{categoryDescription(activeCategory, uiLanguage)}</p>
+        </div>
+        <span class="version-badge">Yoremi fork · v3.31</span>
+      </div>
+
+      <div class="operation-tabs" role="tablist" aria-label={t('Opérations disponibles', 'Available operations', uiLanguage)}>
+        {#each categoryOperations(activeCategory) as op}
+          <button
+            type="button"
+            class="operation-tab"
+            class:active={selectedOp === op.id}
+            role="tab"
+            aria-selected={selectedOp === op.id}
+            on:click={() => selectOp(op)}
+          >
+            {operationLabel(op, uiLanguage)}
+          </button>
         {/each}
       </div>
-    </div>
 
-    <!-- RIGHT FORM PANEL -->
-    <div class="form-panel">
+      <section class="workflow-panel">
 
       <!-- SCRIPT DECOMPILE -->
       {#if selectedOp === 'decompile'}
@@ -1482,7 +1582,7 @@
         <div class="form-title">{t('À propos', 'About', uiLanguage)}</div>
         <div class="about-panel">
           <div class="about-logo">LuckSystem</div>
-          <div class="about-subtitle">Fork · Yoremi-v3.30</div>
+          <div class="about-subtitle">Fork · Yoremi-v3.31</div>
           <div class="about-desc">
             {t("Interface graphique pour LuckSystem, l'outil de traduction de visual novels Visual Art's / Key.", "Graphical interface for LuckSystem, the Visual Art's / Key visual novel translation tool.", uiLanguage)}<br>
             {t('Inclut des correctifs CZ (CZ1, CZ4), script et PAK, ainsi que la gestion des processus.', 'Includes CZ (CZ1, CZ4), script, and PAK fixes, plus process management.', uiLanguage)}
@@ -1497,36 +1597,54 @@
               <span class="about-link-url">https://github.com/yoremi-trad-fr/LuckSystem-2.3.2-Yoremi-Update</span>
             </div>
           </div>
-          <div class="about-version">v3.30 GUI · Wails + Svelte</div>
+          <div class="about-version">v3.31 GUI · Wails + Svelte</div>
         </div>
       {/if}
-    </div>
+      </section>
+    </main>
   </div>
 
   <!-- CONSOLE -->
-  <div class="console-wrapper">
+  <section class="console-wrapper" class:expanded={consoleExpanded}>
     <div class="console-header">
-      <span>{t('Sortie de la console', 'Console Output', uiLanguage)}</span>
-      <div style="display:flex;gap:6px;align-items:center">
+      <div class="console-summary">
+        <div class="console-icon"><Icon name="terminal" size={17} /></div>
+        <div>
+          <strong>{t('Activité', 'Activity', uiLanguage)}</strong>
+          <small>{running ? t('Traitement en cours…', 'Processing…', uiLanguage) : t('Prêt — lucksystem.exe v2.3.2', 'Ready — lucksystem.exe v2.3.2', uiLanguage)}</small>
+        </div>
+      </div>
+      <div class="console-actions">
         {#if running}
-          <button class="console-stop" on:click={stopProcess}>■ {t('Arrêter', 'Stop', uiLanguage)}</button>
+          <button class="btn console-stop" on:click={stopProcess}><Icon name="stop" size={15} /> {t('Arrêter', 'Stop', uiLanguage)}</button>
         {/if}
-        <button class="console-clear" on:click={clearConsole}>{t('Effacer', 'Clear', uiLanguage)}</button>
+        <button class="btn btn-ghost console-clear" on:click={clearConsole}><Icon name="trash" size={15} /> {t('Effacer', 'Clear', uiLanguage)}</button>
+        <button
+          type="button"
+          class="btn btn-ghost console-toggle"
+          aria-expanded={consoleExpanded}
+          on:click={() => consoleExpanded = !consoleExpanded}
+        >
+          <Icon name={consoleExpanded ? 'chevron-down' : 'chevron-up'} size={16} />
+          {consoleExpanded ? t('Réduire', 'Collapse', uiLanguage) : t('Afficher le journal', 'Show log', uiLanguage)}
+        </button>
       </div>
     </div>
-    <div
-      class="console"
-      bind:this={consoleEl}
-      role="textbox"
-      aria-label={t('Sortie de la console', 'Console Output', uiLanguage)}
-      aria-readonly="true"
-      tabindex="0"
-      on:contextmenu={openConsoleMenu}
-      on:keydown={handleConsoleKeydown}
-    >
-      {#each consoleLines as line}<div class={line.cls}>{line.text}</div>{/each}
-    </div>
-  </div>
+    {#if consoleExpanded}
+      <div
+        class="console"
+        bind:this={consoleEl}
+        role="textbox"
+        aria-label={t('Sortie de la console', 'Console Output', uiLanguage)}
+        aria-readonly="true"
+        tabindex="0"
+        on:contextmenu={openConsoleMenu}
+        on:keydown={handleConsoleKeydown}
+      >
+        {#each consoleLines as line}<div class={line.cls}>{line.text}</div>{/each}
+      </div>
+    {/if}
+  </section>
 
   {#if consoleMenuVisible}
     <div

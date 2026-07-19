@@ -1,4 +1,4 @@
-# LuckSystem 2.3.2 — Yoremi Fork (v3.30)
+# LuckSystem 2.3.2 — Yoremi Fork (v3.31)
 
 Fork de [LuckSystem](https://github.com/wetor/LuckSystem) avec corrections de bugs, support de nouveaux formats, et interface graphique pour la traduction de visual novels Visual Art's/Key.
 
@@ -12,11 +12,39 @@ ProtoDB / LUCA System — AIR, CLANNAD, Kanon, Little Busters, Summer Pockets, H
 
 ---
 
+## Release layout / Organisation des releases
+
+The graphical and command-line versions now share the same platform folder.
+Keep the complete folder together so the GUI can find the CLI and game data.
+
+La version graphique et la version en ligne de commande partagent désormais
+le même dossier de plateforme. Conservez tout le dossier afin que l'interface
+retrouve la CLI et les données de jeux.
+
+```text
+Windows/                       Linux/
+├── LuckSystemGUI.exe          ├── LuckSystemGUI
+├── lucksystem.exe             ├── lucksystem
+├── data/                      ├── data/
+├── proxy dll/                 ├── README.md
+├── README.md                  ├── Fork-CHANGELOG.md
+├── Fork-CHANGELOG.md          └── Fork-TECHNICAL.md
+└── Fork-TECHNICAL.md
+```
+
+On Windows, keep `proxy dll` for the Luca menu hook and double-click
+`LuckSystemGUI.exe`. On Linux, run `chmod +x LuckSystemGUI lucksystem` once,
+then start the interface with `./LuckSystemGUI`. The interface language can be
+changed between **Français** and **English** in the application header.
+
+---
+
 ## GUI
 
 A graphical interface is available in this fork, built with Wails (Go + Svelte). Most workflows call `lucksystem.exe` via subprocess; the AIR / Planetarian SG Vietnamese font patcher and the Windows Luca menu DLL generator are embedded directly in the GUI.
 
 ### GUI Features
+- **Modern category-based interface:** redesigned header, Scripts / Archives PAK / Fonts / Images / Dialogues / Tools navigation, responsive workflow panels, and a compact collapsible activity log
 - **Game presets** / Auto-detect available games from data/ folder (OPCODE + plugin auto-fill)
 - Dialogue Extract / Extract translatable dialogue from decompiled scripts to TSV (single file or batch)
 - Dialogue Import / Reimport translated dialogue from TSV back into scripts (single file or batch)
@@ -32,7 +60,7 @@ A graphical interface is available in this fork, built with Wails (Go + Svelte).
 - **LBEE custom PATCHES import:** the Luca DLL page can load a Python `.py` file that defines `PATCHES`, copy it as `custom_patches.py`, and generate the x86 `winmm.dll` directly from that table
 - **Bilingual GUI:** the title bar provides a persistent **Français / English** interface selector, including the Luca/LBEE workflow, help text, dialogs, and console controls
 - Image Export / Import (single file + batch folder mode)
-- Real-time console output
+- Real-time console output with automatic expansion while a task is running
 - **Stop button** to cancel any running operation
 - No CMD popup window during batch operations
 - Auto-detection of `lucksystem.exe`
@@ -47,7 +75,7 @@ Une version Linux est disponible en binaires séparés (GUI + CLI). Voir les rel
 
 A Linux version is available as separate binaries (GUI + CLI). See the releases for download.
 
-The Luca menu DLL hook is not included in the Linux GUI. Version 3.30
+The Luca menu DLL hook is not included in the Linux GUI. Version 3.31
 keeps this workflow Windows-only because it relies on Windows DLL proxy loading
 and Win32 memory APIs. Wine support is deferred until there is a user request.
 
@@ -55,7 +83,19 @@ and Win32 memory APIs. Wine support is deferred until there is a user request.
 
 ## Patches
 
-### Version 3.30 — *(latest)*
+### Version 3.31 — *(latest)*
+
+45. **Modern LuckSystem GUI redesign** — `SourcesGUI-wails/frontend/src/App.svelte`, `SourcesGUI-wails/frontend/src/style.css`, `SourcesGUI-wails/frontend/src/Icon.svelte`
+    - Replaces the long legacy sidebar with six clear categories and contextual operation tabs.
+    - Adds a modern application header, responsive two-column workflow panels, updated controls, clearer status states, and a compact collapsible activity log.
+    - Keeps every existing Go/Wails operation, validation rule, stop action, console shortcut, and persistent Français / English selector unchanged.
+
+46. **Modern Windows application icon and v3.31 release identity** — `SourcesGUI-wails/build/appicon.png`, `SourcesGUI-wails/build/windows/icon.ico`
+    - Replaces the former `LS` icon with a blue four-spark mark matching the redesigned GUI.
+    - Provides transparent PNG artwork and a multi-resolution Windows ICO covering 16 to 256 pixels.
+    - Updates CLI, GUI, package, documentation, and generated patch labels to `v3.31`; `lucksystem --version` reports `2.3.2-yoremi.3.31`.
+
+### Version 3.30
 
 43. **LBEE custom PATCHES import** — `SourcesGUI-wails/luca_menu_dll.go`, `SourcesGUI-wails/frontend/src/App.svelte`
     - Adds an optional `.py` file picker for external tables that define `PATCHES`.
